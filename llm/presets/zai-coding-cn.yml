@@ -1,0 +1,109 @@
+provider_id: zai-coding-cn
+
+models:
+  - model_id: glm-4.6v
+    name: GLM-4.6V
+    api: openai-completions
+    base_url: "https://open.bigmodel.cn/api/coding/paas/v4"
+    context_window: 128000
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 0.9
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: false
+      supports_store: false
+      max_tokens_field: max_tokens
+      thinking_format: zai
+      supports_strict_mode: true
+  - model_id: glm-5.3
+    name: GLM-5.3
+    api: openai-completions
+    base_url: "https://open.bigmodel.cn/api/coding/paas/v4"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 1.4
+    output_cost_per_1m: 4.4
+    cache_read_cost_per_1m: 0.26
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: true
+      supports_store: false
+      max_tokens_field: max_tokens
+      thinking_format: zai
+      supports_strict_mode: true
+  - model_id: glm-5.3-flash
+    name: GLM-5.3-Flash
+    api: openai-completions
+    base_url: "https://open.bigmodel.cn/api/coding/paas/v4"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.03
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: true
+      supports_store: false
+      max_tokens_field: max_tokens
+      thinking_format: zai
+      supports_strict_mode: true
+  - model_id: glm-5.3-highspeed
+    name: GLM-5.3 Highspeed
+    api: openai-completions
+    base_url: "https://open.bigmodel.cn/api/coding/paas/v4"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: true
+      supports_store: false
+      max_tokens_field: max_tokens
+      thinking_format: zai
+      supports_strict_mode: true

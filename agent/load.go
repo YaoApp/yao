@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
@@ -22,6 +23,7 @@ import (
 	"github.com/yaoapp/yao/agent/store/xun"
 	"github.com/yaoapp/yao/agent/types"
 	"github.com/yaoapp/yao/config"
+	yaollm "github.com/yaoapp/yao/llm"
 	"github.com/yaoapp/yao/llmprovider"
 )
 
@@ -426,7 +428,8 @@ func GetSearchConfig() *searchTypes.Config {
 	return agentDSL.Search
 }
 
-// SyncLLMDefaults writes the agent.yml system role defaults into setting.Global.
+// SyncLLMDefaults writes the agent.yml system role defaults into setting.Global
+// (legacy path) and the new yao/llm role_binding table (DB path).
 // Must be called after both llmprovider.Init() and setting.Init() have completed.
 func SyncLLMDefaults() error {
 	if agentDSL == nil || agentDSL.System == nil {
@@ -439,7 +442,48 @@ func SyncLLMDefaults() error {
 	if len(roles) == 0 {
 		return nil
 	}
-	return llmprovider.Global.SetDefaults(roles)
+
+	// Legacy path: write to setting.Global (1.x routes still read this).
+	if err := llmprovider.Global.SetDefaults(roles); err != nil {
+		return err
+	}
+
+	// New DB path: sync each role into role_binding table.
+	if yaollm.Global != nil {
+		syncRolesToDB(roles)
+	}
+	return nil
+}
+
+// syncRolesToDB writes role→connector mappings from agent.yml into the
+// yao/llm role_binding table. Failures are non-fatal (best-effort).
+func syncRolesToDB(roles map[string]string) {
+	for role, cid := range roles {
+		// Parse "provider.model" or use the connector ID to find provider+model.
+		parts := strings.SplitN(cid, ".", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		providerKey := yaollm.ProviderID(parts[0])
+		modelID := parts[1]
+
+		p, ok := yaollm.Global.FindProviderByKey(providerKey)
+		if !ok {
+			continue
+		}
+		m, err := yaollm.FindModelByModelID(p.ID, modelID)
+		if err != nil || m == nil {
+			continue
+		}
+
+		rb := &yaollm.RoleBinding{
+			Role:        role,
+			ProviderRef: p.ID,
+			ModelID:     m.ModelID,
+			Scope:       yaollm.ScopeSystem,
+		}
+		_, _ = yaollm.SetRoleBinding(rb)
+	}
 }
 
 // defaultAssistant get the default assistant

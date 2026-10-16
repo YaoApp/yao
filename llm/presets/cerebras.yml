@@ -1,0 +1,53 @@
+provider_id: cerebras
+
+models:
+  - model_id: gpt-oss-120b
+    name: GPT OSS 120B
+    api: openai-completions
+    base_url: "https://api.cerebras.ai/v1"
+    context_window: 131072
+    max_output_tokens: 40960
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.35
+    output_cost_per_1m: 0.75
+    compat:
+      supports_developer_role: false
+      supports_store: false
+  - model_id: qwen-3.8-27b
+    name: Qwen3.8 27B
+    api: openai-completions
+    base_url: "https://api.cerebras.ai/v1"
+    context_window: 131072
+    max_output_tokens: 40960
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.99
+    output_cost_per_1m: 1.49
+    cache_read_cost_per_1m: 0.99
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false

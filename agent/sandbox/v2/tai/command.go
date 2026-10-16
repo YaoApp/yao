@@ -7,9 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/yaoapp/kun/log"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
+	yaollm "github.com/yaoapp/yao/llm"
 	"github.com/yaoapp/yao/llmprovider"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
@@ -27,10 +29,11 @@ type command struct {
 // msgParts carries extracted text+image content; when images are present they
 // are serialized as JSON and written to tai's stdin.
 func buildCommand(req *types.StreamRequest, workDir string, msgParts *shared.MessageParts) command {
-	primary := llmprovider.ExtractProfile(req.Connector)
+	primary := extractPrimaryProfile(req)
 	if primary.Model == "" {
 		primary.Model = "deepseek-chat"
 	}
+	log.Trace("[TAI] buildCommand: model=%s api=%s baseURL=%s", primary.Model, primary.API, primary.BaseURL)
 
 	assistantID := req.AssistantID
 	prefix := ".tai"
@@ -284,4 +287,16 @@ func sanitizeSessionID(id string) string {
 		s = "s0"
 	}
 	return s
+}
+
+// extractPrimaryProfile returns a ConnectorProfile for the primary model.
+// Prefers the DB-backed LLMRef when available; falls back to the legacy
+// connector extraction path.
+func extractPrimaryProfile(req *types.StreamRequest) llmprovider.ConnectorProfile {
+	if req.LLM != nil && req.LLM.Provider != nil && req.LLM.Model != nil {
+		log.Trace("[TAI] Using DB-backed LLMRef: provider=%s model=%s", req.LLM.Provider.ProviderID, req.LLM.Model.ModelID)
+		return yaollm.ToConnectorProfile(req.LLM.Provider, req.LLM.Model)
+	}
+	log.Warn("[TAI] Primary route using legacy connector fallback; migrate to yao/llm provider for direct DB path")
+	return llmprovider.ExtractProfile(req.Connector)
 }

@@ -1,0 +1,474 @@
+provider_id: mistral
+
+models:
+  - model_id: codestral-latest
+    name: Codestral (latest)
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 256000
+    max_output_tokens: 4096
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 0.9
+    cache_read_cost_per_1m: 0.03
+  - model_id: devstral-2512
+    name: Devstral 2
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 262144
+    max_output_tokens: 262144
+    capabilities: [text]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.04
+  - model_id: devstral-latest
+    name: Devstral 2
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 262144
+    max_output_tokens: 262144
+    capabilities: [text]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.04
+  - model_id: devstral-medium-2507
+    name: Devstral Medium
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 128000
+    max_output_tokens: 128000
+    capabilities: [text]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.04
+  - model_id: devstral-medium-latest
+    name: Devstral 2 (latest)
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 262144
+    max_output_tokens: 262144
+    capabilities: [text]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.04
+  - model_id: devstral-small-2505
+    name: Devstral Small 2505
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 128000
+    max_output_tokens: 128000
+    capabilities: [text]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.3
+    cache_read_cost_per_1m: 0.01
+  - model_id: devstral-small-2507
+    name: Devstral Small
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 128000
+    max_output_tokens: 128000
+    capabilities: [text]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.3
+    cache_read_cost_per_1m: 0.01
+  - model_id: labs-devstral-small-2512
+    name: Devstral Small 2
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 256000
+    max_output_tokens: 256000
+    capabilities: [text, image]
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: magistral-medium-latest
+    name: Magistral Medium (latest)
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 128000
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 5
+    cache_read_cost_per_1m: 0.2
+  - model_id: ministral-3b-latest
+    name: Ministral 3B (latest)
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 128000
+    max_output_tokens: 128000
+    capabilities: [text]
+    input_cost_per_1m: 0.04
+    output_cost_per_1m: 0.04
+    cache_read_cost_per_1m: 0.004
+  - model_id: ministral-8b-latest
+    name: Ministral 8B (latest)
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 128000
+    max_output_tokens: 128000
+    capabilities: [text]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.1
+    cache_read_cost_per_1m: 0.01
+  - model_id: mistral-large-2411
+    name: Mistral Large 2.1
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 131072
+    max_output_tokens: 16384
+    capabilities: [text]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.2
+  - model_id: mistral-large-2512
+    name: Mistral Large 3
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 262144
+    max_output_tokens: 262144
+    capabilities: [text, image]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 1.5
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: mistral-large-latest
+    name: Mistral Large (latest)
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 262144
+    max_output_tokens: 262144
+    capabilities: [text, image]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 1.5
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: mistral-medium-2505
+    name: Mistral Medium 3
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 131072
+    max_output_tokens: 131072
+    capabilities: [text, image]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.04
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: mistral-medium-2508
+    name: Mistral Medium 3.1
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 262144
+    max_output_tokens: 262144
+    capabilities: [text, image]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.04
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: mistral-medium-2604
+    name: Mistral Medium 3.5
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 262144
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 1.5
+    output_cost_per_1m: 7.5
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: mistral-medium-3.5
+    name: Mistral Medium 3.5
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 262144
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 1.5
+    output_cost_per_1m: 7.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: mistral-medium-latest
+    name: Mistral Medium (latest)
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 262144
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 1.5
+    output_cost_per_1m: 7.5
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: mistral-nemo
+    name: Mistral Nemo
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 128000
+    max_output_tokens: 128000
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.15
+    cache_read_cost_per_1m: 0.015
+  - model_id: mistral-small-2506
+    name: Mistral Small 3.2
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 128000
+    max_output_tokens: 16384
+    capabilities: [text, image]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.3
+    cache_read_cost_per_1m: 0.01
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: mistral-small-2603
+    name: Mistral Small 4
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 256000
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    cache_read_cost_per_1m: 0.015
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: mistral-small-latest
+    name: Mistral Small (latest)
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 256000
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    cache_read_cost_per_1m: 0.015
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: open-mistral-7b
+    name: Mistral 7B
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 8000
+    max_output_tokens: 8000
+    capabilities: [text]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 0.25
+    cache_read_cost_per_1m: 0.025
+  - model_id: open-mistral-nemo
+    name: Open Mistral Nemo
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 128000
+    max_output_tokens: 128000
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.15
+    cache_read_cost_per_1m: 0.015
+  - model_id: open-mixtral-8x22b
+    name: Mixtral 8x22B
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 64000
+    max_output_tokens: 64000
+    capabilities: [text]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.2
+  - model_id: open-mixtral-8x7b
+    name: Mixtral 8x7B
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 32000
+    max_output_tokens: 32000
+    capabilities: [text]
+    input_cost_per_1m: 0.7
+    output_cost_per_1m: 0.7
+    cache_read_cost_per_1m: 0.07
+  - model_id: pixtral-12b
+    name: Pixtral 12B
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 128000
+    max_output_tokens: 128000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.15
+    cache_read_cost_per_1m: 0.015
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: pixtral-large-latest
+    name: Pixtral Large (latest)
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 128000
+    max_output_tokens: 128000
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: voxtral-small-latest
+    name: Voxtral Small (latest)
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 32000
+    max_output_tokens: 32000
+    capabilities: [text]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.3
+    cache_read_cost_per_1m: 0.01
+  - model_id: zai-glm-5-2
+    name: GLM-5.2
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 1.4
+    output_cost_per_1m: 4.4
+    cache_read_cost_per_1m: 0.14
+  - model_id: zai-glm-5-3
+    name: GLM-5.3
+    api: mistral-conversations
+    base_url: "https://api.mistral.ai"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 1.4
+    output_cost_per_1m: 4.4
+    cache_read_cost_per_1m: 0.14

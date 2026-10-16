@@ -1,0 +1,1106 @@
+provider_id: github-copilot
+
+models:
+  - model_id: claude-fable-5
+    name: Claude Fable 5
+    api: anthropic-messages
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 1
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+    compat:
+  - model_id: claude-fable-5.1
+    name: Claude Fable 5.1
+    api: anthropic-messages
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 0.25
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+    compat:
+  - model_id: claude-haiku-4.5
+    name: Claude Haiku 4.5 (latest)
+    api: anthropic-messages
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 5
+    cache_read_cost_per_1m: 0.1
+    cache_write_cost_per_1m: 1.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_eager_tool_input_streaming: false
+  - model_id: claude-opus-4.7
+    name: Claude Opus 4.7
+    api: anthropic-messages
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      minimal: low
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+  - model_id: claude-opus-4.8
+    name: Claude Opus 4.8
+    api: anthropic-messages
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      minimal: low
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+    compat:
+  - model_id: claude-opus-5
+    name: Claude Opus 5
+    api: anthropic-messages
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      minimal: low
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+    compat:
+  - model_id: claude-opus-5.5
+    name: Claude Opus 5.5
+    api: anthropic-messages
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+    compat:
+  - model_id: claude-sonnet-4.6
+    name: Claude Sonnet 4.6
+    api: anthropic-messages
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      minimal: low
+      max: max
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+    compat:
+  - model_id: claude-sonnet-5
+    name: Claude Sonnet 5
+    api: anthropic-messages
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+    compat:
+  - model_id: claude-sonnet-5.5
+    name: Claude Sonnet 5.5
+    api: anthropic-messages
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+    compat:
+  - model_id: gemini-3.5-flash
+    name: Gemini 3.5 Flash
+    api: openai-completions
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.5
+    output_cost_per_1m: 9
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: false
+      supports_store: false
+      supports_strict_mode: true
+  - model_id: gemini-3.6-flash
+    name: Gemini 3.6 Flash
+    api: openai-completions
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 3.75
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: false
+      supports_store: false
+      supports_strict_mode: true
+  - model_id: gemini-3.7-flash
+    name: Gemini 3.7 Flash
+    api: openai-completions
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 3.75
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: false
+      supports_store: false
+      supports_strict_mode: true
+  - model_id: gemini-3.8-flash
+    name: Gemini 3.8 Flash
+    api: openai-completions
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 3.75
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: false
+      supports_store: false
+      supports_strict_mode: true
+  - model_id: kimi-k2.7-code
+    name: Kimi K2.7 Code
+    api: openai-completions
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 256000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.95
+    output_cost_per_1m: 4
+    cache_read_cost_per_1m: 0.19
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: false
+      supports_store: false
+      supports_strict_mode: true
+  - model_id: kimi-k3
+    name: Kimi K3
+    api: openai-completions
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: false
+      supports_store: false
+      supports_strict_mode: true
+  - model_id: gpt-5-mini
+    name: GPT-5 Mini
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 264000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.025
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.3-codex
+    name: GPT-5.3 Codex
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: null
+    input_cost_per_1m: 1.75
+    output_cost_per_1m: 14
+    cache_read_cost_per_1m: 0.175
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.4
+    name: GPT-5.4
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: null
+    input_cost_per_1m: 2.5
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.25
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 5
+        output: 22.5
+        cache_read: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.4-mini
+    name: GPT-5.4 mini
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: null
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 4.5
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.4-nano
+    name: GPT-5.4 nano
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: low
+      xhigh: xhigh
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 1.25
+    cache_read_cost_per_1m: 0.02
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.5
+    name: GPT-5.5
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: null
+    input_cost_per_1m: 5
+    output_cost_per_1m: 30
+    cache_read_cost_per_1m: 0.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 10
+        output: 45
+        cache_read: 1
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.6-luna
+    name: GPT-5.6 Luna
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.02
+    cache_write_cost_per_1m: 0.25
+    cost_tiers:
+      - input_tokens_above: 200000
+        input: 0.4
+        output: 1.8
+        cache_read: 0.04
+        cache_write: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.6-sol
+    name: GPT-5.6 Sol
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.4
+    cache_write_cost_per_1m: 5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 8
+        output: 30
+        cache_read: 0.8
+        cache_write: 10
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.6-terra
+    name: GPT-5.6 Terra
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 12
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4
+        output: 18
+        cache_read: 0.4
+        cache_write: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-6-astra
+    name: GPT-6 Astra
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 1
+    cache_write_cost_per_1m: 12.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 20
+        output: 75
+        cache_read: 2
+        cache_write: 25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-6-luna
+    name: GPT-6 Luna
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.01
+    cache_write_cost_per_1m: 0.125
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 0.2
+        output: 0.75
+        cache_read: 0.02
+        cache_write: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-6-sol
+    name: GPT-6 Sol
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4
+        output: 15
+        cache_read: 0.4
+        cache_write: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+      Copilot-Integration-Id: vscode-chat
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-6.1-sol
+    name: GPT-6.1 Sol
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.1
+    cache_write_cost_per_1m: 2.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4
+        output: 15
+        cache_read: 0.2
+        cache_write: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: grok-4.5
+    name: Grok 4.5
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 500000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.5
+    cost_tiers:
+      - input_tokens_above: 200000
+        input: 4
+        output: 12
+        cache_read: 1
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+  - model_id: grok-4.6
+    name: Grok 4.6
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 500000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: null
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.5
+    cost_tiers:
+      - input_tokens_above: 200000
+        input: 4
+        output: 12
+        cache_read: 1
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+  - model_id: grok-4.7
+    name: Grok 4.7
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 500000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: null
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.5
+    cost_tiers:
+      - input_tokens_above: 200000
+        input: 4
+        output: 12
+        cache_read: 1
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+  - model_id: mai-code-1-flash-picker
+    name: MAI-Code-1-Flash
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 256000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 4.5
+    cache_read_cost_per_1m: 0.075
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0
+  - model_id: mai-code-1.1-flash
+    name: MAI-Code-1.1-Flash
+    api: openai-responses
+    base_url: "https://api.individual.githubcopilot.com"
+    context_window: 256000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.02
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    headers:
+      Copilot-Integration-Id: vscode-chat
+      Editor-Plugin-Version: copilot-chat/0.35.0
+      Editor-Version: vscode/1.107.0
+      User-Agent: GitHubCopilotChat/0.35.0

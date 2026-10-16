@@ -1,0 +1,58 @@
+provider_id: deepseek
+
+models:
+  - model_id: deepseek-flash
+    name: DeepSeek V4.1 Flash
+    api: openai-completions
+    base_url: "https://api.deepseek.com"
+    context_window: 1000000
+    max_output_tokens: 384000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      max: max
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.006
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      max_tokens_field: max_tokens
+      requires_reasoning_content_on_assistant_messages: true
+      thinking_format: deepseek
+      supports_strict_mode: true
+  - model_id: deepseek-v4-pro
+    name: DeepSeek V4 Pro
+    api: openai-completions
+    base_url: "https://api.deepseek.com"
+    context_window: 1000000
+    max_output_tokens: 384000
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      max: max
+    input_cost_per_1m: 1.32
+    output_cost_per_1m: 3.96
+    cache_read_cost_per_1m: 0.044
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      max_tokens_field: max_tokens
+      requires_reasoning_content_on_assistant_messages: true
+      thinking_format: deepseek
+      supports_strict_mode: true

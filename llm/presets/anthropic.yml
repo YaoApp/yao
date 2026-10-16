@@ -1,0 +1,460 @@
+provider_id: anthropic
+
+models:
+  - model_id: claude-fable-5
+    name: Claude Fable 5
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 1
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-fable-5-1
+    name: Claude Fable 5.1
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 0.25
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-haiku-4-5
+    name: Claude Haiku 4.5 (latest)
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 5
+    cache_read_cost_per_1m: 0.1
+    cache_write_cost_per_1m: 1.25
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 100
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-haiku-4-5-20251001
+    name: Claude Haiku 4.5
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 5
+    cache_read_cost_per_1m: 0.1
+    cache_write_cost_per_1m: 1.25
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 100
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-opus-4-5
+    name: Claude Opus 4.5 (latest)
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 100
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-opus-4-5-20251101
+    name: Claude Opus 4.5
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 100
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-opus-4-6
+    name: Claude Opus 4.6
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-opus-4-7
+    name: Claude Opus 4.7
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-opus-4-8
+    name: Claude Opus 4.8
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-opus-5
+    name: Claude Opus 5
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-opus-5-5
+    name: Claude Opus 5.5
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 5
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-sonnet-4-5
+    name: Claude Sonnet 4.5 (latest)
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-sonnet-4-5-20250929
+    name: Claude Sonnet 4.5
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-sonnet-4-6
+    name: Claude Sonnet 4.6
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-sonnet-5
+    name: Claude Sonnet 5
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true
+  - model_id: claude-sonnet-5-5
+    name: Claude Sonnet 5.5
+    api: anthropic-messages
+    base_url: "https://api.anthropic.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      max_request_bytes: 33554432
+      images:
+        max_per_request: 600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    prompt_cache:
+      long: 3600
+      short: 300
+    compat:
+      supports_strict_tools: true

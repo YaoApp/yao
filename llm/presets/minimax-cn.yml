@@ -1,0 +1,45 @@
+provider_id: minimax-cn
+
+models:
+  - model_id: MiniMax-M2.7
+    name: MiniMax-M2.7
+    api: anthropic-messages
+    base_url: "https://api.minimaxi.com/anthropic"
+    context_window: 204800
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.06
+    cache_write_cost_per_1m: 0.375
+  - model_id: MiniMax-M2.7-highspeed
+    name: MiniMax-M2.7-highspeed
+    api: anthropic-messages
+    base_url: "https://api.minimaxi.com/anthropic"
+    context_window: 204800
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 2.4
+    cache_read_cost_per_1m: 0.06
+    cache_write_cost_per_1m: 0.375
+  - model_id: MiniMax-M3
+    name: MiniMax-M3
+    api: anthropic-messages
+    base_url: "https://api.minimaxi.com/anthropic"
+    context_window: 1000000
+    max_output_tokens: 512000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.06
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80

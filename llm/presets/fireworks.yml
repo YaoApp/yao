@@ -1,0 +1,595 @@
+provider_id: fireworks
+
+models:
+  - model_id: accounts/fireworks/models/deepseek-v4p1-flash
+    name: DeepSeek V4.1 Flash
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 1000000
+    max_output_tokens: 384000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.006
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/models/ember-1
+    name: Ember-1
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/models/gpt-oss-120b
+    name: GPT OSS 120B
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 131072
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    cache_read_cost_per_1m: 0.015
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/models/inkling
+    name: Inkling
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 4.05
+    cache_read_cost_per_1m: 0.17
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/models/minimax-m3
+    name: MiniMax-M3
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 512000
+    max_output_tokens: 512000
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.06
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/models/nemotron-3-ultra-nvfp4
+    name: Nemotron 3 Ultra 550B A55B
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 262144
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 2.4
+    cache_read_cost_per_1m: 0.12
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/models/nemotron-lightning-3p5-30b-a3b
+    name: Nemotron 3.5 Lightning 30B A3B
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 262144
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.05
+    output_cost_per_1m: 0.2
+    cache_read_cost_per_1m: 0.01
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/models/qwen3p8-2p4t-a95b
+    name: Qwen3.8 2.4T A95B
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 262144
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: medium
+      high: null
+      xhigh: xhigh
+      max: null
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.25
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/models/qwen3p8-max
+    name: Qwen3.8 Max
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 262144
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: medium
+      high: null
+      xhigh: xhigh
+      max: null
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/routers/deepseek-flash-latest
+    name: DeepSeek Flash Latest
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 1000000
+    max_output_tokens: 384000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.006
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/routers/kimi-fast-latest
+    name: Kimi Fast Latest
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 4.5
+    output_cost_per_1m: 22.5
+    cache_read_cost_per_1m: 0.45
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/routers/kimi-latest
+    name: Kimi Latest
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/routers/minimax-latest
+    name: MiniMax Latest
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 512000
+    max_output_tokens: 512000
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.06
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/routers/qwen-max-latest
+    name: Qwen Max Latest (Qwen3.8 Max)
+    api: anthropic-messages
+    base_url: "https://api.fireworks.ai/inference"
+    context_window: 262144
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      send_session_affinity_headers: true
+      supports_long_cache_retention: false
+      supports_eager_tool_input_streaming: false
+      supports_cache_control_on_tools: false
+  - model_id: accounts/fireworks/models/glm-5p3
+    name: GLM 5.3
+    api: openai-completions
+    base_url: "https://api.fireworks.ai/inference/v1"
+    context_window: 1048573
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 1.4
+    output_cost_per_1m: 4.4
+    cache_read_cost_per_1m: 0.26
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: accounts/fireworks/models/glm-5p3-flash
+    name: GLM 5.3 Flash
+    api: openai-completions
+    base_url: "https://api.fireworks.ai/inference/v1"
+    context_window: 1048573
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.03
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: accounts/fireworks/models/kimi-k3
+    name: Kimi K3
+    api: openai-completions
+    base_url: "https://api.fireworks.ai/inference/v1"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      requires_reasoning_content_on_assistant_messages: true
+      thinking_format: openai
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: accounts/fireworks/routers/glm-5p3-fast
+    name: GLM 5.3 Fast
+    api: openai-completions
+    base_url: "https://api.fireworks.ai/inference/v1"
+    context_window: 1048572
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 2.1
+    output_cost_per_1m: 6.6
+    cache_read_cost_per_1m: 0.39
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: accounts/fireworks/routers/glm-fast-latest
+    name: GLM 5.3 Fast (Latest)
+    api: openai-completions
+    base_url: "https://api.fireworks.ai/inference/v1"
+    context_window: 1048572
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 2.1
+    output_cost_per_1m: 6.6
+    cache_read_cost_per_1m: 0.39
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: accounts/fireworks/routers/glm-flash-latest
+    name: GLM Flash Latest (GLM 5.3 Flash)
+    api: openai-completions
+    base_url: "https://api.fireworks.ai/inference/v1"
+    context_window: 1048573
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.03
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: accounts/fireworks/routers/glm-latest
+    name: GLM Latest
+    api: openai-completions
+    base_url: "https://api.fireworks.ai/inference/v1"
+    context_window: 1048573
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 1.4
+    output_cost_per_1m: 4.4
+    cache_read_cost_per_1m: 0.26
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: accounts/fireworks/routers/kimi-k3-fast
+    name: Kimi K3 Fast
+    api: openai-completions
+    base_url: "https://api.fireworks.ai/inference/v1"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 4.5
+    output_cost_per_1m: 22.5
+    cache_read_cost_per_1m: 0.45
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      requires_reasoning_content_on_assistant_messages: true
+      thinking_format: openai
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false

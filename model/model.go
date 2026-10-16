@@ -46,6 +46,9 @@ var systemModels = map[string]string{
 	"__yao.role":               "yao/models/role.mod.yao",
 	"__yao.user.type":          "yao/models/user/type.mod.yao",
 	"__yao.user.oauth_account": "yao/models/user/oauth_account.mod.yao",
+	"__yao.llm.provider":       "yao/models/llm/provider.mod.yao",
+	"__yao.llm.model":          "yao/models/llm/model.mod.yao",
+	"__yao.llm.role_binding":   "yao/models/llm/role_binding.mod.yao",
 }
 
 // Load load models

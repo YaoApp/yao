@@ -1,0 +1,62 @@
+provider_id: ant-ling
+
+models:
+  - model_id: Ling-2.6-1T
+    name: Ling 2.6 1T
+    api: openai-completions
+    base_url: "https://api.ant-ling.com/v1"
+    context_window: 262144
+    max_output_tokens: 65536
+    capabilities: [text]
+    input_cost_per_1m: 0.06
+    output_cost_per_1m: 0.25
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: false
+      supports_store: false
+      max_tokens_field: max_tokens
+      thinking_format: ant-ling
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: Ling-2.6-flash
+    name: Ling 2.6 Flash
+    api: openai-completions
+    base_url: "https://api.ant-ling.com/v1"
+    context_window: 262144
+    max_output_tokens: 65536
+    capabilities: [text]
+    input_cost_per_1m: 0.01
+    output_cost_per_1m: 0.02
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: false
+      supports_store: false
+      max_tokens_field: max_tokens
+      thinking_format: ant-ling
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: Ring-2.6-1T
+    name: Ring 2.6 1T
+    api: openai-completions
+    base_url: "https://api.ant-ling.com/v1"
+    context_window: 262144
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      xhigh: xhigh
+    input_cost_per_1m: 0.06
+    output_cost_per_1m: 0.25
+    compat:
+      supports_developer_role: false
+      supports_reasoning_effort: false
+      supports_store: false
+      max_tokens_field: max_tokens
+      thinking_format: ant-ling
+      supports_strict_mode: true
+      supports_long_cache_retention: false

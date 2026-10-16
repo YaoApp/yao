@@ -1,0 +1,3724 @@
+provider_id: amazon-bedrock
+
+models:
+  - model_id: "amazon.nova-2-lite-v1:0"
+    name: Nova 2 Lite
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 65535
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.33
+    output_cost_per_1m: 2.75
+    cache_read_cost_per_1m: 0.0825
+    cache_write_cost_per_1m: 0.33
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "amazon.nova-lite-v1:0"
+    name: Nova Lite
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 300000
+    max_output_tokens: 10000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.06
+    output_cost_per_1m: 0.24
+    cache_read_cost_per_1m: 0.015
+    cache_write_cost_per_1m: 0.06
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "amazon.nova-micro-v1:0"
+    name: Nova Micro
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 10000
+    capabilities: [text]
+    input_cost_per_1m: 0.035
+    output_cost_per_1m: 0.14
+    cache_read_cost_per_1m: 0.00875
+    cache_write_cost_per_1m: 0.035
+  - model_id: "amazon.nova-pro-v1:0"
+    name: Nova Pro
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 300000
+    max_output_tokens: 10000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.8
+    output_cost_per_1m: 3.2
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 0.8
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: anthropic.claude-fable-5
+    name: Claude Fable 5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 1
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: anthropic.claude-fable-5-1
+    name: Claude Fable 5.1
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 0.25
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "anthropic.claude-haiku-4-5-20251001-v1:0"
+    name: Claude Haiku 4.5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 5
+    cache_read_cost_per_1m: 0.1
+    cache_write_cost_per_1m: 1.25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: "anthropic.claude-opus-4-1-20250805-v1:0"
+    name: Claude Opus 4.1
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 15
+    output_cost_per_1m: 75
+    cache_read_cost_per_1m: 1.5
+    cache_write_cost_per_1m: 18.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "anthropic.claude-opus-4-5-20251101-v1:0"
+    name: Claude Opus 4.5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: anthropic.claude-opus-4-6-v1
+    name: Claude Opus 4.6
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: anthropic.claude-opus-4-7
+    name: Claude Opus 4.7
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: anthropic.claude-opus-4-8
+    name: Claude Opus 4.8
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: anthropic.claude-opus-5-5
+    name: Claude Opus 5.5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "anthropic.claude-sonnet-4-5-20250929-v1:0"
+    name: Claude Sonnet 4.5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: anthropic.claude-sonnet-4-6
+    name: Claude Sonnet 4.6
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 3.3
+    output_cost_per_1m: 16.5
+    cache_read_cost_per_1m: 0.33
+    cache_write_cost_per_1m: 4.125
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: anthropic.claude-sonnet-5
+    name: Claude Sonnet 5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: anthropic.claude-sonnet-5-5
+    name: Claude Sonnet 5.5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "apac.amazon.nova-lite-v1:0"
+    name: Nova Lite (APAC)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 300000
+    max_output_tokens: 10000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.063
+    output_cost_per_1m: 0.252
+    cache_read_cost_per_1m: 0.01575
+    cache_write_cost_per_1m: 0.063
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "apac.amazon.nova-micro-v1:0"
+    name: Nova Micro (APAC)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 10000
+    capabilities: [text]
+    input_cost_per_1m: 0.037
+    output_cost_per_1m: 0.148
+    cache_read_cost_per_1m: 0.00925
+    cache_write_cost_per_1m: 0.037
+  - model_id: "apac.amazon.nova-pro-v1:0"
+    name: Nova Pro (APAC)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 300000
+    max_output_tokens: 10000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.84
+    output_cost_per_1m: 3.36
+    cache_read_cost_per_1m: 0.21
+    cache_write_cost_per_1m: 0.84
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "apac.anthropic.claude-sonnet-4-20250514-v1:0"
+    name: Claude Sonnet 4 (APAC)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "au.anthropic.claude-haiku-4-5-20251001-v1:0"
+    name: Claude Haiku 4.5 (AU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.1
+    output_cost_per_1m: 5.5
+    cache_read_cost_per_1m: 0.11
+    cache_write_cost_per_1m: 1.375
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: au.anthropic.claude-opus-4-6-v1
+    name: AU Anthropic Claude Opus 4.6
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: au.anthropic.claude-opus-4-7
+    name: Claude Opus 4.7 (AU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: au.anthropic.claude-opus-4-8
+    name: Claude Opus 4.8 (AU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: au.anthropic.claude-opus-5
+    name: Claude Opus 5 (AU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: au.anthropic.claude-opus-5-5
+    name: Claude Opus 5.5 (AU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 4.4
+    output_cost_per_1m: 22
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 5.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "au.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    name: Claude Sonnet 4.5 (AU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3.3
+    output_cost_per_1m: 16.5
+    cache_read_cost_per_1m: 0.33
+    cache_write_cost_per_1m: 4.125
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: au.anthropic.claude-sonnet-4-6
+    name: AU Anthropic Claude Sonnet 4.6
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 3.3
+    output_cost_per_1m: 16.5
+    cache_read_cost_per_1m: 0.33
+    cache_write_cost_per_1m: 4.125
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: au.anthropic.claude-sonnet-5
+    name: Claude Sonnet 5 (AU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 11
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "ca.amazon.nova-lite-v1:0"
+    name: Nova Lite (CA)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 300000
+    max_output_tokens: 10000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.064
+    output_cost_per_1m: 0.256
+    cache_read_cost_per_1m: 0.016
+    cache_write_cost_per_1m: 0.064
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "deepseek.v3-v1:0"
+    name: DeepSeek-V3.1
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 163840
+    max_output_tokens: 81920
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.58
+    output_cost_per_1m: 1.68
+    compat:
+      supports_strict_mode: true
+  - model_id: deepseek.v3.2
+    name: DeepSeek V3.2
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 163840
+    max_output_tokens: 81920
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.62
+    output_cost_per_1m: 1.85
+    compat:
+      supports_strict_mode: true
+  - model_id: "eu.amazon.nova-2-lite-v1:0"
+    name: Nova 2 Lite (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 65535
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.374
+    output_cost_per_1m: 3.157
+    cache_read_cost_per_1m: 0.0935
+    cache_write_cost_per_1m: 0.374
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "eu.amazon.nova-lite-v1:0"
+    name: Nova Lite (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 300000
+    max_output_tokens: 10000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.069
+    output_cost_per_1m: 0.276
+    cache_read_cost_per_1m: 0.01725
+    cache_write_cost_per_1m: 0.069
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "eu.amazon.nova-micro-v1:0"
+    name: Nova Micro (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 10000
+    capabilities: [text]
+    input_cost_per_1m: 0.04
+    output_cost_per_1m: 0.16
+    cache_read_cost_per_1m: 0.01
+    cache_write_cost_per_1m: 0.04
+  - model_id: "eu.amazon.nova-pro-v1:0"
+    name: Nova Pro (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 300000
+    max_output_tokens: 10000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.92
+    output_cost_per_1m: 3.68
+    cache_read_cost_per_1m: 0.23
+    cache_write_cost_per_1m: 0.92
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: eu.anthropic.claude-fable-5
+    name: Claude Fable 5 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 11
+    output_cost_per_1m: 55
+    cache_read_cost_per_1m: 1.1
+    cache_write_cost_per_1m: 13.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
+    name: Claude Haiku 4.5 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.1
+    output_cost_per_1m: 5.5
+    cache_read_cost_per_1m: 0.11
+    cache_write_cost_per_1m: 1.375
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: "eu.anthropic.claude-opus-4-5-20251101-v1:0"
+    name: Claude Opus 4.5 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: eu.anthropic.claude-opus-4-6-v1
+    name: Claude Opus 4.6 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: eu.anthropic.claude-opus-4-7
+    name: Claude Opus 4.7 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: eu.anthropic.claude-opus-4-8
+    name: Claude Opus 4.8 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: eu.anthropic.claude-opus-5
+    name: Claude Opus 5 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: eu.anthropic.claude-opus-5-5
+    name: Claude Opus 5.5 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 4.4
+    output_cost_per_1m: 22
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 5.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "eu.anthropic.claude-sonnet-4-20250514-v1:0"
+    name: Claude Sonnet 4 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    name: Claude Sonnet 4.5 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3.3
+    output_cost_per_1m: 16.5
+    cache_read_cost_per_1m: 0.33
+    cache_write_cost_per_1m: 4.125
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: eu.anthropic.claude-sonnet-4-6
+    name: Claude Sonnet 4.6 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 3.3
+    output_cost_per_1m: 16.5
+    cache_read_cost_per_1m: 0.33
+    cache_write_cost_per_1m: 4.125
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: eu.anthropic.claude-sonnet-5
+    name: Claude Sonnet 5 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 11
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: eu.anthropic.claude-sonnet-5-5
+    name: Claude Sonnet 5.5 (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 11
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "eu.mistral.pixtral-large-2502-v1:0"
+    name: Pixtral Large (25.02) (EU)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.eu-central-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "global.amazon.nova-2-lite-v1:0"
+    name: Nova 2 Lite (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 65535
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.075
+    cache_write_cost_per_1m: 0.3
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: global.anthropic.claude-fable-5
+    name: Claude Fable 5 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 1
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: global.anthropic.claude-fable-5-1
+    name: Claude Fable 5.1 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 0.25
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+    name: Claude Haiku 4.5 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 5
+    cache_read_cost_per_1m: 0.1
+    cache_write_cost_per_1m: 1.25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: "global.anthropic.claude-opus-4-5-20251101-v1:0"
+    name: Claude Opus 4.5 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: global.anthropic.claude-opus-4-6-v1
+    name: Claude Opus 4.6 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: global.anthropic.claude-opus-4-7
+    name: Claude Opus 4.7 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: global.anthropic.claude-opus-4-8
+    name: Claude Opus 4.8 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: global.anthropic.claude-opus-5
+    name: Claude Opus 5 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: global.anthropic.claude-opus-5-5
+    name: Claude Opus 5.5 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "global.anthropic.claude-sonnet-4-20250514-v1:0"
+    name: Claude Sonnet 4 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    name: Claude Sonnet 4.5 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: global.anthropic.claude-sonnet-4-6
+    name: Claude Sonnet 4.6 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: global.anthropic.claude-sonnet-5
+    name: Claude Sonnet 5 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: global.anthropic.claude-sonnet-5-5
+    name: Claude Sonnet 5.5 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: global.moonshotai.kimi-k3
+    name: Kimi K3 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1048576
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: global.openai.gpt-5.6-luna
+    name: GPT-5.6 Luna (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.02
+    cache_write_cost_per_1m: 0.25
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 0.4
+        output: 1.8
+        cache_read: 0.04
+        cache_write: 0.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: global.openai.gpt-5.6-sol
+    name: GPT-5.6 Sol (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.4
+    cache_write_cost_per_1m: 5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 8
+        output: 30
+        cache_read: 0.8
+        cache_write: 10
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: global.openai.gpt-5.6-terra
+    name: GPT-5.6 Terra (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2
+    output_cost_per_1m: 12
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4
+        output: 18
+        cache_read: 0.4
+        cache_write: 5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: global.openai.gpt-6-astra
+    name: GPT-6 Astra (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 1
+    cache_write_cost_per_1m: 12.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 20
+        output: 75
+        cache_read: 2
+        cache_write: 25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: global.openai.gpt-6-luna
+    name: GPT-6 Luna (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.01
+    cache_write_cost_per_1m: 0.125
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 0.2
+        output: 0.75
+        cache_read: 0.02
+        cache_write: 0.25
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: global.openai.gpt-6-sol
+    name: GPT-6 Sol (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4
+        output: 15
+        cache_read: 0.4
+        cache_write: 5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: global.openai.gpt-6.1-sol
+    name: GPT-6.1 Sol (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.1
+    cache_write_cost_per_1m: 2.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4
+        output: 15
+        cache_read: 0.2
+        cache_write: 5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: global.xai.grok-4.6
+    name: Grok 4.6 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 500000
+    max_output_tokens: 500000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: global.xai.grok-4.7
+    name: Grok 4.7 (Global)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 500000
+    max_output_tokens: 500000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: google.gemma-4-26b-a4b
+    name: Gemma 4 26B A4B IT
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.13
+    output_cost_per_1m: 0.4
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: google.gemma-4-31b
+    name: Gemma 4 31B IT
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.14
+    output_cost_per_1m: 0.4
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: google.gemma-4-e2b
+    name: Gemma 4 E2B IT
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 131072
+    max_output_tokens: 8192
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.04
+    output_cost_per_1m: 0.08
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: "in.anthropic.claude-haiku-4-5-20251001-v1:0"
+    name: Claude Haiku 4.5 (India)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.1
+    output_cost_per_1m: 5.5
+    cache_read_cost_per_1m: 0.11
+    cache_write_cost_per_1m: 1.375
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: in.anthropic.claude-opus-5
+    name: Claude Opus 5 (India)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: in.anthropic.claude-sonnet-5
+    name: Claude Sonnet 5 (India)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 11
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: in.openai.gpt-5.6-luna
+    name: GPT-5.6 Luna (India)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.22
+    output_cost_per_1m: 1.32
+    cache_read_cost_per_1m: 0.022
+    cache_write_cost_per_1m: 0.275
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 0.44
+        output: 1.98
+        cache_read: 0.044
+        cache_write: 0.55
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: in.openai.gpt-5.6-terra
+    name: GPT-5.6 Terra (India)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 13.2
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4.4
+        output: 19.8
+        cache_read: 0.44
+        cache_write: 5.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "jp.amazon.nova-2-lite-v1:0"
+    name: Nova 2 Lite (JP)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 65535
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.396
+    output_cost_per_1m: 3.311
+    cache_read_cost_per_1m: 0.099
+    cache_write_cost_per_1m: 0.396
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "jp.anthropic.claude-haiku-4-5-20251001-v1:0"
+    name: Claude Haiku 4.5 (JP)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.1
+    output_cost_per_1m: 5.5
+    cache_read_cost_per_1m: 0.11
+    cache_write_cost_per_1m: 1.375
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: jp.anthropic.claude-opus-4-7
+    name: Claude Opus 4.7 (JP)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: jp.anthropic.claude-opus-4-8
+    name: Claude Opus 4.8 (JP)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: jp.anthropic.claude-opus-5
+    name: Claude Opus 5 (JP)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: jp.anthropic.claude-opus-5-5
+    name: Claude Opus 5.5 (JP)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 4.4
+    output_cost_per_1m: 22
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 5.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "jp.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    name: Claude Sonnet 4.5 (JP)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3.3
+    output_cost_per_1m: 16.5
+    cache_read_cost_per_1m: 0.33
+    cache_write_cost_per_1m: 4.125
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: jp.anthropic.claude-sonnet-4-6
+    name: Claude Sonnet 4.6 (JP)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 3.3
+    output_cost_per_1m: 16.5
+    cache_read_cost_per_1m: 0.33
+    cache_write_cost_per_1m: 4.125
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: jp.anthropic.claude-sonnet-5
+    name: Claude Sonnet 5 (JP)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 11
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "meta.llama3-1-70b-instruct-v1:0"
+    name: Llama 3.1 70B Instruct
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 4096
+    capabilities: [text]
+    input_cost_per_1m: 0.72
+    output_cost_per_1m: 0.72
+  - model_id: "meta.llama3-1-8b-instruct-v1:0"
+    name: Llama 3.1 8B Instruct
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 4096
+    capabilities: [text]
+    input_cost_per_1m: 0.22
+    output_cost_per_1m: 0.22
+  - model_id: "meta.llama3-3-70b-instruct-v1:0"
+    name: Llama 3.3 70B Instruct
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 4096
+    capabilities: [text]
+    input_cost_per_1m: 0.72
+    output_cost_per_1m: 0.72
+  - model_id: "meta.llama4-maverick-17b-instruct-v1:0"
+    name: Llama 4 Maverick 17B Instruct
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 0.24
+    output_cost_per_1m: 0.97
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "meta.llama4-scout-17b-instruct-v1:0"
+    name: Llama 4 Scout 17B Instruct
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 10000000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 0.17
+    output_cost_per_1m: 0.66
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: minimax.minimax-m2
+    name: MiniMax-M2
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 204608
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    compat:
+      supports_strict_mode: true
+  - model_id: minimax.minimax-m2.1
+    name: MiniMax-M2.1
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 196608
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    compat:
+      supports_strict_mode: true
+  - model_id: minimax.minimax-m2.5
+    name: MiniMax-M2.5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 196608
+    max_output_tokens: 98304
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    compat:
+      supports_strict_mode: true
+  - model_id: mistral.devstral-2-123b
+    name: Devstral 2 123B
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 8192
+    capabilities: [text]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 2
+    compat:
+      supports_strict_mode: true
+  - model_id: mistral.magistral-small-2509
+    name: Magistral Small 1.2
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 40000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 1.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: mistral.ministral-3-14b-instruct
+    name: Ministral 14B 3.0
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 4096
+    capabilities: [text, image]
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 0.2
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: mistral.ministral-3-3b-instruct
+    name: Ministral 3 3B
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 256000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.1
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: mistral.ministral-3-8b-instruct
+    name: Ministral 3 8B
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 4096
+    capabilities: [text, image]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.15
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: mistral.mistral-large-3-675b-instruct
+    name: Mistral Large 3
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 1.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: "mistral.pixtral-large-2502-v1:0"
+    name: Pixtral Large (25.02)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: mistral.voxtral-mini-3b-2507
+    name: Voxtral Mini 3B 2507
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 32768
+    max_output_tokens: 4096
+    capabilities: [text]
+    input_cost_per_1m: 0.04
+    output_cost_per_1m: 0.04
+    compat:
+      supports_strict_mode: true
+  - model_id: mistral.voxtral-small-24b-2507
+    name: Voxtral Small 24B 2507
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 32768
+    max_output_tokens: 8192
+    capabilities: [text]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.3
+    compat:
+      supports_strict_mode: true
+  - model_id: moonshot.kimi-k2-thinking
+    name: Kimi K2 Thinking
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 16000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 2.5
+    compat:
+      supports_strict_mode: true
+  - model_id: moonshotai.kimi-k2.5
+    name: Kimi K2.5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 3
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: nvidia.nemotron-nano-12b-v2
+    name: NVIDIA Nemotron Nano 12B v2 VL BF16
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 131072
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 0.6
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: nvidia.nemotron-nano-3-30b
+    name: NVIDIA Nemotron Nano 3 30B
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 8192
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.06
+    output_cost_per_1m: 0.24
+    compat:
+      supports_strict_mode: true
+  - model_id: nvidia.nemotron-nano-9b-v2
+    name: NVIDIA Nemotron Nano 9B v2
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 131072
+    max_output_tokens: 8192
+    capabilities: [text]
+    input_cost_per_1m: 0.06
+    output_cost_per_1m: 0.23
+    compat:
+      supports_strict_mode: true
+  - model_id: nvidia.nemotron-super-3-120b
+    name: NVIDIA Nemotron 3 Super 120B A12B
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.65
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-5.4
+    name: GPT-5.4
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2.75
+    output_cost_per_1m: 16.5
+    cache_read_cost_per_1m: 0.275
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-5.5
+    name: GPT-5.5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 33
+    cache_read_cost_per_1m: 0.55
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-5.6-luna
+    name: GPT-5.6 Luna
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.22
+    output_cost_per_1m: 1.32
+    cache_read_cost_per_1m: 0.022
+    cache_write_cost_per_1m: 0.275
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 0.44
+        output: 1.98
+        cache_read: 0.044
+        cache_write: 0.55
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-5.6-sol
+    name: GPT-5.6 Sol
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 4.4
+    output_cost_per_1m: 22
+    cache_read_cost_per_1m: 0.44
+    cache_write_cost_per_1m: 5.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 8.8
+        output: 33
+        cache_read: 0.88
+        cache_write: 11
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-5.6-terra
+    name: GPT-5.6 Terra
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 13.2
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4.4
+        output: 19.8
+        cache_read: 0.44
+        cache_write: 5.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-6-astra
+    name: GPT-6 Astra
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 11
+    output_cost_per_1m: 55
+    cache_read_cost_per_1m: 1.1
+    cache_write_cost_per_1m: 13.75
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 22
+        output: 82.5
+        cache_read: 2.2
+        cache_write: 27.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-6-luna
+    name: GPT-6 Luna
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.11
+    output_cost_per_1m: 0.55
+    cache_read_cost_per_1m: 0.011
+    cache_write_cost_per_1m: 0.1375
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 0.22
+        output: 0.825
+        cache_read: 0.022
+        cache_write: 0.275
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-6-sol
+    name: GPT-6 Sol
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 11
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4.4
+        output: 16.5
+        cache_read: 0.44
+        cache_write: 5.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-6.1-sol
+    name: GPT-6.1 Sol
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 11
+    cache_read_cost_per_1m: 0.11
+    cache_write_cost_per_1m: 2.75
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4.4
+        output: 16.5
+        cache_read: 0.22
+        cache_write: 5.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-oss-120b
+    name: gpt-oss-120b
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 131072
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    compat:
+      supports_strict_mode: true
+  - model_id: "openai.gpt-oss-120b-1:0"
+    name: gpt-oss-120b
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 131072
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-oss-20b
+    name: gpt-oss-20b
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 131072
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.07
+    output_cost_per_1m: 0.3
+    compat:
+      supports_strict_mode: true
+  - model_id: "openai.gpt-oss-20b-1:0"
+    name: gpt-oss-20b
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 131072
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.07
+    output_cost_per_1m: 0.3
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-oss-safeguard-120b
+    name: GPT OSS Safeguard 120B
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    compat:
+      supports_strict_mode: true
+  - model_id: openai.gpt-oss-safeguard-20b
+    name: GPT OSS Safeguard 20B
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.07
+    output_cost_per_1m: 0.2
+    compat:
+      supports_strict_mode: true
+  - model_id: "qwen.qwen3-235b-a22b-2507-v1:0"
+    name: Qwen3 235B-A22B Instruct 2507
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 131072
+    capabilities: [text]
+    input_cost_per_1m: 0.22
+    output_cost_per_1m: 0.88
+    compat:
+      supports_strict_mode: true
+  - model_id: "qwen.qwen3-32b-v1:0"
+    name: Qwen3 32B
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 32768
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    compat:
+      supports_strict_mode: true
+  - model_id: "qwen.qwen3-coder-30b-a3b-v1:0"
+    name: Qwen3-Coder 30B-A3B Instruct
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 131072
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    compat:
+      supports_strict_mode: true
+  - model_id: "qwen.qwen3-coder-480b-a35b-v1:0"
+    name: Qwen3-Coder 480B-A35B Instruct
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 131072
+    max_output_tokens: 65536
+    capabilities: [text]
+    input_cost_per_1m: 0.45
+    output_cost_per_1m: 1.8
+    compat:
+      supports_strict_mode: true
+  - model_id: qwen.qwen3-coder-next
+    name: Qwen3 Coder Next
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 65536
+    capabilities: [text]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 1.2
+    compat:
+      supports_strict_mode: true
+  - model_id: qwen.qwen3-next-80b-a3b
+    name: Qwen3-Next 80B-A3B Instruct
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 262000
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 1.2
+    compat:
+      supports_strict_mode: true
+  - model_id: qwen.qwen3-vl-235b-a22b
+    name: Qwen3 VL 235B A22B Instruct
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 262144
+    max_output_tokens: 262000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.53
+    output_cost_per_1m: 2.66
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: "us-gov.openai.gpt-oss-120b-1:0"
+    name: gpt-oss-120b (GovCloud)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.18
+    output_cost_per_1m: 0.72
+    compat:
+      supports_strict_mode: true
+  - model_id: "us-gov.openai.gpt-oss-20b-1:0"
+    name: gpt-oss-20b (GovCloud)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.084
+    output_cost_per_1m: 0.36
+    compat:
+      supports_strict_mode: true
+  - model_id: "us.amazon.nova-2-lite-v1:0"
+    name: Nova 2 Lite (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 65535
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.33
+    output_cost_per_1m: 2.75
+    cache_read_cost_per_1m: 0.0825
+    cache_write_cost_per_1m: 0.33
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "us.amazon.nova-lite-v1:0"
+    name: Nova Lite (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 300000
+    max_output_tokens: 10000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.06
+    output_cost_per_1m: 0.24
+    cache_read_cost_per_1m: 0.015
+    cache_write_cost_per_1m: 0.06
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "us.amazon.nova-micro-v1:0"
+    name: Nova Micro (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 10000
+    capabilities: [text]
+    input_cost_per_1m: 0.035
+    output_cost_per_1m: 0.14
+    cache_read_cost_per_1m: 0.00875
+    cache_write_cost_per_1m: 0.035
+  - model_id: "us.amazon.nova-premier-v1:0"
+    name: Nova Premier (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 10000
+    capabilities: [text, image]
+    input_cost_per_1m: 2.5
+    output_cost_per_1m: 12.5
+    cache_read_cost_per_1m: 0.625
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "us.amazon.nova-pro-v1:0"
+    name: Nova Pro (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 300000
+    max_output_tokens: 10000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.8
+    output_cost_per_1m: 3.2
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 0.8
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: us.anthropic.claude-fable-5
+    name: Claude Fable 5 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 11
+    output_cost_per_1m: 55
+    cache_read_cost_per_1m: 1.1
+    cache_write_cost_per_1m: 13.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: us.anthropic.claude-fable-5-1
+    name: Claude Fable 5.1 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 11
+    output_cost_per_1m: 55
+    cache_read_cost_per_1m: 0.275
+    cache_write_cost_per_1m: 13.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    name: Claude Haiku 4.5 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.1
+    output_cost_per_1m: 5.5
+    cache_read_cost_per_1m: 0.11
+    cache_write_cost_per_1m: 1.375
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: "us.anthropic.claude-opus-4-1-20250805-v1:0"
+    name: Claude Opus 4.1 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 15
+    output_cost_per_1m: 75
+    cache_read_cost_per_1m: 1.5
+    cache_write_cost_per_1m: 18.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "us.anthropic.claude-opus-4-5-20251101-v1:0"
+    name: Claude Opus 4.5 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: us.anthropic.claude-opus-4-6-v1
+    name: Claude Opus 4.6 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: us.anthropic.claude-opus-4-7
+    name: Claude Opus 4.7 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: us.anthropic.claude-opus-4-8
+    name: Claude Opus 4.8 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: us.anthropic.claude-opus-5
+    name: Claude Opus 5 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5.5
+    output_cost_per_1m: 27.5
+    cache_read_cost_per_1m: 0.55
+    cache_write_cost_per_1m: 6.875
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: us.anthropic.claude-opus-5-5
+    name: Claude Opus 5.5 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 4.4
+    output_cost_per_1m: 22
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 5.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "us.anthropic.claude-sonnet-4-20250514-v1:0"
+    name: Claude Sonnet 4 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    name: Claude Sonnet 4.5 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3.3
+    output_cost_per_1m: 16.5
+    cache_read_cost_per_1m: 0.33
+    cache_write_cost_per_1m: 4.125
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: us.anthropic.claude-sonnet-4-6
+    name: Claude Sonnet 4.6 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 3.3
+    output_cost_per_1m: 16.5
+    cache_read_cost_per_1m: 0.33
+    cache_write_cost_per_1m: 4.125
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: us.anthropic.claude-sonnet-5
+    name: Claude Sonnet 5 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 11
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: us.anthropic.claude-sonnet-5-5
+    name: Claude Sonnet 5.5 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 11
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "us.meta.llama3-1-70b-instruct-v1:0"
+    name: Llama 3.1 70B Instruct (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 4096
+    capabilities: [text]
+    input_cost_per_1m: 0.72
+    output_cost_per_1m: 0.72
+  - model_id: "us.meta.llama3-1-8b-instruct-v1:0"
+    name: Llama 3.1 8B Instruct (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 4096
+    capabilities: [text]
+    input_cost_per_1m: 0.22
+    output_cost_per_1m: 0.22
+  - model_id: "us.meta.llama3-3-70b-instruct-v1:0"
+    name: Llama 3.3 70B Instruct (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 4096
+    capabilities: [text]
+    input_cost_per_1m: 0.72
+    output_cost_per_1m: 0.72
+  - model_id: "us.meta.llama4-maverick-17b-instruct-v1:0"
+    name: Llama 4 Maverick 17B Instruct (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 0.24
+    output_cost_per_1m: 0.97
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "us.meta.llama4-scout-17b-instruct-v1:0"
+    name: Llama 4 Scout 17B Instruct (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 10000000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 0.17
+    output_cost_per_1m: 0.66
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: "us.mistral.pixtral-large-2502-v1:0"
+    name: Pixtral Large (25.02) (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: us.moonshotai.kimi-k3
+    name: Kimi K3 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1048576
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3.3
+    output_cost_per_1m: 16.5
+    cache_read_cost_per_1m: 0.33
+    cache_write_cost_per_1m: 4.125
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: us.openai.gpt-5.6-luna
+    name: GPT-5.6 Luna (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.22
+    output_cost_per_1m: 1.32
+    cache_read_cost_per_1m: 0.022
+    cache_write_cost_per_1m: 0.275
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 0.44
+        output: 1.98
+        cache_read: 0.044
+        cache_write: 0.55
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: us.openai.gpt-5.6-sol
+    name: GPT-5.6 Sol (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 4.4
+    output_cost_per_1m: 22
+    cache_read_cost_per_1m: 0.44
+    cache_write_cost_per_1m: 5.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 8.8
+        output: 33
+        cache_read: 0.88
+        cache_write: 11
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: us.openai.gpt-5.6-terra
+    name: GPT-5.6 Terra (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 13.2
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4.4
+        output: 19.8
+        cache_read: 0.44
+        cache_write: 5.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: us.openai.gpt-6-astra
+    name: GPT-6 Astra (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 11
+    output_cost_per_1m: 55
+    cache_read_cost_per_1m: 1.1
+    cache_write_cost_per_1m: 13.75
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 22
+        output: 82.5
+        cache_read: 2.2
+        cache_write: 27.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: us.openai.gpt-6-luna
+    name: GPT-6 Luna (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.11
+    output_cost_per_1m: 0.55
+    cache_read_cost_per_1m: 0.011
+    cache_write_cost_per_1m: 0.1375
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 0.22
+        output: 0.825
+        cache_read: 0.022
+        cache_write: 0.275
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: us.openai.gpt-6-sol
+    name: GPT-6 Sol (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 11
+    cache_read_cost_per_1m: 0.22
+    cache_write_cost_per_1m: 2.75
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4.4
+        output: 16.5
+        cache_read: 0.44
+        cache_write: 5.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: us.openai.gpt-6.1-sol
+    name: GPT-6.1 Sol (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 11
+    cache_read_cost_per_1m: 0.11
+    cache_write_cost_per_1m: 2.75
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4.4
+        output: 16.5
+        cache_read: 0.22
+        cache_write: 5.5
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: "us.writer.palmyra-x4-v1:0"
+    name: Palmyra X4 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 122880
+    max_output_tokens: 8192
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 2.5
+    output_cost_per_1m: 10
+  - model_id: "us.writer.palmyra-x5-v1:0"
+    name: Palmyra X5 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1040000
+    max_output_tokens: 8192
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 6
+  - model_id: us.xai.grok-4.6
+    name: Grok 4.6 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 500000
+    max_output_tokens: 500000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 6.6
+    cache_read_cost_per_1m: 0.55
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: us.xai.grok-4.7
+    name: Grok 4.7 (US)
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 500000
+    max_output_tokens: 500000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 6.6
+    cache_read_cost_per_1m: 0.55
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: "writer.palmyra-x4-v1:0"
+    name: Palmyra X4
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 122880
+    max_output_tokens: 8192
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 2.5
+    output_cost_per_1m: 10
+  - model_id: "writer.palmyra-x5-v1:0"
+    name: Palmyra X5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1040000
+    max_output_tokens: 8192
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 6
+  - model_id: xai.grok-4.3
+    name: Grok 4.3
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: xai.grok-4.6
+    name: Grok 4.6
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 500000
+    max_output_tokens: 500000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2.2
+    output_cost_per_1m: 6.6
+    cache_read_cost_per_1m: 0.55
+    input_limits:
+      images:
+        max_per_message: 20
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: zai.glm-4.7
+    name: GLM-4.7
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 202752
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 2.2
+    compat:
+      supports_strict_mode: true
+  - model_id: zai.glm-4.7-flash
+    name: GLM-4.7-Flash
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 202752
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.07
+    output_cost_per_1m: 0.4
+    compat:
+      supports_strict_mode: true
+  - model_id: zai.glm-5
+    name: GLM-5
+    api: bedrock-converse-stream
+    base_url: "https://bedrock-runtime.us-east-1.amazonaws.com"
+    context_window: 202752
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 3.2
+    compat:
+      supports_strict_mode: true

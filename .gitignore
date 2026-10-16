@@ -116,3 +116,5 @@ docs/20260713/*
 docs/requirements/*
 tai/docs/job-event-bridge.md
 openapi/testmode/*.md
+docs/design/llm-provider-refactor.md
+llm/MANUAL-TESTING.md

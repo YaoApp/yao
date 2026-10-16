@@ -31,6 +31,7 @@ import (
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/job"
+	"github.com/yaoapp/yao/llm"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/mcp"
 	"github.com/yaoapp/yao/mcpclient"
@@ -399,7 +400,7 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		}
 	}
 
-	// Initialize LLM Provider Registry
+	// Initialize LLM Provider Registry (legacy, kept for 1.x API routes)
 	err = loadStep("LLM Provider", func() error {
 		return llmprovider.Init()
 	}, callback)
@@ -426,6 +427,19 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	// Sync agent.yml system defaults into setting.Global (must run after llmprovider + setting init)
 	if err := agent.SyncLLMDefaults(); err != nil {
 		warnings = append(warnings, Warning{Widget: "LLM Defaults Sync", Error: err})
+	}
+
+	// Initialize new LLM package (DB-backed, replaces KV store).
+	// Runs after setting.Init + SyncLLMDefaults so that MigrateRoles can
+	// read "llm.roles" from setting.Global.
+	err = loadStep("LLM", func() error {
+		if err := llm.MigrateFromLegacy(); err != nil {
+			log.Printf("[LLM] Warning: migration from legacy failed: %v", err)
+		}
+		return llm.Init()
+	}, callback)
+	if err != nil {
+		warnings = append(warnings, Warning{Widget: "LLM", Error: err})
 	}
 
 	if err := agent.SyncSearchDefaults(); err != nil {
@@ -654,7 +668,7 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 		printErr(cfg.Mode, "Agent", err)
 	}
 
-	// Reload LLM Provider Registry
+	// Reload LLM Provider Registry (legacy)
 	if llmprovider.Global != nil {
 		err = llmprovider.Global.Reload()
 		if err != nil {
@@ -696,6 +710,19 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 	// Sync agent.yml system defaults into setting.Global (must run after llmprovider + setting init)
 	if err := agent.SyncLLMDefaults(); err != nil {
 		printErr(cfg.Mode, "LLM Defaults Sync", err)
+	}
+
+	// Reload new LLM registry (after setting + SyncLLMDefaults)
+	if llm.Global != nil {
+		err = llm.Global.Reload()
+		if err != nil {
+			printErr(cfg.Mode, "LLM", err)
+		}
+	} else {
+		err = llm.Init()
+		if err != nil {
+			printErr(cfg.Mode, "LLM", err)
+		}
 	}
 
 	if err := agent.SyncSearchDefaults(); err != nil {
