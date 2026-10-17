@@ -2,6 +2,7 @@ package websearch
 
 import (
 	_ "embed"
+	"fmt"
 	"os"
 
 	"github.com/yaoapp/gou/process"
@@ -41,6 +42,12 @@ func Handler(proc *process.Process) interface{} {
 func Search(query string, limit int, userID, teamID string) []SearchResult {
 	cfg := getConfig(userID, teamID)
 	switch cfg.Provider {
+	case "parallel":
+		items, err := SearchParallel(query, limit, cfg.APIKey)
+		if err != nil {
+			return []SearchResult{{Title: "Error", Content: fmt.Sprintf("parallel search failed: %v", err)}}
+		}
+		return items
 	case "tao":
 		return taoSearch(cfg, query, limit)
 	case "serper":
@@ -69,6 +76,8 @@ func getConfig(userID, teamID string) *searchConfig {
 	}
 
 	switch cfg.Provider {
+	case "parallel":
+		cfg.APIKey = getProviderKey(userID, teamID, "parallel")
 	case "tao":
 		cfg.APIKey, cfg.APIURL = getTaoConfig(userID, teamID)
 	case "tavily":
