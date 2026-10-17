@@ -18,13 +18,15 @@ import (
 )
 
 const githubReleasesAPI = "https://api.github.com/repos/YaoApp/yao/releases/latest"
+const githubNightlyAPI = "https://api.github.com/repos/YaoApp/yao/releases/tags/nightly"
 const cdnFallbackBase = "https://get.yaoapps.com/yao"
 
 // Upgrade command flags
 var (
-	upgradeYes    bool
-	upgradeCheck  bool
-	upgradeSource string
+	upgradeYes     bool
+	upgradeCheck   bool
+	upgradeSource  string
+	upgradeNightly bool
 )
 
 // githubRelease represents a GitHub release response
@@ -84,7 +86,12 @@ var upgradeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		updateAvailable := compareVersions(latestVersion, share.VERSION) > 0
+		var updateAvailable bool
+		if upgradeNightly || isNightly(share.VERSION) {
+			updateAvailable = compareVersions(latestVersion, share.VERSION) != 0
+		} else {
+			updateAvailable = compareVersions(latestVersion, share.VERSION) > 0
+		}
 
 		if upgradeCheck {
 			emitCheckJSON(checkResult{
@@ -146,11 +153,20 @@ var upgradeCmd = &cobra.Command{
 	},
 }
 
+// isNightly returns true if the version string contains a nightly identifier.
+func isNightly(v string) bool {
+	return strings.Contains(v, "nightly")
+}
+
 // resolveLatest fetches latest version info. Priority:
-//  1. --source flag (explicit CDN URL)
-//  2. GitHub Releases API (default)
-//  3. Fallback to get.yaoapps.com CDN if GitHub fails (for users in China)
+//  1. --nightly flag or current version is nightly → GitHub nightly release
+//  2. --source flag (explicit CDN URL)
+//  3. GitHub Releases API (default)
+//  4. Fallback to get.yaoapps.com CDN if GitHub fails (for users in China)
 func resolveLatest() (string, string, error) {
+	if upgradeNightly || isNightly(share.VERSION) {
+		return resolveFromGitHubNightly()
+	}
 	if upgradeSource != "" {
 		return resolveFromCDN(upgradeSource)
 	}
@@ -160,6 +176,74 @@ func resolveLatest() (string, string, error) {
 	}
 	fmt.Println(color.YellowString(L("GitHub unavailable (%s), trying CDN fallback..."), err.Error()))
 	return resolveFromCDN(cdnFallbackBase)
+}
+
+// nightlyBuildInfo represents the build-info.json asset in a nightly release.
+type nightlyBuildInfo struct {
+	Version string `json:"version"`
+}
+
+// resolveFromGitHubNightly fetches the nightly release from GitHub and matches
+// the platform asset. The nightly version is read from the build-info.json asset.
+func resolveFromGitHubNightly() (string, string, error) {
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("GET", githubNightlyAPI, nil)
+	if err != nil {
+		return "", "", err
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", fmt.Sprintf("yao/%s", share.VERSION))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", fmt.Errorf("fetch nightly release failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("GitHub API returned status %d for nightly release", resp.StatusCode)
+	}
+
+	var release githubRelease
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return "", "", fmt.Errorf("parse nightly release failed: %w", err)
+	}
+
+	// Get the nightly version from build-info.json asset
+	var nightlyVersion string
+	buildInfoAsset := findAsset(release.Assets, "build-info.json")
+	if buildInfoAsset != nil {
+		if v, err := fetchBuildInfoVersion(buildInfoAsset.BrowserDownloadURL); err == nil {
+			nightlyVersion = v
+		}
+	}
+	if nightlyVersion == "" {
+		return "", "", fmt.Errorf("nightly release has no build-info.json or version field")
+	}
+
+	assetName := buildAssetName(nightlyVersion)
+	asset := findAsset(release.Assets, assetName)
+	if asset == nil {
+		return nightlyVersion, "", nil
+	}
+	return nightlyVersion, asset.BrowserDownloadURL, nil
+}
+
+// fetchBuildInfoVersion downloads build-info.json and extracts the version field.
+func fetchBuildInfoVersion(url string) (string, error) {
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("build-info.json returned status %d", resp.StatusCode)
+	}
+	var info nightlyBuildInfo
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return "", err
+	}
+	return info.Version, nil
 }
 
 // resolveFromCDN fetches latest.json from the given CDN base URL.
@@ -435,4 +519,5 @@ func init() {
 	upgradeCmd.Flags().BoolVarP(&upgradeYes, "yes", "y", false, L("Skip interactive confirmation"))
 	upgradeCmd.Flags().BoolVar(&upgradeCheck, "check", false, L("Only check for updates and print JSON result"))
 	upgradeCmd.Flags().StringVar(&upgradeSource, "source", "", L("Custom download source URL (e.g. https://get.yaoapps.com/yao)"))
+	upgradeCmd.Flags().BoolVar(&upgradeNightly, "nightly", false, L("Upgrade to latest nightly build from GitHub Releases"))
 }

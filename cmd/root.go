@@ -75,6 +75,7 @@ var langs = map[string]string{
 	"Skip interactive confirmation":                                 "跳过交互式确认",
 	"Only check for updates and print JSON result":                  "仅检查更新并输出 JSON 结果",
 	"Custom download source URL (e.g. https://get.yaoapps.com/yao)": "自定义下载源 URL (例如 https://get.yaoapps.com/yao)",
+	"Upgrade to latest nightly build from GitHub Releases":          "升级到 GitHub Releases 上最新的 nightly 构建",
 	"Print all version information":                                 "显示详细版本信息",
 	"SUI Template Engine":                                           "SUI 模板引擎命令",
 	"MCP commands":                                                  "MCP 包管理命令",
