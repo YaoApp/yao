@@ -1,0 +1,489 @@
+name: Nightly
+
+# Manual nightly build:
+#   - Only builds when changes are detected (compares yao + dependency repo SHAs with last nightly)
+#   - Artifacts go to a rolling pre-release (tag: nightly), no CDN upload
+#   - Skips tests, Docker, and Notarization
+#   - Only produces prod (stripped) binaries, no dev builds
+#   - Stable releases still use release-*.yml → CDN
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force build even if no changes"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+env:
+  NIGHTLY_TAG: nightly
+  BASE_VERSION: "2.0.0"
+
+jobs:
+  # ── 1) Change detection + version computation ──
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.detect.outputs.changed }}
+      version: ${{ steps.detect.outputs.version }}
+      yao_sha: ${{ steps.detect.outputs.yao_sha }}
+      kun_sha: ${{ steps.detect.outputs.kun_sha }}
+      xun_sha: ${{ steps.detect.outputs.xun_sha }}
+      gou_sha: ${{ steps.detect.outputs.gou_sha }}
+      v8go_sha: ${{ steps.detect.outputs.v8go_sha }}
+      cui_sha: ${{ steps.detect.outputs.cui_sha }}
+      yao_init_sha: ${{ steps.detect.outputs.yao_init_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changes and compute version
+        id: detect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+
+          # Collect current SHAs for all repos
+          YAO_SHA="$(git rev-parse HEAD)"
+          KUN_SHA="$(git ls-remote https://github.com/yaoapp/kun.git refs/heads/main | cut -f1)"
+          XUN_SHA="$(git ls-remote https://github.com/yaoapp/xun.git refs/heads/main | cut -f1)"
+          GOU_SHA="$(git ls-remote https://github.com/yaoapp/gou.git refs/heads/main | cut -f1)"
+          V8GO_SHA="$(git ls-remote https://github.com/yaoapp/v8go.git refs/heads/main | cut -f1)"
+          CUI_SHA="$(git ls-remote https://github.com/yaoapp/cui.git refs/heads/main | cut -f1)"
+          YAO_INIT_SHA="$(git ls-remote https://github.com/yaoapp/yao-init.git refs/heads/main | cut -f1)"
+
+          VERSION="${BASE_VERSION}-nightly.$(date -u +%Y%m%d)"
+
+          echo "yao_sha=$YAO_SHA" >> "$GITHUB_OUTPUT"
+          echo "kun_sha=$KUN_SHA" >> "$GITHUB_OUTPUT"
+          echo "xun_sha=$XUN_SHA" >> "$GITHUB_OUTPUT"
+          echo "gou_sha=$GOU_SHA" >> "$GITHUB_OUTPUT"
+          echo "v8go_sha=$V8GO_SHA" >> "$GITHUB_OUTPUT"
+          echo "cui_sha=$CUI_SHA" >> "$GITHUB_OUTPUT"
+          echo "yao_init_sha=$YAO_INIT_SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "yao=$YAO_SHA kun=$KUN_SHA xun=$XUN_SHA gou=$GOU_SHA v8go=$V8GO_SHA cui=$CUI_SHA yao-init=$YAO_INIT_SHA"
+          echo "nightly_version=$VERSION"
+
+          # Read SHAs from the last nightly build
+          LAST_YAO="" LAST_KUN="" LAST_XUN="" LAST_GOU="" LAST_V8GO="" LAST_CUI="" LAST_INIT=""
+          if gh release view "$NIGHTLY_TAG" >/dev/null 2>&1; then
+            rm -rf /tmp/last && mkdir -p /tmp/last
+            if gh release download "$NIGHTLY_TAG" -p build-info.json -D /tmp/last --clobber 2>/dev/null; then
+              LAST_YAO="$(jq -r '.yao_sha // empty' /tmp/last/build-info.json)"
+              LAST_KUN="$(jq -r '.kun_sha // empty' /tmp/last/build-info.json)"
+              LAST_XUN="$(jq -r '.xun_sha // empty' /tmp/last/build-info.json)"
+              LAST_GOU="$(jq -r '.gou_sha // empty' /tmp/last/build-info.json)"
+              LAST_V8GO="$(jq -r '.v8go_sha // empty' /tmp/last/build-info.json)"
+              LAST_CUI="$(jq -r '.cui_sha // empty' /tmp/last/build-info.json)"
+              LAST_INIT="$(jq -r '.yao_init_sha // empty' /tmp/last/build-info.json)"
+            fi
+          fi
+
+          if [ "${FORCE:-false}" = "true" ]; then
+            echo "forced build"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif [ "$YAO_SHA" = "$LAST_YAO" ] \
+            && [ "$KUN_SHA" = "$LAST_KUN" ] \
+            && [ "$XUN_SHA" = "$LAST_XUN" ] \
+            && [ "$GOU_SHA" = "$LAST_GOU" ] \
+            && [ "$V8GO_SHA" = "$LAST_V8GO" ] \
+            && [ "$CUI_SHA" = "$LAST_CUI" ] \
+            && [ "$YAO_INIT_SHA" = "$LAST_INIT" ]; then
+            echo "no changes since last nightly → skip"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changes detected → build"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── 2) Prepare rolling nightly pre-release ──
+  prepare:
+    needs: check
+    if: needs.check.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure rolling nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REPO="${{ github.repository }}"
+          if gh release view "$NIGHTLY_TAG" -R "$REPO" >/dev/null 2>&1; then
+            gh release edit "$NIGHTLY_TAG" -R "$REPO" --prerelease
+          else
+            gh release create "$NIGHTLY_TAG" -R "$REPO" --prerelease \
+              --title "Nightly Build" \
+              --notes "Rolling nightly builds — only the latest version is kept."
+          fi
+          # Remove old assets
+          gh release view "$NIGHTLY_TAG" -R "$REPO" --json assets --jq '.assets[].name' | while read -r name; do
+            [ -n "$name" ] && gh release delete-asset "$NIGHTLY_TAG" "$name" -R "$REPO" -y || true
+          done
+
+  # ── 3a) Build macOS (arm64 + amd64, signed) ──
+  build-macos:
+    needs: [check, prepare]
+    if: needs.check.outputs.changed == 'true'
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install pnpm
+        run: npm install -g pnpm@8
+
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/kun
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/xun
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/gou
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          path: v8go
+
+      - name: Unzip libv8
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d $dir $file
+            rm -rf $dir/__MACOSX
+          done
+
+      - name: Checkout CUI v1.0
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/cui
+          path: cui-v1.0
+
+      - name: Checkout Yao-Init
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-init
+          path: yao-init
+
+      - name: Move Dependencies
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv cui-v1.0 ../
+          mv yao-init ../
+          rm -f ../cui-v1.0/packages/setup/vite.config.ts.*
+
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Set Nightly Version
+        run: |
+          echo "Setting VERSION to $VERSION"
+          sed -i.bak "s/const VERSION = \".*\"/const VERSION = \"${VERSION}\"/g" share/const.go
+          rm -f share/const.go.bak
+          grep 'const VERSION' share/const.go
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Setup Go Tools
+        run: make tools
+
+      - name: Make Artifacts macOS
+        run: make artifacts-macos
+
+      - name: List Build Output
+        run: ls -lh dist/release/
+
+      - name: Install Certificates
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          mkdir -p certs
+          echo "${{ secrets.APPLE_DEVELOPERIDG2CA }}" | base64 --decode > certs/DeveloperIDG2CA.cer
+          echo "${{ secrets.APPLE_DISTRIBUTION }}" | base64 --decode > certs/distribution.cer
+          echo "${{ secrets.APPLE_PRIVATE_KEY }}" | base64 --decode > certs/private_key.p12
+          security verify-cert -c certs/DeveloperIDG2CA.cer
+          security verify-cert -c certs/distribution.cer
+
+      - name: Import Certificates
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import ./certs/DeveloperIDG2CA.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
+          security import ./certs/distribution.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
+          security import ./certs/private_key.p12 -k $KEYCHAIN_PATH -P "${{ secrets.APPLE_PRIVATE_KEY_PASSWORD }}" -T /usr/bin/codesign
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Sign Prod Binaries
+        run: |
+          IDENTITY="Developer ID Application: ${{ secrets.APPLE_SIGN }}"
+          for ARCH in arm64 amd64; do
+            BIN="dist/release/yao-${VERSION}-darwin-${ARCH}-prod"
+            codesign --force --verbose --timestamp --options runtime \
+              --entitlements .github/codesign/entitlements.plist \
+              --sign "$IDENTITY" "$BIN"
+            codesign --verify --deep --strict --verbose=2 "$BIN"
+          done
+
+      - name: Prepare and upload prod binaries
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p release
+          for ARCH in arm64 amd64; do
+            cp "dist/release/yao-${VERSION}-darwin-${ARCH}-prod" "release/yao-${VERSION}-darwin-${ARCH}"
+            chmod +x "release/yao-${VERSION}-darwin-${ARCH}"
+          done
+          ls -lh release/
+          gh release upload "$NIGHTLY_TAG" release/* \
+            -R "${{ github.repository }}" --clobber
+
+  # ── 3b) Build Windows (amd64) ──
+  build-windows:
+    needs: [check, prepare]
+    if: needs.check.outputs.changed == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      CGO_ENABLED: "1"
+      CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+      CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/kun
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/xun
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/gou
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          lfs: true
+          path: v8go
+
+      - name: Unzip libv8
+        shell: bash
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d "$dir" "$file"
+            rm -rf "$dir/__MACOSX"
+          done
+
+      - name: Checkout CUI v1.0
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/cui
+          path: cui-v1.0
+
+      - name: Checkout Yao-Init
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-init
+          path: yao-init
+
+      - name: Move Dependencies
+        shell: bash
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv cui-v1.0 ../
+          mv yao-init ../
+          rm -f ../cui-v1.0/packages/setup/vite.config.ts.*
+
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Set Nightly Version
+        shell: bash
+        run: |
+          echo "Setting VERSION to $VERSION"
+          sed -i.bak "s/const VERSION = \".*\"/const VERSION = \"${VERSION}\"/g" share/const.go
+          rm -f share/const.go.bak
+          grep 'const VERSION' share/const.go
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install pnpm
+        run: npm install -g pnpm@8
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Install LLVM
+        run: choco install llvm -y
+
+      - name: Setup Go Tools
+        shell: bash
+        run: make tools
+
+      - name: Make Artifacts Windows
+        shell: bash
+        run: make artifacts-windows
+
+      - name: List Build Output
+        shell: bash
+        run: ls -lh dist/release/
+
+      - name: Upload prod binary to nightly release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p release
+          cp "dist/release/yao-${VERSION}-windows-amd64-prod.exe" "release/yao-${VERSION}-windows-amd64.exe"
+          ls -lh release/
+          gh release upload "$NIGHTLY_TAG" release/* \
+            -R "${{ github.repository }}" --clobber
+
+  # ── 3c) Build Linux (amd64 + arm64, build container) ──
+  build-linux:
+    needs: [check, prepare]
+    if: needs.check.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: yaoapp/yao-build:1.0.0
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - name: Build
+        run: |
+          export PATH=$PATH:/github/home/go/bin
+
+          # Clone dependencies
+          cd /app
+          git clone https://github.com/yaoapp/kun.git /app/kun
+          git clone https://github.com/yaoapp/xun.git /app/xun
+          git clone https://github.com/yaoapp/gou.git /app/gou
+          git clone https://github.com/yaoapp/v8go.git /app/v8go
+          git clone https://github.com/yaoapp/cui.git /app/cui-v1.0
+          git clone https://github.com/yaoapp/yao-init.git /app/yao-init
+          git clone https://github.com/yaoapp/yao.git /app/yao
+
+          # Extract libv8
+          files=$(find /app/v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d $dir $file
+            rm -rf $dir/__MACOSX
+          done
+
+          # Set nightly version
+          cd /app/yao
+          echo "Setting VERSION to ${VERSION}"
+          sed -i "s/const VERSION = \".*\"/const VERSION = \"${VERSION}\"/g" share/const.go
+          grep 'const VERSION' share/const.go
+
+          make tools && make artifacts-linux
+          mv /app/yao/dist/release/* /data/
+          ls -l /data
+
+      - name: Upload prod binaries to nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p release
+          cp "/data/yao-${VERSION}-linux-amd64-prod" "release/yao-${VERSION}-linux-amd64"
+          cp "/data/yao-${VERSION}-linux-arm64-prod" "release/yao-${VERSION}-linux-arm64"
+          chmod +x release/yao-*
+          ls -lh release/
+          gh release upload "$NIGHTLY_TAG" release/* \
+            -R "${{ github.repository }}" --clobber
+
+  # ── 4) Record build info for next change detection ──
+  publish:
+    needs: [check, build-macos, build-windows, build-linux]
+    if: needs.check.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload build-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check.outputs.version }}
+          YAO_SHA: ${{ needs.check.outputs.yao_sha }}
+          KUN_SHA: ${{ needs.check.outputs.kun_sha }}
+          XUN_SHA: ${{ needs.check.outputs.xun_sha }}
+          GOU_SHA: ${{ needs.check.outputs.gou_sha }}
+          V8GO_SHA: ${{ needs.check.outputs.v8go_sha }}
+          CUI_SHA: ${{ needs.check.outputs.cui_sha }}
+          YAO_INIT_SHA: ${{ needs.check.outputs.yao_init_sha }}
+        run: |
+          set -euo pipefail
+          cat > build-info.json <<EOF
+          {
+            "version": "${VERSION}",
+            "yao_sha": "${YAO_SHA}",
+            "kun_sha": "${KUN_SHA}",
+            "xun_sha": "${XUN_SHA}",
+            "gou_sha": "${GOU_SHA}",
+            "v8go_sha": "${V8GO_SHA}",
+            "cui_sha": "${CUI_SHA}",
+            "yao_init_sha": "${YAO_INIT_SHA}",
+            "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          cat build-info.json
+          gh release upload "$NIGHTLY_TAG" build-info.json \
+            -R "${{ github.repository }}" --clobber
+          echo "Nightly published: ${VERSION}"
