@@ -439,24 +439,40 @@ jobs:
           mv /app/yao/dist/release/* /data/
           ls -l /data
 
-      - name: Upload prod binaries to nightly release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare prod binaries
         run: |
           mkdir -p release
           cp "/data/yao-${VERSION}-linux-amd64-prod" "release/yao-${VERSION}-linux-amd64"
           cp "/data/yao-${VERSION}-linux-arm64-prod" "release/yao-${VERSION}-linux-arm64"
           chmod +x release/yao-*
           ls -lh release/
-          gh release upload "$NIGHTLY_TAG" release/* \
-            -R "${{ github.repository }}" --clobber
 
-  # ── 4) Record build info for next change detection ──
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yao-linux
+          path: release/*
+
+  # ── 4) Upload Linux binaries + record build info ──
   publish:
     needs: [check, build-macos, build-windows, build-linux]
     if: needs.check.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: yao-linux
+          path: linux-release
+
+      - name: Upload Linux binaries to nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ls -lh linux-release/
+          gh release upload "$NIGHTLY_TAG" linux-release/* \
+            -R "${{ github.repository }}" --clobber
+
       - name: Upload build-info
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
