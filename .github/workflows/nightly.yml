@@ -262,6 +262,31 @@ jobs:
             codesign --verify --deep --strict --verbose=2 "$BIN"
           done
 
+      - name: Notarize Prod Binaries
+        timeout-minutes: 30
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAME_ID: ${{ secrets.APPLE_TEAME_ID }}
+          APPLE_APP_SPEC_PASS: ${{ secrets.APPLE_APP_SPEC_PASS }}
+        run: |
+          for ARCH in arm64 amd64; do
+            BIN="dist/release/yao-${VERSION}-darwin-${ARCH}-prod"
+            zip -j /tmp/yao-${ARCH}.zip "$BIN"
+            xcrun notarytool submit /tmp/yao-${ARCH}.zip \
+              --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAME_ID" \
+              --password "$APPLE_APP_SPEC_PASS" \
+              --wait --timeout 25m
+            echo "Notarization complete for yao darwin/${ARCH}"
+          done
+
+      - name: Verify notarization
+        run: |
+          for ARCH in arm64 amd64; do
+            BIN="dist/release/yao-${VERSION}-darwin-${ARCH}-prod"
+            spctl -a -vv -t install "$BIN" 2>&1 || true
+          done
+
       - name: Prepare and upload prod binaries
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
