@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -486,6 +487,10 @@ func downloadAndReplace(url, exePath string) error {
 		return fmt.Errorf("failed to chmod: %w", err)
 	}
 
+	if runtime.GOOS == "windows" {
+		return windowsSpawnUpgrade(tmpPath, exePath)
+	}
+
 	// atomically replace the executable
 	if err := os.Rename(tmpPath, exePath); err != nil {
 		// on some systems (cross-device) rename fails, fall back to copy
@@ -495,6 +500,64 @@ func downloadAndReplace(url, exePath string) error {
 	}
 
 	return nil
+}
+
+// windowsSpawnUpgrade moves the downloaded binary to a timestamped path in the
+// system temp directory, then launches it with --finish-upgrade to complete the
+// replacement after this process exits. On Windows a running exe cannot be
+// overwritten, but the spawned binary can write to the original path once this
+// process terminates.
+func windowsSpawnUpgrade(tmpPath, exePath string) error {
+	spawnPath := filepath.Join(os.TempDir(), fmt.Sprintf("yao-upgrade-%d.exe", time.Now().UnixNano()))
+	if err := os.Rename(tmpPath, spawnPath); err != nil {
+		if err2 := copyFile(tmpPath, spawnPath); err2 != nil {
+			return fmt.Errorf("prepare upgrade helper: %w", err2)
+		}
+		os.Remove(tmpPath)
+	}
+
+	cmd := exec.Command(spawnPath, "--finish-upgrade", exePath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		os.Remove(spawnPath)
+		return fmt.Errorf("launch upgrade helper: %w", err)
+	}
+
+	fmt.Println(color.GreenString(L("Upgrade will complete momentarily...")))
+	os.Exit(0)
+	return nil
+}
+
+// FinishUpgrade is called by the spawned helper binary on Windows. It waits
+// for the original exe to become writable (i.e. the old process has exited),
+// then copies itself into the target path.
+func FinishUpgrade(targetPath string) {
+	self, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "locate self: %v\n", err)
+		os.Exit(1)
+	}
+	self, err = filepath.EvalSymlinks(self)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve self: %v\n", err)
+		os.Exit(1)
+	}
+
+	var lastErr error
+	for i := 0; i < 30; i++ {
+		if err := copyFile(self, targetPath); err != nil {
+			lastErr = err
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		fmt.Printf("Successfully upgraded %s\n", targetPath)
+		os.Remove(self) // best-effort; may fail on Windows while still running
+		os.Exit(0)
+	}
+
+	fmt.Fprintf(os.Stderr, "upgrade failed after retries: %v\n", lastErr)
+	os.Exit(1)
 }
 
 // copyFile copies src to dst, used as fallback when rename fails cross-device

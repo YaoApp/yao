@@ -135,6 +135,7 @@ func init() {
 			"dsh.step.thinking":        "Thinking...",
 			"dsh.plan.enter":           "Entering plan mode",
 			"dsh.plan.exit":            "Exiting plan mode",
+			"dsh.subagent.waiting":     "Waiting for subagent to complete...",
 
 			// Tai: sandbox/v2/tai/parse.go - Tai session event messages
 			"tai.agent.starting":         "Starting agent...",
@@ -271,6 +272,7 @@ func init() {
 			"dsh.step.thinking":        "正在思考...",
 			"dsh.plan.enter":           "进入计划模式",
 			"dsh.plan.exit":            "退出计划模式",
+			"dsh.subagent.waiting":     "正在等待子代理完成...",
 
 			// Tai: sandbox/v2/tai/parse.go
 			"tai.agent.starting":         "正在启动...",
@@ -435,6 +437,7 @@ func init() {
 			"dsh.step.thinking":        "正在思考...",
 			"dsh.plan.enter":           "进入计划模式",
 			"dsh.plan.exit":            "退出计划模式",
+			"dsh.subagent.waiting":     "正在等待子代理完成...",
 
 			// Tai: sandbox/v2/tai/parse.go
 			"tai.agent.starting":         "正在启动...",

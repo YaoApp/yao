@@ -134,6 +134,7 @@ const textOnlyNDJSON = `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":3,"time":1002,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"world!"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":4,"time":1003,"data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 
 const thinkingNDJSON = `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
@@ -144,6 +145,7 @@ const thinkingNDJSON = `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":5,"time":1004,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"The answer is 42."}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":6,"time":1005,"data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":1}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 
 const toolCallNDJSON = `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
@@ -158,6 +160,7 @@ const toolCallNDJSON = `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":9,"time":1008,"data":{"turn":1,"step":2,"chunk":{"type":"block-end","index":0}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"turn/end","seq":10,"time":1009,"data":{"turn":1,"reason":{"kind":"completed"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 
 const errorResponseNDJSON = `{"jsonrpc":"2.0","id":1,"error":{"code":-32600,"message":"Invalid API key"}}
@@ -167,6 +170,7 @@ const usageNDJSON = `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"Hi"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"usage","usage":{"input_tokens":50,"output_tokens":10}}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 
 // --- Tests ---
@@ -426,6 +430,7 @@ func TestParse_TurnEnd_NonCompleted(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"turn/end","seq":1,"time":1000,"data":{"turn":1,"reason":{"kind":"max_tokens"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, _ := runParser(t, ndjson)
 
@@ -444,6 +449,7 @@ func TestParse_TurnEnd_Completed_NoError(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"turn/end","seq":1,"time":1000,"data":{"turn":1,"reason":{"kind":"completed"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, _ := runParser(t, ndjson)
 
@@ -559,12 +565,14 @@ const subagentIdleNDJSON = `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-sub","status":"idle"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1002,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":" Done."}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 
 const subagentEventNDJSON = `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-sub","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"sub text"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"main text"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 
 // parallelToolCallNDJSON: two tool calls streamed sequentially in Phase 1,
@@ -581,6 +589,7 @@ const parallelToolCallNDJSON = `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"s
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":9,"time":1008,"data":{"turn":1,"step":1,"message":{"source":{"callId":"call_1"},"content":[{"content":[{"type":"text","text":"file1.txt\n"}]}]}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":10,"time":1009,"data":{"turn":1,"step":1,"message":{"source":{"callId":"call_2"},"content":[{"content":[{"type":"text","text":"hello world"}]}]}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 
 // --- New tests ---
@@ -602,7 +611,9 @@ func TestParse_SubagentIdle_DoesNotComplete(t *testing.T) {
 	}
 }
 
-func TestParse_SubagentEvent_Filtered(t *testing.T) {
+func TestParse_SubagentEvent_Visible(t *testing.T) {
+	// With the promptedSessionID filter removed, child-session events are
+	// now visible to the Go consumer alongside parent-session events.
 	events, completed := runParserWithSession(t, subagentEventNDJSON, "sess-1")
 	if !completed {
 		t.Fatal("should complete")
@@ -614,8 +625,8 @@ func TestParse_SubagentEvent_Filtered(t *testing.T) {
 			fullText += string(ev.data)
 		}
 	}
-	if fullText != "main text" {
-		t.Errorf("text = %q, want %q (subagent text should be filtered)", fullText, "main text")
+	if fullText != "sub textmain text" {
+		t.Errorf("text = %q, want %q (child session events are now visible)", fullText, "sub textmain text")
 	}
 }
 
@@ -700,6 +711,7 @@ func TestParse_Idle_ClosesExecuteGroup(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"block-start","blockType":"tool-call","index":0,"id":"call_orphan","name":"bash"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -818,10 +830,12 @@ func TestParse_ParallelToolCalls(t *testing.T) {
 // --- Session ID filtering edge cases ---
 
 func TestParse_NoSessionFilter_AcceptsAll(t *testing.T) {
-	// When promptedSessionID is empty, all events pass through
+	// When promptedSessionID is empty, all events pass through.
+	// session.status:idle no longer triggers completion — only
+	// session.completed does, so both "Spawning sub..." and " Done." appear.
 	events, completed := runParser(t, subagentIdleNDJSON)
 	if !completed {
-		t.Fatal("should complete on first idle (no filtering)")
+		t.Fatal("should complete on session.completed")
 	}
 
 	var fullText string
@@ -830,9 +844,8 @@ func TestParse_NoSessionFilter_AcceptsAll(t *testing.T) {
 			fullText += string(ev.data)
 		}
 	}
-	// Without filtering, parser completes on subagent's idle (sess-sub) before "Done."
-	if fullText != "Spawning sub..." {
-		t.Errorf("text = %q, want %q (no filter means first idle completes)", fullText, "Spawning sub...")
+	if fullText != "Spawning sub... Done." {
+		t.Errorf("text = %q, want %q", fullText, "Spawning sub... Done.")
 	}
 }
 
@@ -863,6 +876,7 @@ func TestParse_ToolCallDelta_IDMapping(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/call","seq":4,"time":1003,"data":{"turn":1,"step":1,"callId":"real_call_1","name":"bash","arguments":"{\"command\":\"pwd\"}"}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":5,"time":1004,"data":{"turn":1,"step":1,"message":{"source":{"callId":"real_call_1"},"content":[{"content":[{"type":"text","text":"/home\n"}]}]}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -897,6 +911,7 @@ func TestParse_ToolError(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/call","seq":4,"time":1003,"data":{"turn":1,"step":1,"callId":"call_err","name":"bash","arguments":"{\"command\":\"exit 1\"}"}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":5,"time":1004,"data":{"turn":1,"step":1,"message":{"source":{"callId":"call_err"},"content":[{"isError":true,"content":[{"type":"text","text":"command failed"}]}]}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -937,6 +952,7 @@ func TestParse_MixedThinkTextTool(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":10,"time":1009,"data":{"turn":1,"step":2,"chunk":{"type":"text-delta","text":"Today is Monday."}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":11,"time":1010,"data":{"turn":1,"step":2,"chunk":{"type":"block-end","index":0}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -966,6 +982,7 @@ func TestParse_ToolCallWithoutPhase1(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/call","seq":1,"time":1000,"data":{"turn":1,"step":1,"callId":"direct_call","name":"read","arguments":"{\"path\":\"/tmp/x\"}"}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":2,"time":1001,"data":{"turn":1,"step":1,"message":{"source":{"callId":"direct_call"},"content":[{"content":[{"type":"text","text":"content"}]}]}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -995,6 +1012,7 @@ func TestParse_FinishChunk(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"Hi"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"finish","reason":{"kind":"completed"}}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1020,6 +1038,7 @@ func TestParse_ReasoningDelta_WithoutBlockStart(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"reasoning-delta","text":"thinking..."}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"reasoning-delta","text":" more"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1045,6 +1064,7 @@ func TestParse_TextDelta_CRLFNormalization(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"line1\r\nline2\rline3"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, _ := runParser(t, ndjson)
 	var text string
@@ -1063,6 +1083,7 @@ func TestParse_MultiContentToolResult(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/call","seq":1,"time":1000,"data":{"turn":1,"step":1,"callId":"multi_out","name":"bash","arguments":"{\"command\":\"echo a && echo b\"}"}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":2,"time":1001,"data":{"turn":1,"step":1,"message":{"source":{"callId":"multi_out"},"content":[{"content":[{"type":"text","text":"line1"}]},{"content":[{"type":"text","text":"line2"}]}]}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1087,6 +1108,7 @@ func TestParse_EmptyToolResult(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/call","seq":1,"time":1000,"data":{"turn":1,"step":1,"callId":"empty_out","name":"bash","arguments":"{\"command\":\"true\"}"}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":2,"time":1001,"data":{"turn":1,"step":1,"message":{"source":{"callId":"empty_out"},"content":[]}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1111,6 +1133,7 @@ func TestParse_TurnEnd_ErrorKind(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"turn/end","seq":1,"time":1000,"data":{"turn":1,"reason":{"kind":"api_error","message":"rate limited"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, _ := runParser(t, ndjson)
 	var errorText string
@@ -1128,6 +1151,7 @@ func TestParse_TurnEnd_ErrorType(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"turn/end","seq":1,"time":1000,"data":{"turn":1,"reason":{"kind":"error","error":"InternalError"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, _ := runParser(t, ndjson)
 	var errorText string
@@ -1145,6 +1169,7 @@ func TestParse_TurnEnd_FallbackError(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"turn/end","seq":1,"time":1000,"data":{"turn":1,"reason":{"kind":"unknown_reason"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, _ := runParser(t, ndjson)
 	var errorText string
@@ -1163,6 +1188,7 @@ func TestParse_UnknownChunkType(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"unknown-future-type","text":"data"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"ok"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1184,6 +1210,7 @@ func TestParse_UnknownEventType(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"future/event","seq":1,"time":1000,"data":{}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"still works"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1205,6 +1232,7 @@ func TestParse_UnknownMethod(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.future","params":{"sessionId":"sess-1","data":"something"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"ok"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1227,6 +1255,7 @@ func TestParse_TextAfterReasoning(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"reasoning-delta","text":"thinking"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"response"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1247,6 +1276,7 @@ func TestParse_ReasoningAfterText(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"hello"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"reasoning-delta","text":"hmm"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1289,6 +1319,7 @@ func TestParse_EmptyTextDelta(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":""}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"real"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, _ := runParser(t, ndjson)
 	var text string
@@ -1307,6 +1338,7 @@ func TestParse_EmptyReasoningDelta(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"reasoning-delta","text":""}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"reasoning-delta","text":"think"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, _ := runParser(t, ndjson)
 	var text string
@@ -1326,6 +1358,7 @@ func TestParse_ToolCallDelta_NoActiveToolID(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"tool-call-delta","index":0,"argumentsDelta":"{\"x\":1}"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"ok"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1349,6 +1382,7 @@ func TestParse_BlockStartText_WhileTextActive(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"block-start","blockType":"text","index":1}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":3,"time":1002,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"B"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, _ := runParser(t, ndjson)
 	var text string
@@ -1368,6 +1402,7 @@ func TestParse_BlockStartReasoning_WhileThinkActive(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"block-start","blockType":"reasoning","index":1}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":3,"time":1002,"data":{"turn":1,"step":1,"chunk":{"type":"reasoning-delta","text":"B"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, _ := runParser(t, ndjson)
 	var text string
@@ -1392,6 +1427,7 @@ func TestParse_StopOnBlockStartText(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"block-start","blockType":"text","index":0}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"should not see"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	p := dsh.ExportNewStreamParser(stopOnStart)
 	r, w := io.Pipe()
@@ -1412,6 +1448,7 @@ func TestParse_StopOnBlockStartReasoning(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"block-start","blockType":"reasoning","index":0}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	p := dsh.ExportNewStreamParser(stopOnStart)
 	r, w := io.Pipe()
@@ -1432,6 +1469,7 @@ func TestParse_ToolCallDelta_NameEmitsUpdate(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/call","seq":5,"time":1004,"data":{"turn":1,"step":1,"callId":"call_real","name":"write","arguments":"{\"file_path\":\"/tmp/hello.md\",\"content\":\"hello\"}"}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":6,"time":1005,"data":{"turn":1,"step":1,"message":{"source":{"callId":"call_real"},"content":[{"content":[{"type":"text","text":"ok"}]}]}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1504,6 +1542,7 @@ func TestParse_StopOnToolCallPendingEmit(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"block-start","blockType":"tool-call","index":0,"id":"stop_call","name":"bash"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	p := dsh.ExportNewStreamParser(stopOnExecute)
 	r, w := io.Pipe()
@@ -1520,6 +1559,7 @@ func TestParse_NonNotificationRequest(t *testing.T) {
 {"jsonrpc":"2.0","id":99,"method":"session.prompt","params":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"ok"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1540,6 +1580,7 @@ func TestParse_FinishEmptyReason(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"finish"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1560,6 +1601,7 @@ func TestParse_UsageEmpty(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"usage"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1577,6 +1619,7 @@ func TestParse_SessionStatus_NonIdle(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"running"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"hello"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1609,6 +1652,7 @@ func TestParse_MalformedJSON(t *testing.T) {
 also not valid {{{
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"survived"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1647,6 +1691,7 @@ func TestParse_StopSignal(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"two"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":3,"time":1002,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"three"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	p := dsh.ExportNewStreamParser(handler)
 	r, w := io.Pipe()
@@ -1668,20 +1713,21 @@ func TestParse_StopSignal(t *testing.T) {
 	}
 }
 
-// TestParse_IdleAfterResponse verifies that session.status "idle" (not the
-// prompt response) marks the stream as completed. The prompt response is an
-// asynchronous acknowledgment sent before the agent loop streams events.
+// TestParse_IdleAfterResponse verifies that session.completed (sent after all
+// descendants settle) marks the stream as completed. session.status:idle alone
+// is no longer sufficient; the Node side sends session.completed explicitly.
 func TestParse_IdleAfterResponse(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","id":2,"result":{"ok":true}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"你好！"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"turn/end","seq":2,"time":1001,"data":{"turn":1,"reason":{"kind":"completed"}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 
 	if !completed {
-		t.Fatal("parser should report completed on session.status idle")
+		t.Fatal("parser should report completed on session.completed")
 	}
 
 	var hasText bool
@@ -1696,7 +1742,7 @@ func TestParse_IdleAfterResponse(t *testing.T) {
 }
 
 // TestParse_ResponseOnly_NoSessionStatus verifies that content is delivered
-// even when DSH sends only the response without session.status. Completion
+// even when DSH sends only the response without session.completed. Completion
 // comes from stdout EOF; the parser returns completed=false but the content
 // was still emitted to the handler.
 func TestParse_ResponseOnly_NoSessionStatus(t *testing.T) {
@@ -1735,6 +1781,7 @@ func TestParse_OrphanedToolCleanup_Idle(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":2,"time":1001,"data":{"turn":1,"step":1,"chunk":{"type":"tool-call-delta","index":0,"argumentsDelta":"{\"command\":\"sleep 99\"}"}}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":3,"time":1002,"data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1839,6 +1886,7 @@ func TestParse_OrphanedToolWithAlias(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/call","seq":4,"time":1003,"data":{"turn":1,"step":1,"callId":"real_call","name":"bash","arguments":"{\"command\":\"ls\"}"}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":5,"time":1004,"data":{"turn":1,"step":1,"message":{"source":{"callId":"real_call"},"content":[{"content":[{"type":"text","text":"a.txt\n"}]}]}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1871,6 +1919,7 @@ func TestParse_MixedOrphanAndCompleted(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/call","seq":7,"time":1006,"data":{"turn":1,"step":1,"callId":"call_ok","name":"bash","arguments":"{\"command\":\"ls\"}"}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":8,"time":1007,"data":{"turn":1,"step":1,"message":{"source":{"callId":"call_ok"},"content":[{"content":[{"type":"text","text":"files\n"}]}]}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -1991,6 +2040,7 @@ func TestParse_IncrementalSummaryDuringDelta(t *testing.T) {
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/call","seq":5,"time":1004,"data":{"turn":1,"step":1,"callId":"incr_1","name":"write","arguments":"{\"file_path\":\"/tmp/test.go\",\"content\":\"package main\"}"}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":6,"time":1005,"data":{"turn":1,"step":1,"message":{"source":{"callId":"incr_1"},"content":[{"content":[{"type":"text","text":"ok"}]}]}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -2118,6 +2168,7 @@ func TestParse_TurnEndError_EmitsChunkError(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"turn/end","seq":1,"time":1000,"data":{"turn":1,"reason":{"kind":"error","error":{"code":"STREAM_CLOSED","message":"SSE stream ended without [DONE]"}}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, completed := runParser(t, ndjson)
 	if !completed {
@@ -2147,7 +2198,8 @@ func sessionEvent(sessionID, eventType string, data any) string {
 }
 
 func idleStatus(sessionID string) string {
-	return `{"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"` + sessionID + `","status":"idle"}}` + "\n"
+	return `{"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"` + sessionID + `","status":"idle"}}` + "\n" +
+		`{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"` + sessionID + `"}}` + "\n"
 }
 
 func initResponse() string {
@@ -2635,6 +2687,7 @@ func TestHandleToolResult_WithMetaDiffs(t *testing.T) {
 	ndjson := `{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/call","seq":1,"time":1000,"data":{"turn":1,"step":1,"callId":"call_1","name":"file_edit","arguments":"{\"path\":\"test.txt\"}"}}}}
 {"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":2,"time":1001,"data":{"turn":1,"step":1,"message":{"source":{"callId":"call_1"},"content":[{"content":[{"type":"text","text":"ok"}]}]},"meta":{"diffs":[{"path":"test.txt","oldText":"aaa\n","newText":"bbb\n"}]}}}}}
 {"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
 `
 	events, _ := runParser(t, ndjson)
 
@@ -2668,5 +2721,61 @@ func TestHandleToolResult_WithMetaDiffs(t *testing.T) {
 	}
 	if !foundPatches {
 		t.Error("expected file_patches in completed tool_result execute event")
+	}
+}
+
+func TestParse_SessionCompleted_SetsCompleted(t *testing.T) {
+	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
+{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"hi"}}}}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
+`
+	_, completed := runParserWithSession(t, ndjson, "sess-1")
+	if !completed {
+		t.Fatal("session.completed should set completed=true")
+	}
+}
+
+func TestParse_SessionCompleted_IgnoresOtherSession(t *testing.T) {
+	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
+{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"hi"}}}}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-other"}}
+`
+	_, completed := runParserWithSession(t, ndjson, "sess-1")
+	if completed {
+		t.Fatal("session.completed for a different session should not set completed")
+	}
+}
+
+func TestParse_SessionWaiting_EmitsLoading(t *testing.T) {
+	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
+{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"working"}}}}}
+{"jsonrpc":"2.0","method":"session.waiting","params":{"sessionId":"sess-1"}}
+{"jsonrpc":"2.0","method":"session.completed","params":{"sessionId":"sess-1"}}
+`
+	events, completed := runParser(t, ndjson)
+	if !completed {
+		t.Fatal("should complete")
+	}
+
+	loadings := extractLoadingMessages(events)
+	found := false
+	for _, l := range loadings {
+		if msg, ok := l.Props["message"].(string); ok && msg != "" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("session.waiting should emit a loading message")
+	}
+}
+
+func TestParse_StatusIdle_NoLongerCompletes(t *testing.T) {
+	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
+{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"hi"}}}}}
+{"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+`
+	_, completed := runParserWithSession(t, ndjson, "sess-1")
+	if completed {
+		t.Fatal("session.status:idle alone should no longer set completed; session.completed is required")
 	}
 }

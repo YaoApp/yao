@@ -136,6 +136,10 @@ func (p *streamParser) dispatch(msg *jsonRPCMessage) (stopped bool) {
 		return p.handleSessionEvent(msg.Params)
 	case "session.status":
 		return p.handleSessionStatus(msg.Params)
+	case "session.completed":
+		return p.handleSessionCompleted(msg.Params)
+	case "session.waiting":
+		return p.handleSessionWaiting(msg.Params)
 	}
 	return false
 }
@@ -159,15 +163,35 @@ func (p *streamParser) handleSessionStatus(raw json.RawMessage) (stopped bool) {
 	if err := json.Unmarshal(raw, &params); err != nil {
 		return false
 	}
-	if params.Status == "idle" {
-		if p.promptedSessionID != "" && params.SessionID != p.promptedSessionID {
-			return false
-		}
-		p.closeTextMessage()
-		p.closeThinkMessage()
-		p.closeOrphanedTools()
-		p.completed = true
+	// session.status:idle no longer drives completion — the Node side sends
+	// session.completed after all descendants (subagents, team members, goal
+	// rounds) have settled.  Keeping idle as a pure status notification
+	// preserves event ordering for consumers that only observe status.
+	return false
+}
+
+// handleSessionCompleted processes the session.completed notification sent by
+// the Node side after the root agent and all descendant subagents are quiescent.
+func (p *streamParser) handleSessionCompleted(raw json.RawMessage) (stopped bool) {
+	var params sessionStatusParams
+	if err := json.Unmarshal(raw, &params); err != nil {
+		return false
 	}
+	if p.promptedSessionID != "" && params.SessionID != p.promptedSessionID {
+		return false
+	}
+	p.closeTextMessage()
+	p.closeThinkMessage()
+	p.closeOrphanedTools()
+	p.closeActiveLoading()
+	p.completed = true
+	return false
+}
+
+// handleSessionWaiting processes the session.waiting notification emitted while
+// the root agent is idle but descendant subagents are still running.
+func (p *streamParser) handleSessionWaiting(raw json.RawMessage) (stopped bool) {
+	p.emitLoading(i18n.T(p.locale, "dsh.subagent.waiting"))
 	return false
 }
 
@@ -176,9 +200,10 @@ func (p *streamParser) handleSessionEvent(raw json.RawMessage) (stopped bool) {
 	if err := json.Unmarshal(raw, &params); err != nil {
 		return false
 	}
-	if p.promptedSessionID != "" && params.SessionID != p.promptedSessionID {
-		return false
-	}
+	// Allow events from child sessions (subagents, team members) to flow
+	// through so their tool calls, text deltas, and lifecycle events are
+	// visible to the Go consumer.  Only completion-critical logic (like
+	// session.completed) is scoped to the prompted root session.
 	event := params.Event
 
 	switch event.Type {

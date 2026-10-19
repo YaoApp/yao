@@ -14,6 +14,8 @@ import (
 	_ "github.com/yaoapp/yao/sitemap"
 	_ "github.com/yaoapp/yao/tools"
 
+	"os"
+
 	"github.com/yaoapp/yao/cmd"
 	"github.com/yaoapp/yao/utils"
 	//
@@ -21,6 +23,12 @@ import (
 )
 
 func main() {
+	// Internal: Windows self-update helper spawned by "yao upgrade".
+	if len(os.Args) >= 3 && os.Args[1] == "--finish-upgrade" {
+		cmd.FinishUpgrade(os.Args[2])
+		return
+	}
+
 	// go func() {
 	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
 	// }()
