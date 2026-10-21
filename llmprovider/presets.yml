@@ -975,6 +975,15 @@
   api_url: https://api.minimax.io/v1/
   require_key: true
   default_models:
+    - id: MiniMax-M3.1-Flash
+      name: MiniMax M3.1 Flash
+      max_input_tokens: 1000000
+      max_output_tokens: 524288
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: adaptive
+      enabled: true
     - id: MiniMax-M3
       name: MiniMax M3
       max_input_tokens: 1000000
@@ -983,7 +992,7 @@
       options:
         thinking:
           type: disabled
-      enabled: false
+      enabled: true
     - id: MiniMax-M3-thinking
       model: MiniMax-M3
       name: MiniMax M3 Thinking
@@ -993,13 +1002,13 @@
       options:
         thinking:
           type: adaptive
-      enabled: true
+      enabled: false
     - id: MiniMax-M2.7
       name: MiniMax M2.7
       max_input_tokens: 204800
       max_output_tokens: 204800
       capabilities: [tool_calls, streaming, json, reasoning]
-      enabled: true
+      enabled: false
     - id: MiniMax-M2.5
       name: MiniMax M2.5
       max_input_tokens: 196608
@@ -1029,6 +1038,15 @@
   api_url: https://api.minimaxi.com/v1/
   require_key: true
   default_models:
+    - id: MiniMax-M3.1-Flash
+      name: MiniMax M3.1 Flash
+      max_input_tokens: 1000000
+      max_output_tokens: 524288
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: adaptive
+      enabled: true
     - id: MiniMax-M3
       name: MiniMax M3
       max_input_tokens: 1000000
@@ -1037,7 +1055,7 @@
       options:
         thinking:
           type: disabled
-      enabled: false
+      enabled: true
     - id: MiniMax-M3-thinking
       model: MiniMax-M3
       name: MiniMax M3 Thinking
@@ -1047,13 +1065,13 @@
       options:
         thinking:
           type: adaptive
-      enabled: true
+      enabled: false
     - id: MiniMax-M2.7
       name: MiniMax M2.7
       max_input_tokens: 204800
       max_output_tokens: 204800
       capabilities: [tool_calls, streaming, json, reasoning]
-      enabled: true
+      enabled: false
     - id: MiniMax-M2.5
       name: MiniMax M2.5
       max_input_tokens: 196608
@@ -1070,6 +1088,15 @@
   api_url: https://api.minimax.io/anthropic
   require_key: true
   default_models:
+    - id: MiniMax-M3.1-Flash
+      name: MiniMax M3.1 Flash
+      max_input_tokens: 1000000
+      max_output_tokens: 524288
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: adaptive
+      enabled: true
     - id: MiniMax-M3
       name: MiniMax M3
       max_input_tokens: 1000000
@@ -1078,7 +1105,7 @@
       options:
         thinking:
           type: disabled
-      enabled: false
+      enabled: true
     - id: MiniMax-M3-thinking
       model: MiniMax-M3
       name: MiniMax M3 Thinking
@@ -1088,13 +1115,13 @@
       options:
         thinking:
           type: adaptive
-      enabled: true
+      enabled: false
     - id: MiniMax-M2.7
       name: MiniMax M2.7
       max_input_tokens: 204800
       max_output_tokens: 204800
       capabilities: [tool_calls, streaming, json, reasoning]
-      enabled: true
+      enabled: false
 
 # MiniMax (Anthropic, CN)
 - key: minimax_anthropic_cn
@@ -1104,6 +1131,15 @@
   api_url: https://api.minimaxi.com/anthropic
   require_key: true
   default_models:
+    - id: MiniMax-M3.1-Flash
+      name: MiniMax M3.1 Flash
+      max_input_tokens: 1000000
+      max_output_tokens: 524288
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: adaptive
+      enabled: true
     - id: MiniMax-M3
       name: MiniMax M3
       max_input_tokens: 1000000
@@ -1112,7 +1148,7 @@
       options:
         thinking:
           type: disabled
-      enabled: false
+      enabled: true
     - id: MiniMax-M3-thinking
       model: MiniMax-M3
       name: MiniMax M3 Thinking
@@ -1122,13 +1158,13 @@
       options:
         thinking:
           type: adaptive
-      enabled: true
+      enabled: false
     - id: MiniMax-M2.7
       name: MiniMax M2.7
       max_input_tokens: 204800
       max_output_tokens: 204800
       capabilities: [tool_calls, streaming, json, reasoning]
-      enabled: true
+      enabled: false
 
 # ─── 小米 MiMo ─────────────────────────────────────────
 - key: xiaomimimo
