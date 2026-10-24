@@ -152,6 +152,15 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "DB", Error: err})
 	}
 
+	// Detect external tools before registering the local node. Docker Desktop
+	// exposes the platform-default socket, but alternative runtimes such as
+	// OrbStack are often selected through a Docker CLI context. The resolved
+	// context host must be available when tai.InitLocal() probes Docker.
+	loadStep("ExtTools", func() error {
+		InspectExtTools()
+		return nil
+	}, callback)
+
 	// Detect CLI runners (claude, opencode, tai) before registering the local
 	// node so that localRunners() can use the results for accurate capability
 	// declaration. This is fast (exec.LookPath only) and must run before
@@ -215,12 +224,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	if err != nil {
 		warnings = append(warnings, Warning{Widget: "Connector", Error: err})
 	}
-
-	// Inspect external tools (silent, non-fatal)
-	loadStep("ExtTools", func() error {
-		InspectExtTools()
-		return nil
-	}, callback)
 
 	// Load FileSystem
 	err = loadStep("FileSystem", func() error {
