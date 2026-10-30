@@ -1647,6 +1647,29 @@
       capabilities: [decision]
       enabled: true
 
+# ─── Nace AI (Decision) ─────────────────────────────────
+- key: nace
+  name: Nace AI
+  type: typesafe
+  api_url: https://console.nace.ai
+  require_key: true
+  default_models:
+    - id: drex-max
+      name: Drex Max
+      max_input_tokens: 262144
+      capabilities: [decision]
+      enabled: true
+    - id: drex-v2.0
+      name: Drex 2.0
+      max_input_tokens: 262144
+      capabilities: [decision]
+      enabled: true
+    - id: drex-latest
+      name: Drex Latest (alias of drex-v2.0)
+      max_input_tokens: 262144
+      capabilities: [decision]
+      enabled: true
+
 # ─── Kimi / Moonshot (International) ────────────────────
 - key: kimi_intl
   name: Kimi (Moonshot)

@@ -1,0 +1,30 @@
+provider_id: nace
+
+decision_models:
+  - model_id: drex-max
+    name: Drex Max
+    model_api: typesafe-system-one
+    base_url: "https://console.nace.ai/v1"
+    input: [text]
+    context_window: 262144
+    input_cost_per_1m: 0.03
+    input_limits:
+      max_request_bytes: 4194304
+  - model_id: drex-v2.0
+    name: Drex 2.0
+    model_api: typesafe-system-one
+    base_url: "https://console.nace.ai/v1"
+    input: [text]
+    context_window: 262144
+    input_cost_per_1m: 0.06
+    input_limits:
+      max_request_bytes: 4194304
+  - model_id: drex-latest
+    name: Drex Latest (alias of drex-v2.0)
+    model_api: typesafe-system-one
+    base_url: "https://console.nace.ai/v1"
+    input: [text]
+    context_window: 262144
+    input_cost_per_1m: 0.06
+    input_limits:
+      max_request_bytes: 4194304
