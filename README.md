@@ -18,6 +18,8 @@
 
 [中文](README.zh-CN.md)
 
+> 🚧 **We are currently focused on v2.0 development.** For related work, see [YaoApp/tai-golang](https://github.com/yaoapp/tai-golang).
+
 ---
 
 ## How it works
