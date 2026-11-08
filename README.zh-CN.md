@@ -18,6 +18,8 @@
 
 [English](README.md)
 
+> 🚧 **我们目前专注于 2.0 版本的开发。** 相关仓库请参考 [YaoApp/tai-golang](https://github.com/yaoapp/tai-golang)。
+
 ---
 
 ## 工作原理
