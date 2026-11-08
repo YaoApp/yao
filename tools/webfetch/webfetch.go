@@ -21,11 +21,12 @@ type FetchResponse struct {
 }
 
 type fetchConfig struct {
-	Provider       string // "tao" / "brightdata" / "" (direct)
+	Provider       string // "tao" / "brightdata" / "outcrawl" / "" (direct)
 	APIKey         string
 	APIURL         string // tao mode endpoint
 	BrightdataKey  string
 	BrightdataZone string
+	OutcrawlKey    string
 }
 
 // Handler is the tools.web_fetch process handler.
@@ -35,11 +36,20 @@ func Handler(proc *process.Process) interface{} {
 	url := proc.ArgsString(0)
 	format := proc.ArgsString(1, "markdown")
 	userID, teamID := getAuthInfo(proc)
-	cfg := getConfig(userID, teamID)
+	return fetchWithConfig(getConfig(userID, teamID), url, format)
+}
 
+func fetchWithConfig(cfg *fetchConfig, url, format string) *FetchResponse {
 	switch cfg.Provider {
 	case "tao":
 		return taoFetch(cfg, url, format)
+	case "outcrawl":
+		if cfg.OutcrawlKey != "" {
+			if resp, err := outcrawlFetch(url, cfg.OutcrawlKey, format); err == nil {
+				return resp
+			}
+		}
+		return localFetch(cfg, url, format)
 	default:
 		return localFetch(cfg, url, format)
 	}
@@ -68,6 +78,9 @@ func getConfig(userID, teamID string) *fetchConfig {
 		cfg.APIKey, cfg.APIURL = getTaoConfig(userID, teamID)
 	case "brightdata":
 		cfg.BrightdataKey, cfg.BrightdataZone = getBrightdataConfig(userID, teamID)
+	case "outcrawl":
+		cfg.OutcrawlKey = getOutcrawlKey(userID, teamID)
+		cfg.BrightdataKey, cfg.BrightdataZone = getBrightdataConfig(userID, teamID)
 	default:
 		cfg.BrightdataKey, cfg.BrightdataZone = getBrightdataConfig(userID, teamID)
 	}
@@ -86,6 +99,20 @@ func getTaoConfig(userID, teamID string) (apiKey, apiURL string) {
 		apiKey = config.DecryptValue(v)
 	}
 	return
+}
+
+func getOutcrawlKey(userID, teamID string) string {
+	if setting.Global != nil {
+		saved, _ := setting.Global.GetMerged(userID, teamID, "search.providers.outcrawl")
+		if fv, ok := saved["field_values"].(map[string]interface{}); ok {
+			if v, ok := fv["api_key"].(string); ok {
+				if key := config.DecryptValue(v); key != "" {
+					return key
+				}
+			}
+		}
+	}
+	return os.Getenv("OUTCRAWL_API_KEY")
 }
 
 func getBrightdataConfig(userID, teamID string) (apiKey, zone string) {

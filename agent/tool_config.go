@@ -15,17 +15,17 @@ type toolProviderConfig struct {
 }
 
 var validWebSearchDefaults = map[string]bool{
-	"tavily": true, "serper": true, "tao": true,
+	"tavily": true, "serper": true, "outcrawl": true, "tao": true,
 }
 
 var validWebFetchDefaults = map[string]bool{
-	"brightdata": true, "tao": true, "direct": true,
+	"brightdata": true, "outcrawl": true, "tao": true, "direct": true,
 }
 
 // validProviderKeys lists providers that store credentials in search.providers.*.
 // "tao" is excluded — its credentials live in the tao namespace.
 var validProviderKeys = map[string]bool{
-	"tavily": true, "serper": true, "brightdata": true,
+	"tavily": true, "serper": true, "outcrawl": true, "brightdata": true,
 }
 
 var validOCRProviderKeys = map[string]bool{

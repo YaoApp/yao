@@ -42,6 +42,21 @@
       label: { zh-CN: "API Key", en-US: "API Key" }
       type: password
 
+- key: outcrawl
+  name: Outcrawl
+  description:
+    zh-CN: "面向 AI Agent 的网络基础设施，提供网页搜索与网页抓取，抓取结果为干净的 Markdown"
+    en-US: "Web infrastructure for AI agents: web search and page scraping that returns clean Markdown"
+  website: "https://outcrawl.ai"
+  tools: [web_search, web_scrape]
+  tool_labels:
+    - { zh-CN: "网页搜索", en-US: "Web Search" }
+    - { zh-CN: "网页抓取", en-US: "Web Scrape" }
+  fields:
+    - key: api_key
+      label: { zh-CN: "API Key", en-US: "API Key" }
+      type: password
+
 - key: brightdata
   name: Brightdata
   description:

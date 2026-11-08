@@ -412,6 +412,8 @@ func handleSearchProviderTest(c *gin.Context) {
 		testErr = searchTestTavily(apiKey)
 	case "serper":
 		testErr = searchTestSerper(apiKey)
+	case "outcrawl":
+		testErr = searchTestOutcrawl(apiKey)
 	case "brightdata":
 		testErr = searchTestBrightdata(apiKey, zone)
 	default:
@@ -483,6 +485,29 @@ func searchTestSerper(apiKey string) error {
 		return fmt.Errorf("failed to build request: %s", err.Error())
 	}
 	req.Header.Set("X-API-KEY", apiKey)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("connection failed: %s", err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("invalid API key (HTTP %d)", resp.StatusCode)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("server returned HTTP %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func searchTestOutcrawl(apiKey string) error {
+	payload, _ := json.Marshal(map[string]interface{}{"query": "test", "limit": 1})
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("POST", "https://api.outcrawl.ai/v1/search", bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("failed to build request: %s", err.Error())
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {

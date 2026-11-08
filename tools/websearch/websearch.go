@@ -21,7 +21,7 @@ type SearchResult struct {
 }
 
 type searchConfig struct {
-	Provider string // "tavily" / "serper" / "tao"
+	Provider string // "tavily" / "serper" / "outcrawl" / "tao"
 	APIKey   string
 	APIURL   string // tao mode endpoint
 }
@@ -39,12 +39,17 @@ func Handler(proc *process.Process) interface{} {
 // Search executes a web search using the configured provider.
 // Reads provider/key from Settings (with ENV fallback).
 func Search(query string, limit int, userID, teamID string) []SearchResult {
-	cfg := getConfig(userID, teamID)
+	return searchWithConfig(getConfig(userID, teamID), query, limit)
+}
+
+func searchWithConfig(cfg *searchConfig, query string, limit int) []SearchResult {
 	switch cfg.Provider {
 	case "tao":
 		return taoSearch(cfg, query, limit)
 	case "serper":
 		return serperSearch(cfg.APIKey, query, limit)
+	case "outcrawl":
+		return outcrawlSearch(cfg.APIKey, query, limit)
 	default:
 		return tavilySearch(cfg.APIKey, query, limit)
 	}
@@ -80,6 +85,11 @@ func getConfig(userID, teamID string) *searchConfig {
 		cfg.APIKey = getProviderKey(userID, teamID, "serper")
 		if cfg.APIKey == "" {
 			cfg.APIKey = os.Getenv("SERPER_API_KEY")
+		}
+	case "outcrawl":
+		cfg.APIKey = getProviderKey(userID, teamID, "outcrawl")
+		if cfg.APIKey == "" {
+			cfg.APIKey = os.Getenv("OUTCRAWL_API_KEY")
 		}
 	}
 	return cfg
