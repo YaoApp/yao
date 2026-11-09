@@ -19,6 +19,8 @@
 [中文](README.zh-CN.md)
 
 > 🚧 **We are currently focused on v2.0 development.** For related work, see [YaoApp/tai-golang](https://github.com/yaoapp/tai-golang).
+>
+> ⚠️ **Yao 2.0 is not backward compatible with 1.0.** If you maintain a fork or self-host Yao, read [BREAKING.md](BREAKING.md) before updating.
 
 ---
 
