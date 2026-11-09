@@ -14,7 +14,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/tai/volume"
 	"github.com/yaoapp/yao/workspace"
-	"rogchap.com/v8go"
+	"github.com/YaoApp/v8go"
 )
 
 // NewFSObject creates a JS WorkspaceFS object backed by a workspace ID string.

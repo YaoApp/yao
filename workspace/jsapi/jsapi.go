@@ -7,7 +7,7 @@ import (
 
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/workspace"
-	"rogchap.com/v8go"
+	"github.com/YaoApp/v8go"
 )
 
 func init() {

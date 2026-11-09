@@ -8,7 +8,7 @@ import (
 
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
 	wsjsapi "github.com/yaoapp/yao/workspace/jsapi"
-	"rogchap.com/v8go"
+	"github.com/YaoApp/v8go"
 )
 
 // ---------------------------------------------------------------------------

@@ -18,7 +18,7 @@ import (
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
-	"rogchap.com/v8go"
+	"github.com/YaoApp/v8go"
 )
 
 // Guards middlewares

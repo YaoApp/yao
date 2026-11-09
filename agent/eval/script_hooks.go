@@ -10,7 +10,7 @@ import (
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/yao/agent/context"
-	"rogchap.com/v8go"
+	"github.com/YaoApp/v8go"
 )
 
 // HookExecutor executes before/after scripts from *_test.ts files

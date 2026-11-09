@@ -6,7 +6,7 @@ import (
 
 	"github.com/yaoapp/yao/tai/registry"
 	taitypes "github.com/yaoapp/yao/tai/types"
-	"rogchap.com/v8go"
+	"github.com/YaoApp/v8go"
 )
 
 // sbGetNode: `sandbox.GetNode(taiID)` → NodeInfo | null

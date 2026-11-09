@@ -38,7 +38,7 @@ import (
 
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
-	"rogchap.com/v8go"
+	"github.com/YaoApp/v8go"
 )
 
 func init() {

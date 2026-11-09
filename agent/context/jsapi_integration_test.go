@@ -15,7 +15,7 @@ import (
 	agentctx "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/unit-test/agent/testprepare"
-	"rogchap.com/v8go"
+	"github.com/YaoApp/v8go"
 )
 
 func TestJsValue(t *testing.T) {

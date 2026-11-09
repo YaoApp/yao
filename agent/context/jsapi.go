@@ -7,7 +7,7 @@ import (
 	"github.com/yaoapp/yao/agent/memory"
 	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/agent/output/message"
-	"rogchap.com/v8go"
+	"github.com/YaoApp/v8go"
 )
 
 // JsValue return the JavaScript value of the context
