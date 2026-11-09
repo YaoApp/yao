@@ -1,6 +1,6 @@
 # Breaking Changes in Yao 2.0
 
-**Status:** Draft — Yao 2.0 is under active development.
+**Status:** Final — document finalized; Yao 2.0 is still under active development.
 **Last updated:** 2026-11-09
 
 ## Summary
