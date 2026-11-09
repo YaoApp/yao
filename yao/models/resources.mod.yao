@@ -1,0 +1,258 @@
+{
+  "name": "Resources",
+  "label": "Resources",
+  "description": "Server-managed resource package (skill, tool, plugin or MCP).",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "resources",
+    "comment": "Server-managed resource package (skill, tool, plugin or MCP)."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "type",
+      "label": "Type",
+      "comment": "Record type: skill, remote_tool, wasm_plugin, mcp",
+      "type": "enum",
+      "option": [
+        "skill",
+        "remote_tool",
+        "wasm_plugin",
+        "mcp"
+      ]
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "comment": "Display name",
+      "type": "string",
+      "length": 128
+    },
+    {
+      "name": "version",
+      "label": "Version",
+      "comment": "Version",
+      "type": "string",
+      "length": 32
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "comment": "Description",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "manifest",
+      "label": "Manifest",
+      "comment": "Build manifest",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "storage_type",
+      "label": "Storage Type",
+      "comment": "Storage backend: local, s3",
+      "type": "enum",
+      "option": [
+        "local",
+        "s3"
+      ]
+    },
+    {
+      "name": "storage_ref",
+      "label": "Storage Ref",
+      "comment": "Storage location reference",
+      "type": "string",
+      "length": 255
+    },
+    {
+      "name": "checksum",
+      "label": "Checksum",
+      "comment": "Content checksum",
+      "type": "string",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "size",
+      "label": "Size",
+      "comment": "Size in bytes",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "scope",
+      "label": "Scope",
+      "comment": "Ownership scope: system, team, user",
+      "type": "enum",
+      "option": [
+        "system",
+        "team",
+        "user"
+      ],
+      "default": "system"
+    },
+    {
+      "name": "source",
+      "label": "Source",
+      "comment": "Resource source: official, third_party, custom",
+      "type": "enum",
+      "option": [
+        "official",
+        "third_party",
+        "custom"
+      ],
+      "default": "official"
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: draft, enabled, disabled, archived, maintaining",
+      "type": "enum",
+      "option": [
+        "draft",
+        "enabled",
+        "disabled",
+        "archived",
+        "maintaining"
+      ],
+      "default": "draft"
+    },
+    {
+      "name": "position",
+      "label": "Position",
+      "comment": "Sort position",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "pinned",
+      "label": "Pinned",
+      "comment": "Pinned flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "listed",
+      "label": "Listed",
+      "comment": "Whether the item appears in lists",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "name": "maintenance_until",
+      "label": "Maintenance Until",
+      "comment": "Expected maintenance end",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "maintenance_reason",
+      "label": "Maintenance Reason",
+      "comment": "Maintenance reason",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "build_status",
+      "label": "Build Status",
+      "comment": "Package and publish state: idle, queued, building, packaging, publishing, success, failed",
+      "type": "enum",
+      "option": [
+        "idle",
+        "queued",
+        "building",
+        "packaging",
+        "publishing",
+        "success",
+        "failed"
+      ],
+      "default": "idle"
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "uk_resources_ver",
+      "columns": [
+        "type",
+        "name",
+        "version"
+      ],
+      "type": "unique",
+      "comment": "Unique index"
+    },
+    {
+      "name": "idx_resources_type",
+      "columns": [
+        "type",
+        "status"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_resources_scope",
+      "columns": [
+        "scope",
+        "__yao_team_id"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_resources_list",
+      "columns": [
+        "type",
+        "listed",
+        "pinned",
+        "position"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_resources_availability",
+      "columns": [
+        "status",
+        "build_status"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

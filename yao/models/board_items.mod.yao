@@ -1,0 +1,118 @@
+{
+  "name": "BoardItems",
+  "label": "BoardItems",
+  "description": "Session placement and ordering within a board column.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "board_items",
+    "comment": "Session placement and ordering within a board column."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "board_item_id",
+      "label": "Board Item Id",
+      "comment": "Board item identifier",
+      "type": "string",
+      "length": 64,
+      "unique": true
+    },
+    {
+      "name": "board_id",
+      "label": "Board Id",
+      "comment": "Board identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "board_column_id",
+      "label": "Board Column Id",
+      "comment": "Board column identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "session_id",
+      "label": "Session Id",
+      "comment": "Session identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "position",
+      "label": "Position",
+      "comment": "Sort position",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "pinned",
+      "label": "Pinned",
+      "comment": "Pinned flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "uk_items_session",
+      "columns": [
+        "board_id",
+        "session_id"
+      ],
+      "type": "unique",
+      "comment": "Unique index"
+    },
+    {
+      "name": "idx_items_column",
+      "columns": [
+        "board_column_id",
+        "position"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_items_board",
+      "columns": [
+        "board_id",
+        "position"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

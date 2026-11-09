@@ -1,0 +1,136 @@
+{
+  "name": "VaultGroups",
+  "label": "VaultGroups",
+  "description": "Credential group with scope and permission label.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "vault_groups",
+    "comment": "Credential group with scope and permission label."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "comment": "Display name",
+      "type": "string",
+      "length": 128,
+      "index": true
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "comment": "Description",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "scope",
+      "label": "Scope",
+      "comment": "Ownership scope: system, team, user",
+      "type": "enum",
+      "option": [
+        "system",
+        "team",
+        "user"
+      ],
+      "default": "user"
+    },
+    {
+      "name": "permission_label",
+      "label": "Permission Label",
+      "comment": "Display permission label",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: enabled, disabled, archived",
+      "type": "enum",
+      "option": [
+        "enabled",
+        "disabled",
+        "archived"
+      ],
+      "default": "enabled"
+    },
+    {
+      "name": "position",
+      "label": "Position",
+      "comment": "Sort position",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "pinned",
+      "label": "Pinned",
+      "comment": "Pinned flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "listed",
+      "label": "Listed",
+      "comment": "Whether the item appears in lists",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_vg_scope",
+      "columns": [
+        "scope",
+        "__yao_team_id"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_vg_list",
+      "columns": [
+        "scope",
+        "listed",
+        "pinned",
+        "position"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

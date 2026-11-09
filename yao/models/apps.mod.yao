@@ -1,0 +1,302 @@
+{
+  "name": "Apps",
+  "label": "Apps",
+  "description": "Application definition, manifest and distribution metadata.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "apps",
+    "comment": "Application definition, manifest and distribution metadata."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "app_id",
+      "label": "App Id",
+      "comment": "Public application identifier",
+      "type": "string",
+      "length": 64,
+      "unique": true
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "comment": "Display name",
+      "type": "string",
+      "length": 128
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "comment": "Description",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "category",
+      "label": "Category",
+      "comment": "Application category",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "surface",
+      "label": "Surface",
+      "comment": "Application surface",
+      "type": "string",
+      "length": 32,
+      "nullable": true
+    },
+    {
+      "name": "icon",
+      "label": "Icon",
+      "comment": "Icon identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "homepage",
+      "label": "Homepage",
+      "comment": "Homepage URL",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "support_email",
+      "label": "Support Email",
+      "comment": "Support email",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "author_id",
+      "label": "Author Id",
+      "comment": "Author user identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "author_name",
+      "label": "Author Name",
+      "comment": "Author or organization name",
+      "type": "string",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "author_email",
+      "label": "Author Email",
+      "comment": "Author contact email",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "scope",
+      "label": "Scope",
+      "comment": "Ownership scope: system, team, user",
+      "type": "enum",
+      "option": [
+        "system",
+        "team",
+        "user"
+      ],
+      "default": "system"
+    },
+    {
+      "name": "source",
+      "label": "Source",
+      "comment": "Resource source: official, third_party, custom",
+      "type": "enum",
+      "option": [
+        "official",
+        "third_party",
+        "custom"
+      ],
+      "default": "official"
+    },
+    {
+      "name": "visibility",
+      "label": "Visibility",
+      "comment": "Visibility scope: private, team, public",
+      "type": "enum",
+      "option": [
+        "private",
+        "team",
+        "public"
+      ],
+      "default": "private"
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: draft, enabled, disabled, archived, maintaining",
+      "type": "enum",
+      "option": [
+        "draft",
+        "enabled",
+        "disabled",
+        "archived",
+        "maintaining"
+      ],
+      "default": "draft"
+    },
+    {
+      "name": "position",
+      "label": "Position",
+      "comment": "Sort position",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "pinned",
+      "label": "Pinned",
+      "comment": "Pinned flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "listed",
+      "label": "Listed",
+      "comment": "Whether the item appears in lists",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "name": "mentionable",
+      "label": "Mentionable",
+      "comment": "Whether the item can be mentioned",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "name": "maintenance_until",
+      "label": "Maintenance Until",
+      "comment": "Expected maintenance end",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "maintenance_reason",
+      "label": "Maintenance Reason",
+      "comment": "Maintenance reason",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "build_status",
+      "label": "Build Status",
+      "comment": "Package and publish state: idle, queued, building, packaging, publishing, success, failed",
+      "type": "enum",
+      "option": [
+        "idle",
+        "queued",
+        "building",
+        "packaging",
+        "publishing",
+        "success",
+        "failed"
+      ],
+      "default": "idle"
+    },
+    {
+      "name": "manifest",
+      "label": "Manifest",
+      "comment": "Build manifest",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "versions",
+      "label": "Versions",
+      "comment": "Version list",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "bindings",
+      "label": "Bindings",
+      "comment": "Bot, workspace and computer bindings",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_apps_scope",
+      "columns": [
+        "scope",
+        "status"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_apps_team",
+      "columns": [
+        "__yao_team_id",
+        "updated_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_apps_list",
+      "columns": [
+        "scope",
+        "listed",
+        "pinned",
+        "position"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_apps_availability",
+      "columns": [
+        "status",
+        "build_status"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

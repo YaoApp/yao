@@ -1,0 +1,209 @@
+{
+  "name": "ApprovalRequests",
+  "label": "ApprovalRequests",
+  "description": "First-class approval request with flow, approvers and history.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "approval_requests",
+    "comment": "First-class approval request with flow, approvers and history."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "target_type",
+      "label": "Target Type",
+      "comment": "Target type",
+      "type": "string",
+      "length": 24
+    },
+    {
+      "name": "target_id",
+      "label": "Target Id",
+      "comment": "Target identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "request_type",
+      "label": "Request Type",
+      "comment": "Request type",
+      "type": "string",
+      "length": 32,
+      "nullable": true
+    },
+    {
+      "name": "action",
+      "label": "Action",
+      "comment": "Requested action",
+      "type": "string",
+      "length": 32,
+      "nullable": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: pending, approved, rejected, expired, cancelled",
+      "type": "enum",
+      "option": [
+        "pending",
+        "approved",
+        "rejected",
+        "expired",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    {
+      "name": "requested_by",
+      "label": "Requested By",
+      "comment": "Requester",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "session_id",
+      "label": "Session Id",
+      "comment": "Session identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "bot_id",
+      "label": "Bot Id",
+      "comment": "Bot identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "team_id",
+      "label": "Team Id",
+      "comment": "Team identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "current_step",
+      "label": "Current Step",
+      "comment": "Current approval step",
+      "type": "integer",
+      "default": 1
+    },
+    {
+      "name": "current_approvers",
+      "label": "Current Approvers",
+      "comment": "Current approvers (users, teams or roles)",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "flow",
+      "label": "Flow",
+      "comment": "Approval flow configuration",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "history",
+      "label": "History",
+      "comment": "Approval history",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "payload",
+      "label": "Payload",
+      "comment": "Request payload",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "expires_at",
+      "label": "Expires At",
+      "comment": "Expiration time",
+      "type": "timestamp",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "decided_at",
+      "label": "Decided At",
+      "comment": "Decision time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "decided_by",
+      "label": "Decided By",
+      "comment": "Decision maker",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_approval_target",
+      "columns": [
+        "target_type",
+        "target_id"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_approval_status",
+      "columns": [
+        "status",
+        "updated_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_approval_requester",
+      "columns": [
+        "requested_by",
+        "created_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

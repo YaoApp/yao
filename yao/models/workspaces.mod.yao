@@ -1,0 +1,156 @@
+{
+  "name": "Workspaces",
+  "label": "Workspaces",
+  "description": "Workspace metadata linked to a Tai node.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "workspaces",
+    "comment": "Workspace metadata linked to a Tai node."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "comment": "Display name",
+      "type": "string",
+      "length": 128
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "comment": "Description",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "scope",
+      "label": "Scope",
+      "comment": "Ownership scope: user, team",
+      "type": "enum",
+      "option": [
+        "user",
+        "team"
+      ],
+      "default": "user"
+    },
+    {
+      "name": "visibility",
+      "label": "Visibility",
+      "comment": "Visibility scope: private, shared",
+      "type": "enum",
+      "option": [
+        "private",
+        "shared"
+      ],
+      "default": "private"
+    },
+    {
+      "name": "computer_id",
+      "label": "Computer Id",
+      "comment": "Computer identifier",
+      "type": "string",
+      "length": 64,
+      "index": true
+    },
+    {
+      "name": "remote_id",
+      "label": "Remote Id",
+      "comment": "Tai workspace identifier",
+      "type": "string",
+      "length": 128,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: provisioning, active, suspended, archived",
+      "type": "enum",
+      "option": [
+        "provisioning",
+        "active",
+        "suspended",
+        "archived"
+      ],
+      "default": "active"
+    },
+    {
+      "name": "position",
+      "label": "Position",
+      "comment": "Sort position",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "pinned",
+      "label": "Pinned",
+      "comment": "Pinned flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "listed",
+      "label": "Listed",
+      "comment": "Whether the item appears in lists",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_ws_scope",
+      "columns": [
+        "scope",
+        "__yao_team_id",
+        "updated_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_ws_list",
+      "columns": [
+        "scope",
+        "listed",
+        "pinned",
+        "position"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

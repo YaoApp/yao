@@ -1,0 +1,113 @@
+{
+  "name": "VaultItems",
+  "label": "VaultItems",
+  "description": "Credential item stored under a vault group.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "vault_items",
+    "comment": "Credential item stored under a vault group."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "group_id",
+      "label": "Group Id",
+      "comment": "Vault group identifier",
+      "type": "string",
+      "length": 64,
+      "index": true
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "comment": "Display name",
+      "type": "string",
+      "length": 128
+    },
+    {
+      "name": "kind",
+      "label": "Kind",
+      "comment": "Record kind",
+      "type": "string",
+      "length": 32
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "comment": "Description",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "secret_ref",
+      "label": "Secret Ref",
+      "comment": "Secret storage reference",
+      "type": "string",
+      "length": 255
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: enabled, rotating, disabled",
+      "type": "enum",
+      "option": [
+        "enabled",
+        "rotating",
+        "disabled"
+      ],
+      "default": "enabled",
+      "index": true
+    },
+    {
+      "name": "rotation_at",
+      "label": "Rotation At",
+      "comment": "Last rotation time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "uk_vi_name",
+      "columns": [
+        "group_id",
+        "name"
+      ],
+      "type": "unique",
+      "comment": "Unique index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

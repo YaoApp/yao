@@ -1,0 +1,110 @@
+{
+  "name": "BoardColumns",
+  "label": "BoardColumns",
+  "description": "Ordered board column with icon and color.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "board_columns",
+    "comment": "Ordered board column with icon and color."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "board_column_id",
+      "label": "Board Column Id",
+      "comment": "Board column identifier",
+      "type": "string",
+      "length": 64,
+      "unique": true
+    },
+    {
+      "name": "board_id",
+      "label": "Board Id",
+      "comment": "Board identifier",
+      "type": "string",
+      "length": 64,
+      "index": true
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "comment": "Display name",
+      "type": "string",
+      "length": 128
+    },
+    {
+      "name": "icon",
+      "label": "Icon",
+      "comment": "Icon identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "color",
+      "label": "Color",
+      "comment": "Display color",
+      "type": "string",
+      "length": 32,
+      "nullable": true
+    },
+    {
+      "name": "position",
+      "label": "Position",
+      "comment": "Sort position",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "collapsed",
+      "label": "Collapsed",
+      "comment": "Whether the column is collapsed",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "uk_columns_pos",
+      "columns": [
+        "board_id",
+        "position"
+      ],
+      "type": "unique",
+      "comment": "Unique index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

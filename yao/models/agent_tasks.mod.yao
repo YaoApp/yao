@@ -1,0 +1,194 @@
+{
+  "name": "AgentTasks",
+  "label": "AgentTasks",
+  "description": "Agent task and queue item attached to a session.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "agent_tasks",
+    "comment": "Agent task and queue item attached to a session."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "session_id",
+      "label": "Session Id",
+      "comment": "Session identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "title",
+      "label": "Title",
+      "comment": "Title",
+      "type": "string",
+      "length": 255
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "comment": "Description",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "instruction",
+      "label": "Instruction",
+      "comment": "Execution instruction",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: pending, queued, running, waiting, completed, failed, stopped, cancelled",
+      "type": "enum",
+      "option": [
+        "pending",
+        "queued",
+        "running",
+        "waiting",
+        "completed",
+        "failed",
+        "stopped",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    {
+      "name": "priority",
+      "label": "Priority",
+      "comment": "Priority",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "parent_id",
+      "label": "Parent Id",
+      "comment": "Parent identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "computer_id",
+      "label": "Computer Id",
+      "comment": "Computer identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "workspace_id",
+      "label": "Workspace Id",
+      "comment": "Workspace identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "schedule",
+      "label": "Schedule",
+      "comment": "Schedule configuration",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "summary",
+      "label": "Summary",
+      "comment": "Summary",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "outputs",
+      "label": "Outputs",
+      "comment": "Output references or results",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "run_status",
+      "label": "Run Status",
+      "comment": "Run status: pending, running, completed, failed, stopped",
+      "type": "enum",
+      "option": [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "stopped"
+      ],
+      "nullable": true
+    },
+    {
+      "name": "pinned",
+      "label": "Pinned",
+      "comment": "Pinned flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "tags",
+      "label": "Tags",
+      "comment": "Tag list",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_tasks_session",
+      "columns": [
+        "session_id",
+        "status"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_tasks_status",
+      "columns": [
+        "status",
+        "priority"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

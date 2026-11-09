@@ -1,0 +1,283 @@
+{
+  "name": "Sessions",
+  "label": "Sessions",
+  "description": "Conversation session, request parameters and board placement.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "sessions",
+    "comment": "Conversation session, request parameters and board placement."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "session_id",
+      "label": "Session Id",
+      "comment": "Session identifier",
+      "type": "string",
+      "length": 64,
+      "unique": true
+    },
+    {
+      "name": "title",
+      "label": "Title",
+      "comment": "Title",
+      "type": "string",
+      "length": 255
+    },
+    {
+      "name": "prompt",
+      "label": "Prompt",
+      "comment": "Initial user prompt",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "summary",
+      "label": "Summary",
+      "comment": "Summary",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "tags",
+      "label": "Tags",
+      "comment": "Tag list",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "queue_priority",
+      "label": "Queue Priority",
+      "comment": "Queue priority; higher runs first",
+      "type": "integer",
+      "default": 500
+    },
+    {
+      "name": "queued_at",
+      "label": "Queued At",
+      "comment": "Queue time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "error_message",
+      "label": "Error Message",
+      "comment": "Failure reason",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "schedule",
+      "label": "Schedule",
+      "comment": "Schedule configuration",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "outputs",
+      "label": "Outputs",
+      "comment": "Output references or results",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "bot_id",
+      "label": "Bot Id",
+      "comment": "Bot identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "workspace_id",
+      "label": "Workspace Id",
+      "comment": "Workspace identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "board_id",
+      "label": "Board Id",
+      "comment": "Board identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "board_column_id",
+      "label": "Board Column Id",
+      "comment": "Board column identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "request_params",
+      "label": "Request Params",
+      "comment": "Request parameters",
+      "type": "json",
+      "default": "{}"
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: pending, queued, running, waiting, completed, failed, cancelled, archived",
+      "type": "enum",
+      "option": [
+        "pending",
+        "queued",
+        "running",
+        "waiting",
+        "completed",
+        "failed",
+        "cancelled",
+        "archived"
+      ],
+      "default": "pending"
+    },
+    {
+      "name": "parent_session_id",
+      "label": "Parent Session Id",
+      "comment": "Parent session identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "root_session_id",
+      "label": "Root Session Id",
+      "comment": "Root session identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "forked_from_turn_id",
+      "label": "Forked From Turn Id",
+      "comment": "Source turn identifier for a branch",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "queue",
+      "label": "Queue",
+      "comment": "Pending input queue",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "steering",
+      "label": "Steering",
+      "comment": "Steering and follow-up state",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "usage",
+      "label": "Usage",
+      "comment": "Aggregated usage",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "last_message_at",
+      "label": "Last Message At",
+      "comment": "Last message time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_sessions_owner",
+      "columns": [
+        "__yao_created_by",
+        "last_message_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_sessions_team",
+      "columns": [
+        "__yao_team_id",
+        "last_message_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_sessions_status",
+      "columns": [
+        "status",
+        "updated_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_sessions_queue",
+      "columns": [
+        "status",
+        "queue_priority",
+        "queued_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_sessions_bind",
+      "columns": [
+        "bot_id",
+        "workspace_id"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_sessions_board",
+      "columns": [
+        "board_id",
+        "board_column_id"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

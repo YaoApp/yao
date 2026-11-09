@@ -1,0 +1,178 @@
+{
+  "name": "SessionRealtimeSnapshots",
+  "label": "SessionRealtimeSnapshots",
+  "description": "Periodic realtime buffer snapshot for replay and recovery.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "session_realtime_snapshots",
+    "comment": "Periodic realtime buffer snapshot for replay and recovery."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "session_realtime_snapshot_id",
+      "label": "Session Realtime Snapshot Id",
+      "comment": "Realtime snapshot identifier",
+      "type": "string",
+      "length": 64,
+      "unique": true
+    },
+    {
+      "name": "session_realtime_id",
+      "label": "Session Realtime Id",
+      "comment": "Realtime session identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "session_id",
+      "label": "Session Id",
+      "comment": "Session identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "segment_index",
+      "label": "Segment Index",
+      "comment": "Snapshot segment index",
+      "type": "integer"
+    },
+    {
+      "name": "started_at",
+      "label": "Started At",
+      "comment": "Start time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "ended_at",
+      "label": "Ended At",
+      "comment": "End time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "transcript",
+      "label": "Transcript",
+      "comment": "Realtime transcript",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "emotion",
+      "label": "Emotion",
+      "comment": "Emotion events",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "audio_ref",
+      "label": "Audio Ref",
+      "comment": "Audio artifact reference",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "motion_ref",
+      "label": "Motion Ref",
+      "comment": "Motion artifact reference",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "storage_type",
+      "label": "Storage Type",
+      "comment": "Storage backend: local, s3",
+      "type": "enum",
+      "option": [
+        "local",
+        "s3"
+      ],
+      "nullable": true
+    },
+    {
+      "name": "storage_ref",
+      "label": "Storage Ref",
+      "comment": "Storage location reference",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: initial, flushed, final",
+      "type": "enum",
+      "option": [
+        "initial",
+        "flushed",
+        "final"
+      ],
+      "default": "flushed"
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "uk_rts_segment",
+      "columns": [
+        "session_realtime_id",
+        "segment_index"
+      ],
+      "type": "unique",
+      "comment": "Unique index"
+    },
+    {
+      "name": "idx_rts_session",
+      "columns": [
+        "session_id",
+        "started_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_rts_realtime",
+      "columns": [
+        "session_realtime_id",
+        "segment_index"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

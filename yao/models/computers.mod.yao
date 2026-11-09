@@ -1,0 +1,259 @@
+{
+  "name": "Computers",
+  "label": "Computers",
+  "description": "Local or cloud computer node and runtime capabilities.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "computers",
+    "comment": "Local or cloud computer node and runtime capabilities."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "node_id",
+      "label": "Node Id",
+      "comment": "Tai node identifier",
+      "type": "string",
+      "length": 128,
+      "unique": true
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "comment": "Display name",
+      "type": "string",
+      "length": 128
+    },
+    {
+      "name": "provider_type",
+      "label": "Provider Type",
+      "comment": "Computer provider type: local, cloud",
+      "type": "enum",
+      "option": [
+        "local",
+        "cloud"
+      ],
+      "default": "local"
+    },
+    {
+      "name": "product_id",
+      "label": "Product Id",
+      "comment": "Product identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "order_id",
+      "label": "Order Id",
+      "comment": "Order identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "scope",
+      "label": "Scope",
+      "comment": "Ownership scope: system, team, user",
+      "type": "enum",
+      "option": [
+        "system",
+        "team",
+        "user"
+      ]
+    },
+    {
+      "name": "approval_required",
+      "label": "Approval Required",
+      "comment": "Whether shared access requires approval",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: provisioning, online, offline, serving, busy, suspended, error, released",
+      "type": "enum",
+      "option": [
+        "provisioning",
+        "online",
+        "offline",
+        "serving",
+        "busy",
+        "suspended",
+        "error",
+        "released"
+      ],
+      "default": "offline"
+    },
+    {
+      "name": "position",
+      "label": "Position",
+      "comment": "Sort position",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "pinned",
+      "label": "Pinned",
+      "comment": "Pinned flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "listed",
+      "label": "Listed",
+      "comment": "Whether the item appears in lists",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "name": "os",
+      "label": "Os",
+      "comment": "Operating system",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "ip",
+      "label": "Ip",
+      "comment": "IP address",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "hardware",
+      "label": "Hardware",
+      "comment": "Hardware summary",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "memory",
+      "label": "Memory",
+      "comment": "Memory summary",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "arch",
+      "label": "Arch",
+      "comment": "CPU architecture",
+      "type": "string",
+      "length": 16,
+      "nullable": true
+    },
+    {
+      "name": "cpu_cores",
+      "label": "Cpu Cores",
+      "comment": "CPU core count",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "memory_mb",
+      "label": "Memory Mb",
+      "comment": "Memory in MB",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "disk_free_mb",
+      "label": "Disk Free Mb",
+      "comment": "Free disk space in MB",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "tai_version",
+      "label": "Tai Version",
+      "comment": "Tai version",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "container_runtimes",
+      "label": "Container Runtimes",
+      "comment": "Available container runtimes",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "capabilities",
+      "label": "Capabilities",
+      "comment": "Advertised or configured capabilities",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "last_seen_at",
+      "label": "Last Seen At",
+      "comment": "Last seen time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_computers_scope",
+      "columns": [
+        "scope",
+        "__yao_team_id",
+        "status"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_computers_list",
+      "columns": [
+        "scope",
+        "listed",
+        "pinned",
+        "position"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

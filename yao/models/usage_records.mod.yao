@@ -1,0 +1,238 @@
+{
+  "name": "UsageRecords",
+  "label": "UsageRecords",
+  "description": "Metered or subscription usage record for billing and analytics.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "usage_records",
+    "comment": "Metered or subscription usage record for billing and analytics."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "session_id",
+      "label": "Session Id",
+      "comment": "Session identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "turn_id",
+      "label": "Turn Id",
+      "comment": "Turn identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "bot_id",
+      "label": "Bot Id",
+      "comment": "Bot identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "kind",
+      "label": "Kind",
+      "comment": "Record kind: llm, tool, computer, realtime",
+      "type": "enum",
+      "option": [
+        "llm",
+        "tool",
+        "computer",
+        "realtime"
+      ]
+    },
+    {
+      "name": "billing_mode",
+      "label": "Billing Mode",
+      "comment": "Billing mode: metered, subscription",
+      "type": "enum",
+      "option": [
+        "metered",
+        "subscription"
+      ],
+      "default": "metered"
+    },
+    {
+      "name": "billing_unit",
+      "label": "Billing Unit",
+      "comment": "Billing unit: token, request, second, minute, hour, day, month",
+      "type": "enum",
+      "option": [
+        "token",
+        "request",
+        "second",
+        "minute",
+        "hour",
+        "day",
+        "month"
+      ],
+      "nullable": true
+    },
+    {
+      "name": "billable_quantity",
+      "label": "Billable Quantity",
+      "comment": "Billable quantity",
+      "type": "decimal",
+      "precision": 18,
+      "scale": 4,
+      "nullable": true
+    },
+    {
+      "name": "subscription_id",
+      "label": "Subscription Id",
+      "comment": "Subscription identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "billing_period_start",
+      "label": "Billing Period Start",
+      "comment": "Billing period start",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "billing_period_end",
+      "label": "Billing Period End",
+      "comment": "Billing period end",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "provider",
+      "label": "Provider",
+      "comment": "LLM provider",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "model",
+      "label": "Model",
+      "comment": "Model identifier or name",
+      "type": "string",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "input_tokens",
+      "label": "Input Tokens",
+      "comment": "Input token count",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "output_tokens",
+      "label": "Output Tokens",
+      "comment": "Output token count",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "cached_tokens",
+      "label": "Cached Tokens",
+      "comment": "Cached token count",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "reasoning_tokens",
+      "label": "Reasoning Tokens",
+      "comment": "Reasoning token count",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "cost_credits",
+      "label": "Cost Credits",
+      "comment": "Cost in credits",
+      "type": "decimal",
+      "precision": 18,
+      "scale": 4,
+      "nullable": true
+    },
+    {
+      "name": "occurred_at",
+      "label": "Occurred At",
+      "comment": "Occurrence time",
+      "type": "timestamp"
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_usage_session",
+      "columns": [
+        "session_id",
+        "turn_id"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_usage_kind",
+      "columns": [
+        "kind",
+        "occurred_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_usage_bot",
+      "columns": [
+        "bot_id",
+        "occurred_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_usage_billing",
+      "columns": [
+        "billing_mode",
+        "billing_unit",
+        "occurred_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

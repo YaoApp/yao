@@ -1,0 +1,219 @@
+{
+  "name": "InboxItems",
+  "label": "InboxItems",
+  "description": "Aggregated inbox item for a session, approval or notification.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "inbox_items",
+    "comment": "Aggregated inbox item for a session, approval or notification."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "owner_type",
+      "label": "Owner Type",
+      "comment": "Owner type: user, team",
+      "type": "enum",
+      "option": [
+        "user",
+        "team"
+      ]
+    },
+    {
+      "name": "owner_id",
+      "label": "Owner Id",
+      "comment": "Owner identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "kind",
+      "label": "Kind",
+      "comment": "Record kind: bot, mail, approval, notification",
+      "type": "enum",
+      "option": [
+        "bot",
+        "mail",
+        "approval",
+        "notification"
+      ]
+    },
+    {
+      "name": "source_id",
+      "label": "Source Id",
+      "comment": "Source record identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "session_id",
+      "label": "Session Id",
+      "comment": "Session identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "bot_id",
+      "label": "Bot Id",
+      "comment": "Bot identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "approval_request_id",
+      "label": "Approval Request Id",
+      "comment": "Related approval request",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "title",
+      "label": "Title",
+      "comment": "Title",
+      "type": "string",
+      "length": 255
+    },
+    {
+      "name": "preview",
+      "label": "Preview",
+      "comment": "Latest message preview",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "unread_count",
+      "label": "Unread Count",
+      "comment": "Unread item count",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "last_message_at",
+      "label": "Last Message At",
+      "comment": "Last message time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "last_read_at",
+      "label": "Last Read At",
+      "comment": "Last read time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "pinned",
+      "label": "Pinned",
+      "comment": "Pinned flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "bookmarked",
+      "label": "Bookmarked",
+      "comment": "Bookmarked flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "archived",
+      "label": "Archived",
+      "comment": "Archived flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: new, waiting, completed",
+      "type": "enum",
+      "option": [
+        "new",
+        "waiting",
+        "completed"
+      ],
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "uk_inbox_source",
+      "columns": [
+        "owner_type",
+        "owner_id",
+        "kind",
+        "source_id"
+      ],
+      "type": "unique",
+      "comment": "Unique index"
+    },
+    {
+      "name": "idx_inbox_list",
+      "columns": [
+        "owner_type",
+        "owner_id",
+        "last_message_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_inbox_unread",
+      "columns": [
+        "owner_type",
+        "owner_id",
+        "unread_count"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_inbox_bookmarked",
+      "columns": [
+        "owner_type",
+        "owner_id",
+        "bookmarked",
+        "last_message_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

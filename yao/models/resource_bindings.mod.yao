@@ -1,0 +1,164 @@
+{
+  "name": "ResourceBindings",
+  "label": "ResourceBindings",
+  "description": "Resource binding and packaging snapshot for an app, bot or board.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "resource_bindings",
+    "comment": "Resource binding and packaging snapshot for an app, bot or board."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "owner_type",
+      "label": "Owner Type",
+      "comment": "Owner type: app, bot, board",
+      "type": "enum",
+      "option": [
+        "app",
+        "bot",
+        "board"
+      ]
+    },
+    {
+      "name": "owner_id",
+      "label": "Owner Id",
+      "comment": "Owner identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "owner_version",
+      "label": "Owner Version",
+      "comment": "Owner version; empty for working state",
+      "type": "string",
+      "length": 32,
+      "default": ""
+    },
+    {
+      "name": "resource_id",
+      "label": "Resource Id",
+      "comment": "Resource identifier",
+      "type": "string",
+      "length": 64,
+      "index": true
+    },
+    {
+      "name": "version",
+      "label": "Version",
+      "comment": "Version",
+      "type": "string",
+      "length": 32
+    },
+    {
+      "name": "source_type",
+      "label": "Source Type",
+      "comment": "Binding source type: library, workspace",
+      "type": "enum",
+      "option": [
+        "library",
+        "workspace"
+      ]
+    },
+    {
+      "name": "source_ref",
+      "label": "Source Ref",
+      "comment": "Workspace path or library reference",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "mount_path",
+      "label": "Mount Path",
+      "comment": "Runtime mount path",
+      "type": "string",
+      "length": 255,
+      "default": ""
+    },
+    {
+      "name": "snapshot_ref",
+      "label": "Snapshot Ref",
+      "comment": "Packaging snapshot reference",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "checksum",
+      "label": "Checksum",
+      "comment": "Content checksum",
+      "type": "string",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: bound, packaged, disabled",
+      "type": "enum",
+      "option": [
+        "bound",
+        "packaged",
+        "disabled"
+      ],
+      "default": "bound"
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "uk_binding",
+      "columns": [
+        "owner_type",
+        "owner_id",
+        "owner_version",
+        "resource_id",
+        "mount_path"
+      ],
+      "type": "unique",
+      "comment": "Unique index"
+    },
+    {
+      "name": "idx_binding_owner",
+      "columns": [
+        "owner_type",
+        "owner_id"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

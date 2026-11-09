@@ -1,0 +1,204 @@
+{
+  "name": "Products",
+  "label": "Products",
+  "description": "Cloud computer product catalog entry.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "products",
+    "comment": "Cloud computer product catalog entry."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "comment": "Display name",
+      "type": "string",
+      "length": 128
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "comment": "Description",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "scope",
+      "label": "Scope",
+      "comment": "Ownership scope: system, team, user",
+      "type": "enum",
+      "option": [
+        "system",
+        "team",
+        "user"
+      ],
+      "default": "system"
+    },
+    {
+      "name": "platform",
+      "label": "Platform",
+      "comment": "Platform",
+      "type": "string",
+      "length": 32,
+      "nullable": true
+    },
+    {
+      "name": "spec",
+      "label": "Spec",
+      "comment": "Hardware specification",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "policy",
+      "label": "Policy",
+      "comment": "Provisioning policy: auto, approval, paid",
+      "type": "enum",
+      "option": [
+        "auto",
+        "approval",
+        "paid"
+      ]
+    },
+    {
+      "name": "total_slots",
+      "label": "Total Slots",
+      "comment": "Total capacity",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "available_slots",
+      "label": "Available Slots",
+      "comment": "Currently available slots",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "user_quota",
+      "label": "User Quota",
+      "comment": "Per-user quota",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "visibility",
+      "label": "Visibility",
+      "comment": "Visibility scope: team, members",
+      "type": "enum",
+      "option": [
+        "team",
+        "members"
+      ],
+      "nullable": true
+    },
+    {
+      "name": "price_credits",
+      "label": "Price Credits",
+      "comment": "Price in credits",
+      "type": "decimal",
+      "precision": 18,
+      "scale": 4,
+      "nullable": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: draft, enabled, disabled, archived",
+      "type": "enum",
+      "option": [
+        "draft",
+        "enabled",
+        "disabled",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    {
+      "name": "position",
+      "label": "Position",
+      "comment": "Sort position",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "pinned",
+      "label": "Pinned",
+      "comment": "Pinned flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "listed",
+      "label": "Listed",
+      "comment": "Whether the item appears in lists",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_products_status",
+      "columns": [
+        "status",
+        "policy"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_products_scope",
+      "columns": [
+        "scope",
+        "__yao_team_id"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_products_list",
+      "columns": [
+        "status",
+        "listed",
+        "pinned",
+        "position"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

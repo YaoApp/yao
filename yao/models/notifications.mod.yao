@@ -1,0 +1,140 @@
+{
+  "name": "Notifications",
+  "label": "Notifications",
+  "description": "Global notification content, audience and delivery configuration.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "notifications",
+    "comment": "Global notification content, audience and delivery configuration."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "type",
+      "label": "Type",
+      "comment": "Record type",
+      "type": "string",
+      "length": 32
+    },
+    {
+      "name": "title",
+      "label": "Title",
+      "comment": "Title",
+      "type": "string",
+      "length": 255
+    },
+    {
+      "name": "body",
+      "label": "Body",
+      "comment": "Message body",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "scope",
+      "label": "Scope",
+      "comment": "Ownership scope: system, team, user",
+      "type": "enum",
+      "option": [
+        "system",
+        "team",
+        "user"
+      ],
+      "default": "system"
+    },
+    {
+      "name": "audience",
+      "label": "Audience",
+      "comment": "Notification audience: teams, users or roles",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "channels",
+      "label": "Channels",
+      "comment": "Delivery channels",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: draft, scheduled, sent, cancelled",
+      "type": "enum",
+      "option": [
+        "draft",
+        "scheduled",
+        "sent",
+        "cancelled"
+      ],
+      "default": "draft"
+    },
+    {
+      "name": "scheduled_at",
+      "label": "Scheduled At",
+      "comment": "Scheduled time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "published_at",
+      "label": "Published At",
+      "comment": "Publish time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_notifications_status",
+      "columns": [
+        "status",
+        "scheduled_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_notifications_scope",
+      "columns": [
+        "scope",
+        "__yao_team_id"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

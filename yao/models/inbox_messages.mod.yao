@@ -1,0 +1,135 @@
+{
+  "name": "InboxMessages",
+  "label": "InboxMessages",
+  "description": "Inbox event summary linked to an aggregate item.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "inbox_messages",
+    "comment": "Inbox event summary linked to an aggregate item."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "inbox_item_id",
+      "label": "Inbox Item Id",
+      "comment": "Inbox aggregate item identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "kind",
+      "label": "Kind",
+      "comment": "Record kind: session, approval, notification",
+      "type": "enum",
+      "option": [
+        "session",
+        "approval",
+        "notification"
+      ]
+    },
+    {
+      "name": "source_id",
+      "label": "Source Id",
+      "comment": "Source record identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "session_id",
+      "label": "Session Id",
+      "comment": "Session identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "turn_id",
+      "label": "Turn Id",
+      "comment": "Turn identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "title",
+      "label": "Title",
+      "comment": "Title",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "body",
+      "label": "Body",
+      "comment": "Message body",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: pending, completed, failed",
+      "type": "enum",
+      "option": [
+        "pending",
+        "completed",
+        "failed"
+      ],
+      "nullable": true
+    },
+    {
+      "name": "read_at",
+      "label": "Read At",
+      "comment": "Read time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_inboxmsg_item",
+      "columns": [
+        "inbox_item_id",
+        "created_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

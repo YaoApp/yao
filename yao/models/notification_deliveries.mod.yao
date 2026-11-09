@@ -1,0 +1,148 @@
+{
+  "name": "NotificationDeliveries",
+  "label": "NotificationDeliveries",
+  "description": "Per-recipient notification delivery and read state.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "notification_deliveries",
+    "comment": "Per-recipient notification delivery and read state."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "notification_id",
+      "label": "Notification Id",
+      "comment": "Notification identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "recipient_type",
+      "label": "Recipient Type",
+      "comment": "Recipient type: user, team",
+      "type": "enum",
+      "option": [
+        "user",
+        "team"
+      ]
+    },
+    {
+      "name": "recipient_id",
+      "label": "Recipient Id",
+      "comment": "Recipient identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "channel",
+      "label": "Channel",
+      "comment": "Delivery channel: inbox, email, push, webhook",
+      "type": "enum",
+      "option": [
+        "inbox",
+        "email",
+        "push",
+        "webhook"
+      ]
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: pending, sent, failed, read",
+      "type": "enum",
+      "option": [
+        "pending",
+        "sent",
+        "failed",
+        "read"
+      ],
+      "default": "pending"
+    },
+    {
+      "name": "delivered_at",
+      "label": "Delivered At",
+      "comment": "Delivery time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "read_at",
+      "label": "Read At",
+      "comment": "Read time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "error",
+      "label": "Error",
+      "comment": "Error message",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "uk_delivery",
+      "columns": [
+        "notification_id",
+        "recipient_type",
+        "recipient_id",
+        "channel"
+      ],
+      "type": "unique",
+      "comment": "Unique index"
+    },
+    {
+      "name": "idx_delivery_recipient",
+      "columns": [
+        "recipient_type",
+        "recipient_id",
+        "read_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_delivery_status",
+      "columns": [
+        "status",
+        "updated_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

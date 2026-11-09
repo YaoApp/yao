@@ -1,0 +1,172 @@
+{
+  "name": "AccessGrants",
+  "label": "AccessGrants",
+  "description": "Persistent access grant for a resource and subject.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "access_grants",
+    "comment": "Persistent access grant for a resource and subject."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "resource_type",
+      "label": "Resource Type",
+      "comment": "Resource type: app, bot, session, board, computer, workspace, resource, vault_group, vault_item",
+      "type": "enum",
+      "option": [
+        "app",
+        "bot",
+        "session",
+        "board",
+        "computer",
+        "workspace",
+        "resource",
+        "vault_group",
+        "vault_item"
+      ]
+    },
+    {
+      "name": "resource_id",
+      "label": "Resource Id",
+      "comment": "Resource identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "subject_type",
+      "label": "Subject Type",
+      "comment": "Grant subject type: user, team, role, session, bot",
+      "type": "enum",
+      "option": [
+        "user",
+        "team",
+        "role",
+        "session",
+        "bot"
+      ]
+    },
+    {
+      "name": "subject_id",
+      "label": "Subject Id",
+      "comment": "Grant subject identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "permissions",
+      "label": "Permissions",
+      "comment": "Permission set",
+      "type": "json"
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: active, revoked, expired",
+      "type": "enum",
+      "option": [
+        "active",
+        "revoked",
+        "expired"
+      ],
+      "default": "active"
+    },
+    {
+      "name": "approval_request_id",
+      "label": "Approval Request Id",
+      "comment": "Related approval request",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "granted_by",
+      "label": "Granted By",
+      "comment": "Grantor",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "expires_at",
+      "label": "Expires At",
+      "comment": "Expiration time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_grant_active",
+      "columns": [
+        "resource_type",
+        "resource_id",
+        "subject_type",
+        "subject_id",
+        "status"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_grant_resource",
+      "columns": [
+        "resource_type",
+        "resource_id"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_grant_subject",
+      "columns": [
+        "subject_type",
+        "subject_id"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_grant_status",
+      "columns": [
+        "status",
+        "expires_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

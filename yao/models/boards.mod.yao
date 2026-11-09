@@ -1,0 +1,194 @@
+{
+  "name": "Boards",
+  "label": "Boards",
+  "description": "Kanban board definition and view configuration.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "boards",
+    "comment": "Kanban board definition and view configuration."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "board_id",
+      "label": "Board Id",
+      "comment": "Board identifier",
+      "type": "string",
+      "length": 64,
+      "unique": true
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "comment": "Display name",
+      "type": "string",
+      "length": 128
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "comment": "Description",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "icon",
+      "label": "Icon",
+      "comment": "Icon identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "color",
+      "label": "Color",
+      "comment": "Display color",
+      "type": "string",
+      "length": 32,
+      "nullable": true
+    },
+    {
+      "name": "scope",
+      "label": "Scope",
+      "comment": "Ownership scope: user, team",
+      "type": "enum",
+      "option": [
+        "user",
+        "team"
+      ],
+      "default": "team"
+    },
+    {
+      "name": "visibility",
+      "label": "Visibility",
+      "comment": "Visibility scope: private, team, public",
+      "type": "enum",
+      "option": [
+        "private",
+        "team",
+        "public"
+      ],
+      "default": "private"
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: draft, enabled, disabled, archived",
+      "type": "enum",
+      "option": [
+        "draft",
+        "enabled",
+        "disabled",
+        "archived"
+      ],
+      "default": "enabled"
+    },
+    {
+      "name": "position",
+      "label": "Position",
+      "comment": "Sort position",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "pinned",
+      "label": "Pinned",
+      "comment": "Pinned flag",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "listed",
+      "label": "Listed",
+      "comment": "Whether the item appears in lists",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "name": "manifest",
+      "label": "Manifest",
+      "comment": "Build manifest",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "views",
+      "label": "Views",
+      "comment": "View configuration",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "members",
+      "label": "Members",
+      "comment": "Member display configuration",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_boards_scope",
+      "columns": [
+        "scope",
+        "__yao_team_id",
+        "position"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_boards_status",
+      "columns": [
+        "status",
+        "updated_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_boards_list",
+      "columns": [
+        "scope",
+        "listed",
+        "pinned",
+        "position"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

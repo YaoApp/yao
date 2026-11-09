@@ -1,0 +1,175 @@
+{
+  "name": "SessionTurns",
+  "label": "SessionTurns",
+  "description": "Aggregated ACP turn: input, updates, output and usage.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "session_turns",
+    "comment": "Aggregated ACP turn: input, updates, output and usage."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "turn_id",
+      "label": "Turn Id",
+      "comment": "Turn identifier",
+      "type": "string",
+      "length": 64,
+      "unique": true
+    },
+    {
+      "name": "session_id",
+      "label": "Session Id",
+      "comment": "Session identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "turn_index",
+      "label": "Turn Index",
+      "comment": "Turn sequence number",
+      "type": "integer"
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: pending, running, completed, failed, cancelled",
+      "type": "enum",
+      "option": [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    {
+      "name": "input",
+      "label": "Input",
+      "comment": "ACP UserMessage content",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "output",
+      "label": "Output",
+      "comment": "Final assistant output",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "usage",
+      "label": "Usage",
+      "comment": "Aggregated usage",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "error",
+      "label": "Error",
+      "comment": "Error message",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "computer_id",
+      "label": "Computer Id",
+      "comment": "Computer identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "request_params",
+      "label": "Request Params",
+      "comment": "Request parameters",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "started_at",
+      "label": "Started At",
+      "comment": "Start time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "ended_at",
+      "label": "Ended At",
+      "comment": "End time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "events",
+      "label": "Events",
+      "comment": "ACP updates and entities for the turn",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "uk_turns_index",
+      "columns": [
+        "session_id",
+        "turn_index"
+      ],
+      "type": "unique",
+      "comment": "Unique index"
+    },
+    {
+      "name": "idx_turns_session",
+      "columns": [
+        "session_id",
+        "turn_index"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    },
+    {
+      "name": "idx_turns_status",
+      "columns": [
+        "status",
+        "updated_at"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

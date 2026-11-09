@@ -1,0 +1,144 @@
+{
+  "name": "SessionRealtime",
+  "label": "SessionRealtime",
+  "description": "Realtime voice session state and capabilities.",
+  "tags": [
+    "system",
+    "2.0"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "session_realtime",
+    "comment": "Realtime voice session state and capabilities."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Primary key",
+      "type": "string",
+      "length": 32,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "session_realtime_id",
+      "label": "Session Realtime Id",
+      "comment": "Realtime session identifier",
+      "type": "string",
+      "length": 64,
+      "unique": true
+    },
+    {
+      "name": "session_id",
+      "label": "Session Id",
+      "comment": "Session identifier",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "bot_id",
+      "label": "Bot Id",
+      "comment": "Bot identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "computer_id",
+      "label": "Computer Id",
+      "comment": "Computer identifier",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "Current status: starting, active, stopped, error",
+      "type": "enum",
+      "option": [
+        "starting",
+        "active",
+        "stopped",
+        "error"
+      ],
+      "default": "starting"
+    },
+    {
+      "name": "capabilities",
+      "label": "Capabilities",
+      "comment": "Advertised or configured capabilities",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "request_params",
+      "label": "Request Params",
+      "comment": "Request parameters",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "last_flush_at",
+      "label": "Last Flush At",
+      "comment": "Last buffer flush time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "last_flush_seq",
+      "label": "Last Flush Seq",
+      "comment": "Last flushed sequence number",
+      "type": "bigInteger",
+      "nullable": true
+    },
+    {
+      "name": "started_at",
+      "label": "Started At",
+      "comment": "Start time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "ended_at",
+      "label": "Ended At",
+      "comment": "End time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "__i18n",
+      "label": "  I18N",
+      "comment": "Localized field values keyed by locale",
+      "type": "json",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_rt_session",
+      "columns": [
+        "session_id",
+        "status"
+      ],
+      "type": "index",
+      "comment": "Index index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}
