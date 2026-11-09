@@ -400,9 +400,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"net/http"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -470,7 +470,6 @@ func (fi bindataFileInfo) IsDir() bool {
 func (fi bindataFileInfo) Sys() interface{} {
 	return nil
 }
-
 
 type assetFile struct {
 	*bytes.Reader
@@ -8490,20 +8489,20 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"cui/setup/index.html":                                                            cuiSetupIndexHtml,
-	"cui/v0.9/index.html":                                                             cuiV09IndexHtml,
-	"cui/v1.0/index.html":                                                             cuiV10IndexHtml,
-	"cui/v1.0/layouts__index.async.js":                                                cuiV10Layouts__indexAsyncJs,
-	"cui/v1.0/umi.js":                                                                 cuiV10UmiJs,
-	"init/.cursor/skills/sui-development/SKILL.md":                                    initCursorSkillsSuiDevelopmentSkillMd,
-	"init/.cursor/skills/sui-development/references/backend-api.md":                   initCursorSkillsSuiDevelopmentReferencesBackendApiMd,
-	"init/.cursor/skills/sui-development/references/frontend-api.md":                  initCursorSkillsSuiDevelopmentReferencesFrontendApiMd,
-	"init/.cursor/skills/sui-development/references/template-functions.md":            initCursorSkillsSuiDevelopmentReferencesTemplateFunctionsMd,
-	"init/.cursor/skills/yao-agent-development/SKILL.md":                              initCursorSkillsYaoAgentDevelopmentSkillMd,
-	"init/.cursor/skills/yao-agent-development/references/context-api.md":             initCursorSkillsYaoAgentDevelopmentReferencesContextApiMd,
-	"init/.cursor/skills/yao-agent-development/references/hooks-patterns.md":          initCursorSkillsYaoAgentDevelopmentReferencesHooksPatternsMd,
-	"init/.cursor/skills/yao-agent-development/references/runtime-api.md":             initCursorSkillsYaoAgentDevelopmentReferencesRuntimeApiMd,
-	"init/.cursor/skills/yao-agent-development/references/testing.md":                 initCursorSkillsYaoAgentDevelopmentReferencesTestingMd,
+	"cui/setup/index.html":                                                   cuiSetupIndexHtml,
+	"cui/v0.9/index.html":                                                    cuiV09IndexHtml,
+	"cui/v1.0/index.html":                                                    cuiV10IndexHtml,
+	"cui/v1.0/layouts__index.async.js":                                       cuiV10Layouts__indexAsyncJs,
+	"cui/v1.0/umi.js":                                                        cuiV10UmiJs,
+	"init/.cursor/skills/sui-development/SKILL.md":                           initCursorSkillsSuiDevelopmentSkillMd,
+	"init/.cursor/skills/sui-development/references/backend-api.md":          initCursorSkillsSuiDevelopmentReferencesBackendApiMd,
+	"init/.cursor/skills/sui-development/references/frontend-api.md":         initCursorSkillsSuiDevelopmentReferencesFrontendApiMd,
+	"init/.cursor/skills/sui-development/references/template-functions.md":   initCursorSkillsSuiDevelopmentReferencesTemplateFunctionsMd,
+	"init/.cursor/skills/yao-agent-development/SKILL.md":                     initCursorSkillsYaoAgentDevelopmentSkillMd,
+	"init/.cursor/skills/yao-agent-development/references/context-api.md":    initCursorSkillsYaoAgentDevelopmentReferencesContextApiMd,
+	"init/.cursor/skills/yao-agent-development/references/hooks-patterns.md": initCursorSkillsYaoAgentDevelopmentReferencesHooksPatternsMd,
+	"init/.cursor/skills/yao-agent-development/references/runtime-api.md":    initCursorSkillsYaoAgentDevelopmentReferencesRuntimeApiMd,
+	"init/.cursor/skills/yao-agent-development/references/testing.md":        initCursorSkillsYaoAgentDevelopmentReferencesTestingMd,
 	"init/.env":                                                                       initEnv,
 	"init/.vscode/settings.json":                                                      initVscodeSettingsJson,
 	"init/.vscode/types/runtime/agent.d.ts":                                           initVscodeTypesRuntimeAgentDTs,
@@ -8890,11 +8889,13 @@ var _bindata = map[string]func() (*asset, error){
 // directory embedded in the file by go-bindata.
 // For example if you run go-bindata on data/... and data contains the
 // following hierarchy:
-//     data/
-//       foo.txt
-//       img/
-//         a.png
-//         b.png
+//
+//	data/
+//	  foo.txt
+//	  img/
+//	    a.png
+//	    b.png
+//
 // then AssetDir("data") would return []string{"foo.txt", "img"}
 // AssetDir("data/img") would return []string{"a.png", "b.png"}
 // AssetDir("foo.txt") and AssetDir("notexist") would return an error
@@ -8927,696 +8928,696 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"cui": &bintree{nil, map[string]*bintree{
-		"setup": &bintree{nil, map[string]*bintree{
-			"index.html": &bintree{cuiSetupIndexHtml, map[string]*bintree{}},
+	"cui": {nil, map[string]*bintree{
+		"setup": {nil, map[string]*bintree{
+			"index.html": {cuiSetupIndexHtml, map[string]*bintree{}},
 		}},
-		"v0.9": &bintree{nil, map[string]*bintree{
-			"index.html": &bintree{cuiV09IndexHtml, map[string]*bintree{}},
+		"v0.9": {nil, map[string]*bintree{
+			"index.html": {cuiV09IndexHtml, map[string]*bintree{}},
 		}},
-		"v1.0": &bintree{nil, map[string]*bintree{
-			"index.html":              &bintree{cuiV10IndexHtml, map[string]*bintree{}},
-			"layouts__index.async.js": &bintree{cuiV10Layouts__indexAsyncJs, map[string]*bintree{}},
-			"umi.js":                  &bintree{cuiV10UmiJs, map[string]*bintree{}},
+		"v1.0": {nil, map[string]*bintree{
+			"index.html":              {cuiV10IndexHtml, map[string]*bintree{}},
+			"layouts__index.async.js": {cuiV10Layouts__indexAsyncJs, map[string]*bintree{}},
+			"umi.js":                  {cuiV10UmiJs, map[string]*bintree{}},
 		}},
 	}},
-	"init": &bintree{nil, map[string]*bintree{
-		".cursor": &bintree{nil, map[string]*bintree{
-			"skills": &bintree{nil, map[string]*bintree{
-				"sui-development": &bintree{nil, map[string]*bintree{
-					"SKILL.md": &bintree{initCursorSkillsSuiDevelopmentSkillMd, map[string]*bintree{}},
-					"references": &bintree{nil, map[string]*bintree{
-						"backend-api.md":        &bintree{initCursorSkillsSuiDevelopmentReferencesBackendApiMd, map[string]*bintree{}},
-						"frontend-api.md":       &bintree{initCursorSkillsSuiDevelopmentReferencesFrontendApiMd, map[string]*bintree{}},
-						"template-functions.md": &bintree{initCursorSkillsSuiDevelopmentReferencesTemplateFunctionsMd, map[string]*bintree{}},
+	"init": {nil, map[string]*bintree{
+		".cursor": {nil, map[string]*bintree{
+			"skills": {nil, map[string]*bintree{
+				"sui-development": {nil, map[string]*bintree{
+					"SKILL.md": {initCursorSkillsSuiDevelopmentSkillMd, map[string]*bintree{}},
+					"references": {nil, map[string]*bintree{
+						"backend-api.md":        {initCursorSkillsSuiDevelopmentReferencesBackendApiMd, map[string]*bintree{}},
+						"frontend-api.md":       {initCursorSkillsSuiDevelopmentReferencesFrontendApiMd, map[string]*bintree{}},
+						"template-functions.md": {initCursorSkillsSuiDevelopmentReferencesTemplateFunctionsMd, map[string]*bintree{}},
 					}},
 				}},
-				"yao-agent-development": &bintree{nil, map[string]*bintree{
-					"SKILL.md": &bintree{initCursorSkillsYaoAgentDevelopmentSkillMd, map[string]*bintree{}},
-					"references": &bintree{nil, map[string]*bintree{
-						"context-api.md":    &bintree{initCursorSkillsYaoAgentDevelopmentReferencesContextApiMd, map[string]*bintree{}},
-						"hooks-patterns.md": &bintree{initCursorSkillsYaoAgentDevelopmentReferencesHooksPatternsMd, map[string]*bintree{}},
-						"runtime-api.md":    &bintree{initCursorSkillsYaoAgentDevelopmentReferencesRuntimeApiMd, map[string]*bintree{}},
-						"testing.md":        &bintree{initCursorSkillsYaoAgentDevelopmentReferencesTestingMd, map[string]*bintree{}},
-					}},
-				}},
-			}},
-		}},
-		".env": &bintree{initEnv, map[string]*bintree{}},
-		".vscode": &bintree{nil, map[string]*bintree{
-			"settings.json": &bintree{initVscodeSettingsJson, map[string]*bintree{}},
-			"types": &bintree{nil, map[string]*bintree{
-				"runtime": &bintree{nil, map[string]*bintree{
-					"agent.d.ts":     &bintree{initVscodeTypesRuntimeAgentDTs, map[string]*bintree{}},
-					"console.d.ts":   &bintree{initVscodeTypesRuntimeConsoleDTs, map[string]*bintree{}},
-					"eval.d.ts":      &bintree{initVscodeTypesRuntimeEvalDTs, map[string]*bintree{}},
-					"exception.d.ts": &bintree{initVscodeTypesRuntimeExceptionDTs, map[string]*bintree{}},
-					"fs.d.ts":        &bintree{initVscodeTypesRuntimeFsDTs, map[string]*bintree{}},
-					"global.d.ts":    &bintree{initVscodeTypesRuntimeGlobalDTs, map[string]*bintree{}},
-					"http.d.ts":      &bintree{initVscodeTypesRuntimeHttpDTs, map[string]*bintree{}},
-					"io.d.ts":        &bintree{initVscodeTypesRuntimeIoDTs, map[string]*bintree{}},
-					"log.d.ts":       &bintree{initVscodeTypesRuntimeLogDTs, map[string]*bintree{}},
-					"neo.d.ts":       &bintree{initVscodeTypesRuntimeNeoDTs, map[string]*bintree{}},
-					"plan.d.ts":      &bintree{initVscodeTypesRuntimePlanDTs, map[string]*bintree{}},
-					"process": &bintree{nil, map[string]*bintree{
-						"fs.d.ts":    &bintree{initVscodeTypesRuntimeProcessFsDTs, map[string]*bintree{}},
-						"http.d.ts":  &bintree{initVscodeTypesRuntimeProcessHttpDTs, map[string]*bintree{}},
-						"model.d.ts": &bintree{initVscodeTypesRuntimeProcessModelDTs, map[string]*bintree{}},
-					}},
-					"process.d.ts": &bintree{initVscodeTypesRuntimeProcessDTs, map[string]*bintree{}},
-					"query.d.ts":   &bintree{initVscodeTypesRuntimeQueryDTs, map[string]*bintree{}},
-					"store.d.ts":   &bintree{initVscodeTypesRuntimeStoreDTs, map[string]*bintree{}},
-					"sui.d.ts":     &bintree{initVscodeTypesRuntimeSuiDTs, map[string]*bintree{}},
-					"testing.d.ts": &bintree{initVscodeTypesRuntimeTestingDTs, map[string]*bintree{}},
-					"time.d.ts":    &bintree{initVscodeTypesRuntimeTimeDTs, map[string]*bintree{}},
-				}},
-				"runtime.d.ts": &bintree{initVscodeTypesRuntimeDTs, map[string]*bintree{}},
-				"sui.d.ts":     &bintree{initVscodeTypesSuiDTs, map[string]*bintree{}},
-			}},
-		}},
-		"agent": &bintree{nil, map[string]*bintree{
-			"agent.yml": &bintree{initAgentAgentYml, map[string]*bintree{}},
-			"locales": &bintree{nil, map[string]*bintree{
-				"en-us.yml": &bintree{initAgentLocalesEnUsYml, map[string]*bintree{}},
-				"zh-cn.yml": &bintree{initAgentLocalesZhCnYml, map[string]*bintree{}},
-			}},
-			"prompts.yml": &bintree{initAgentPromptsYml, map[string]*bintree{}},
-			"search.yml":  &bintree{initAgentSearchYml, map[string]*bintree{}},
-			"template": &bintree{nil, map[string]*bintree{
-				"__assets": &bintree{nil, map[string]*bintree{
-					"README.md": &bintree{initAgentTemplate__assetsReadmeMd, map[string]*bintree{}},
-					"brands": &bintree{nil, map[string]*bintree{
-						"apple.svg":     &bintree{initAgentTemplate__assetsBrandsAppleSvg, map[string]*bintree{}},
-						"github.svg":    &bintree{initAgentTemplate__assetsBrandsGithubSvg, map[string]*bintree{}},
-						"google.svg":    &bintree{initAgentTemplate__assetsBrandsGoogleSvg, map[string]*bintree{}},
-						"microsoft.svg": &bintree{initAgentTemplate__assetsBrandsMicrosoftSvg, map[string]*bintree{}},
-					}},
-					"css": &bintree{nil, map[string]*bintree{
-						"vars.css": &bintree{initAgentTemplate__assetsCssVarsCss, map[string]*bintree{}},
-					}},
-					"images": &bintree{nil, map[string]*bintree{
-						"assistants": &bintree{nil, map[string]*bintree{
-							"expense.png": &bintree{initAgentTemplate__assetsImagesAssistantsExpensePng, map[string]*bintree{}},
-							"tasks.svg":   &bintree{initAgentTemplate__assetsImagesAssistantsTasksSvg, map[string]*bintree{}},
-						}},
-						"icons": &bintree{nil, map[string]*bintree{
-							"app.png": &bintree{initAgentTemplate__assetsImagesIconsAppPng, map[string]*bintree{}},
-						}},
-						"logos": &bintree{nil, map[string]*bintree{
-							"logo_color.svg": &bintree{initAgentTemplate__assetsImagesLogosLogo_colorSvg, map[string]*bintree{}},
-							"wordmark.svg":   &bintree{initAgentTemplate__assetsImagesLogosWordmarkSvg, map[string]*bintree{}},
-						}},
-					}},
-					"js": &bintree{nil, map[string]*bintree{
-						"echarts-5.4.3.min.js": &bintree{initAgentTemplate__assetsJsEcharts543MinJs, map[string]*bintree{}},
-						"highlight.min.js":     &bintree{initAgentTemplate__assetsJsHighlightMinJs, map[string]*bintree{}},
-						"remarkable.min.js":    &bintree{initAgentTemplate__assetsJsRemarkableMinJs, map[string]*bintree{}},
-						"yao-agent.d.ts":       &bintree{initAgentTemplate__assetsJsYaoAgentDTs, map[string]*bintree{}},
-						"yao-agent.js":         &bintree{initAgentTemplate__assetsJsYaoAgentJs, map[string]*bintree{}},
-					}},
-				}},
-				"__data.json":     &bintree{initAgentTemplate__dataJson, map[string]*bintree{}},
-				"__document.html": &bintree{initAgentTemplate__documentHtml, map[string]*bintree{}},
-				"package.json":    &bintree{initAgentTemplatePackageJson, map[string]*bintree{}},
-				"pages": &bintree{nil, map[string]*bintree{
-					"401": &bintree{nil, map[string]*bintree{
-						"401.css":  &bintree{initAgentTemplatePages401401Css, map[string]*bintree{}},
-						"401.html": &bintree{initAgentTemplatePages401401Html, map[string]*bintree{}},
-						"401.json": &bintree{initAgentTemplatePages401401Json, map[string]*bintree{}},
-						"401.ts":   &bintree{initAgentTemplatePages401401Ts, map[string]*bintree{}},
-						"__locales": &bintree{nil, map[string]*bintree{
-							"en-us.yml": &bintree{initAgentTemplatePages401__localesEnUsYml, map[string]*bintree{}},
-							"zh-cn.yml": &bintree{initAgentTemplatePages401__localesZhCnYml, map[string]*bintree{}},
-						}},
-					}},
-					"404": &bintree{nil, map[string]*bintree{
-						"404.css":  &bintree{initAgentTemplatePages404404Css, map[string]*bintree{}},
-						"404.html": &bintree{initAgentTemplatePages404404Html, map[string]*bintree{}},
-						"404.json": &bintree{initAgentTemplatePages404404Json, map[string]*bintree{}},
-						"404.ts":   &bintree{initAgentTemplatePages404404Ts, map[string]*bintree{}},
-						"__locales": &bintree{nil, map[string]*bintree{
-							"en-us.yml": &bintree{initAgentTemplatePages404__localesEnUsYml, map[string]*bintree{}},
-							"zh-cn.yml": &bintree{initAgentTemplatePages404__localesZhCnYml, map[string]*bintree{}},
-						}},
+				"yao-agent-development": {nil, map[string]*bintree{
+					"SKILL.md": {initCursorSkillsYaoAgentDevelopmentSkillMd, map[string]*bintree{}},
+					"references": {nil, map[string]*bintree{
+						"context-api.md":    {initCursorSkillsYaoAgentDevelopmentReferencesContextApiMd, map[string]*bintree{}},
+						"hooks-patterns.md": {initCursorSkillsYaoAgentDevelopmentReferencesHooksPatternsMd, map[string]*bintree{}},
+						"runtime-api.md":    {initCursorSkillsYaoAgentDevelopmentReferencesRuntimeApiMd, map[string]*bintree{}},
+						"testing.md":        {initCursorSkillsYaoAgentDevelopmentReferencesTestingMd, map[string]*bintree{}},
 					}},
 				}},
 			}},
 		}},
-		"ai-docs": &bintree{nil, map[string]*bintree{
-			"README.md":     &bintree{initAiDocsReadmeMd, map[string]*bintree{}},
-			"agent.md":      &bintree{initAiDocsAgentMd, map[string]*bintree{}},
-			"attachment.md": &bintree{initAiDocsAttachmentMd, map[string]*bintree{}},
-			"authorized.md": &bintree{initAiDocsAuthorizedMd, map[string]*bintree{}},
-			"concurrent.md": &bintree{initAiDocsConcurrentMd, map[string]*bintree{}},
-			"excel.md":      &bintree{initAiDocsExcelMd, map[string]*bintree{}},
-			"exception.md":  &bintree{initAiDocsExceptionMd, map[string]*bintree{}},
-			"ffmpeg.md":     &bintree{initAiDocsFfmpegMd, map[string]*bintree{}},
-			"fs.md":         &bintree{initAiDocsFsMd, map[string]*bintree{}},
-			"http.md":       &bintree{initAiDocsHttpMd, map[string]*bintree{}},
-			"job.md":        &bintree{initAiDocsJobMd, map[string]*bintree{}},
-			"model.md":      &bintree{initAiDocsModelMd, map[string]*bintree{}},
-			"office.md":     &bintree{initAiDocsOfficeMd, map[string]*bintree{}},
-			"pdf.md":        &bintree{initAiDocsPdfMd, map[string]*bintree{}},
-			"rss.md":        &bintree{initAiDocsRssMd, map[string]*bintree{}},
-			"sitemap.md":    &bintree{initAiDocsSitemapMd, map[string]*bintree{}},
-			"store.md":      &bintree{initAiDocsStoreMd, map[string]*bintree{}},
-			"sui.md":        &bintree{initAiDocsSuiMd, map[string]*bintree{}},
-			"testing.md":    &bintree{initAiDocsTestingMd, map[string]*bintree{}},
-			"text.md":       &bintree{initAiDocsTextMd, map[string]*bintree{}},
-		}},
-		"app.yao": &bintree{initAppYao, map[string]*bintree{}},
-		"assistants": &bintree{nil, map[string]*bintree{
-			"llms": &bintree{nil, map[string]*bintree{
-				"locales": &bintree{nil, map[string]*bintree{
-					"en-us.yml": &bintree{initAssistantsLlmsLocalesEnUsYml, map[string]*bintree{}},
-					"zh-cn.yml": &bintree{initAssistantsLlmsLocalesZhCnYml, map[string]*bintree{}},
+		".env": {initEnv, map[string]*bintree{}},
+		".vscode": {nil, map[string]*bintree{
+			"settings.json": {initVscodeSettingsJson, map[string]*bintree{}},
+			"types": {nil, map[string]*bintree{
+				"runtime": {nil, map[string]*bintree{
+					"agent.d.ts":     {initVscodeTypesRuntimeAgentDTs, map[string]*bintree{}},
+					"console.d.ts":   {initVscodeTypesRuntimeConsoleDTs, map[string]*bintree{}},
+					"eval.d.ts":      {initVscodeTypesRuntimeEvalDTs, map[string]*bintree{}},
+					"exception.d.ts": {initVscodeTypesRuntimeExceptionDTs, map[string]*bintree{}},
+					"fs.d.ts":        {initVscodeTypesRuntimeFsDTs, map[string]*bintree{}},
+					"global.d.ts":    {initVscodeTypesRuntimeGlobalDTs, map[string]*bintree{}},
+					"http.d.ts":      {initVscodeTypesRuntimeHttpDTs, map[string]*bintree{}},
+					"io.d.ts":        {initVscodeTypesRuntimeIoDTs, map[string]*bintree{}},
+					"log.d.ts":       {initVscodeTypesRuntimeLogDTs, map[string]*bintree{}},
+					"neo.d.ts":       {initVscodeTypesRuntimeNeoDTs, map[string]*bintree{}},
+					"plan.d.ts":      {initVscodeTypesRuntimePlanDTs, map[string]*bintree{}},
+					"process": {nil, map[string]*bintree{
+						"fs.d.ts":    {initVscodeTypesRuntimeProcessFsDTs, map[string]*bintree{}},
+						"http.d.ts":  {initVscodeTypesRuntimeProcessHttpDTs, map[string]*bintree{}},
+						"model.d.ts": {initVscodeTypesRuntimeProcessModelDTs, map[string]*bintree{}},
+					}},
+					"process.d.ts": {initVscodeTypesRuntimeProcessDTs, map[string]*bintree{}},
+					"query.d.ts":   {initVscodeTypesRuntimeQueryDTs, map[string]*bintree{}},
+					"store.d.ts":   {initVscodeTypesRuntimeStoreDTs, map[string]*bintree{}},
+					"sui.d.ts":     {initVscodeTypesRuntimeSuiDTs, map[string]*bintree{}},
+					"testing.d.ts": {initVscodeTypesRuntimeTestingDTs, map[string]*bintree{}},
+					"time.d.ts":    {initVscodeTypesRuntimeTimeDTs, map[string]*bintree{}},
 				}},
-				"package.yao": &bintree{initAssistantsLlmsPackageYao, map[string]*bintree{}},
-				"prompts.yml": &bintree{initAssistantsLlmsPromptsYml, map[string]*bintree{}},
-			}},
-			"messages": &bintree{nil, map[string]*bintree{
-				"locales": &bintree{nil, map[string]*bintree{
-					"en-us.yml": &bintree{initAssistantsMessagesLocalesEnUsYml, map[string]*bintree{}},
-					"zh-cn.yml": &bintree{initAssistantsMessagesLocalesZhCnYml, map[string]*bintree{}},
-				}},
-				"package.yao": &bintree{initAssistantsMessagesPackageYao, map[string]*bintree{}},
-				"src": &bintree{nil, map[string]*bintree{
-					"action.ts":   &bintree{initAssistantsMessagesSrcActionTs, map[string]*bintree{}},
-					"basic.ts":    &bintree{initAssistantsMessagesSrcBasicTs, map[string]*bintree{}},
-					"code.ts":     &bintree{initAssistantsMessagesSrcCodeTs, map[string]*bintree{}},
-					"error.ts":    &bintree{initAssistantsMessagesSrcErrorTs, map[string]*bintree{}},
-					"index.ts":    &bintree{initAssistantsMessagesSrcIndexTs, map[string]*bintree{}},
-					"markdown.ts": &bintree{initAssistantsMessagesSrcMarkdownTs, map[string]*bintree{}},
-				}},
-			}},
-			"yao": &bintree{nil, map[string]*bintree{
-				"locales": &bintree{nil, map[string]*bintree{
-					"en-us.yml": &bintree{initAssistantsYaoLocalesEnUsYml, map[string]*bintree{}},
-					"zh-cn.yml": &bintree{initAssistantsYaoLocalesZhCnYml, map[string]*bintree{}},
-				}},
-				"package.yao": &bintree{initAssistantsYaoPackageYao, map[string]*bintree{}},
-				"prompts.yml": &bintree{initAssistantsYaoPromptsYml, map[string]*bintree{}},
+				"runtime.d.ts": {initVscodeTypesRuntimeDTs, map[string]*bintree{}},
+				"sui.d.ts":     {initVscodeTypesSuiDTs, map[string]*bintree{}},
 			}},
 		}},
-		"connectors": &bintree{nil, map[string]*bintree{
-			"anthropic": &bintree{nil, map[string]*bintree{
-				"claude-opus-4_5.conn.yao":   &bintree{initConnectorsAnthropicClaudeOpus4_5ConnYao, map[string]*bintree{}},
-				"claude-sonnet-4_5.conn.yao": &bintree{initConnectorsAnthropicClaudeSonnet4_5ConnYao, map[string]*bintree{}},
+		"agent": {nil, map[string]*bintree{
+			"agent.yml": {initAgentAgentYml, map[string]*bintree{}},
+			"locales": {nil, map[string]*bintree{
+				"en-us.yml": {initAgentLocalesEnUsYml, map[string]*bintree{}},
+				"zh-cn.yml": {initAgentLocalesZhCnYml, map[string]*bintree{}},
 			}},
-			"azure": &bintree{nil, map[string]*bintree{
-				"gpt-5_2.conn.yao": &bintree{initConnectorsAzureGpt5_2ConnYao, map[string]*bintree{}},
-			}},
-			"claude": &bintree{nil, map[string]*bintree{
-				"haiku-3_0.conn.yao":           &bintree{initConnectorsClaudeHaiku3_0ConnYao, map[string]*bintree{}},
-				"haiku-4_5-thinking.conn.yao":  &bintree{initConnectorsClaudeHaiku4_5ThinkingConnYao, map[string]*bintree{}},
-				"haiku-4_5.conn.yao":           &bintree{initConnectorsClaudeHaiku4_5ConnYao, map[string]*bintree{}},
-				"opus-4_6.conn.yao":            &bintree{initConnectorsClaudeOpus4_6ConnYao, map[string]*bintree{}},
-				"sonnet-4_5-thinking.conn.yao": &bintree{initConnectorsClaudeSonnet4_5ThinkingConnYao, map[string]*bintree{}},
-				"sonnet-4_5.conn.yao":          &bintree{initConnectorsClaudeSonnet4_5ConnYao, map[string]*bintree{}},
-			}},
-			"deepseek": &bintree{nil, map[string]*bintree{
-				"deepseek-chat.conn.yao":     &bintree{initConnectorsDeepseekDeepseekChatConnYao, map[string]*bintree{}},
-				"deepseek-reasoner.conn.yao": &bintree{initConnectorsDeepseekDeepseekReasonerConnYao, map[string]*bintree{}},
-			}},
-			"fireworks": &bintree{nil, map[string]*bintree{
-				"llama-4-maverick.conn.yao": &bintree{initConnectorsFireworksLlama4MaverickConnYao, map[string]*bintree{}},
-			}},
-			"google": &bintree{nil, map[string]*bintree{
-				"gemini-2_5-pro.conn.yao": &bintree{initConnectorsGoogleGemini2_5ProConnYao, map[string]*bintree{}},
-				"gemini-3-flash.conn.yao": &bintree{initConnectorsGoogleGemini3FlashConnYao, map[string]*bintree{}},
-			}},
-			"groq": &bintree{nil, map[string]*bintree{
-				"llama-4-maverick.conn.yao": &bintree{initConnectorsGroqLlama4MaverickConnYao, map[string]*bintree{}},
-			}},
-			"meta": &bintree{nil, map[string]*bintree{
-				"llama-4-maverick.conn.yao": &bintree{initConnectorsMetaLlama4MaverickConnYao, map[string]*bintree{}},
-			}},
-			"mistral": &bintree{nil, map[string]*bintree{
-				"mistral-large-3.conn.yao": &bintree{initConnectorsMistralMistralLarge3ConnYao, map[string]*bintree{}},
-			}},
-			"moonshot": &bintree{nil, map[string]*bintree{
-				"kimi-k2-0905-preview.conn.yao":   &bintree{initConnectorsMoonshotKimiK20905PreviewConnYao, map[string]*bintree{}},
-				"kimi-k2-thinking-turbo.conn.yao": &bintree{initConnectorsMoonshotKimiK2ThinkingTurboConnYao, map[string]*bintree{}},
-				"kimi-k2-thinking.conn.yao":       &bintree{initConnectorsMoonshotKimiK2ThinkingConnYao, map[string]*bintree{}},
-				"kimi-k2-turbo-preview.conn.yao":  &bintree{initConnectorsMoonshotKimiK2TurboPreviewConnYao, map[string]*bintree{}},
-				"kimi-k2_5-code.conn.yao":         &bintree{initConnectorsMoonshotKimiK2_5CodeConnYao, map[string]*bintree{}},
-				"kimi-k2_5-thinking.conn.yao":     &bintree{initConnectorsMoonshotKimiK2_5ThinkingConnYao, map[string]*bintree{}},
-				"kimi-k2_5.conn.yao":              &bintree{initConnectorsMoonshotKimiK2_5ConnYao, map[string]*bintree{}},
-			}},
-			"ollama": &bintree{nil, map[string]*bintree{
-				"deepseek-r1.conn.yao":   &bintree{initConnectorsOllamaDeepseekR1ConnYao, map[string]*bintree{}},
-				"gemma3.conn.yao":        &bintree{initConnectorsOllamaGemma3ConnYao, map[string]*bintree{}},
-				"llama3_3.conn.yao":      &bintree{initConnectorsOllamaLlama3_3ConnYao, map[string]*bintree{}},
-				"qwen2_5-0_5b.conn.yao":  &bintree{initConnectorsOllamaQwen2_50_5bConnYao, map[string]*bintree{}},
-				"qwen2_5-coder-0_5b.yao": &bintree{initConnectorsOllamaQwen2_5Coder0_5bYao, map[string]*bintree{}},
-				"qwen2_5-coder.conn.yao": &bintree{initConnectorsOllamaQwen2_5CoderConnYao, map[string]*bintree{}},
-				"qwen3.conn.yao":         &bintree{initConnectorsOllamaQwen3ConnYao, map[string]*bintree{}},
-			}},
-			"openai": &bintree{nil, map[string]*bintree{
-				"gpt-4o-mini.conn.yao":            &bintree{initConnectorsOpenaiGpt4oMiniConnYao, map[string]*bintree{}},
-				"gpt-4o.conn.yao":                 &bintree{initConnectorsOpenaiGpt4oConnYao, map[string]*bintree{}},
-				"gpt-5_2.conn.yao":                &bintree{initConnectorsOpenaiGpt5_2ConnYao, map[string]*bintree{}},
-				"o3.conn.yao":                     &bintree{initConnectorsOpenaiO3ConnYao, map[string]*bintree{}},
-				"text-embedding-3-large.conn.yao": &bintree{initConnectorsOpenaiTextEmbedding3LargeConnYao, map[string]*bintree{}},
-			}},
-			"openrouter": &bintree{nil, map[string]*bintree{
-				"auto.conn.yao":            &bintree{initConnectorsOpenrouterAutoConnYao, map[string]*bintree{}},
-				"claude-opus-4_5.conn.yao": &bintree{initConnectorsOpenrouterClaudeOpus4_5ConnYao, map[string]*bintree{}},
-				"nova-premier.conn.yao":    &bintree{initConnectorsOpenrouterNovaPremierConnYao, map[string]*bintree{}},
-			}},
-			"siliconflow": &bintree{nil, map[string]*bintree{
-				"deepseek-v3.conn.yao":  &bintree{initConnectorsSiliconflowDeepseekV3ConnYao, map[string]*bintree{}},
-				"qwen-2_5-72b.conn.yao": &bintree{initConnectorsSiliconflowQwen2_572bConnYao, map[string]*bintree{}},
-			}},
-			"together": &bintree{nil, map[string]*bintree{
-				"deepseek-r1.conn.yao":      &bintree{initConnectorsTogetherDeepseekR1ConnYao, map[string]*bintree{}},
-				"llama-4-maverick.conn.yao": &bintree{initConnectorsTogetherLlama4MaverickConnYao, map[string]*bintree{}},
-			}},
-			"volcengine": &bintree{nil, map[string]*bintree{
-				"deepseek-r1.conn.yao":    &bintree{initConnectorsVolcengineDeepseekR1ConnYao, map[string]*bintree{}},
-				"deepseek-v3.conn.yao":    &bintree{initConnectorsVolcengineDeepseekV3ConnYao, map[string]*bintree{}},
-				"doubao-1_5-pro.conn.yao": &bintree{initConnectorsVolcengineDoubao1_5ProConnYao, map[string]*bintree{}},
-				"glm-4-plus.conn.yao":     &bintree{initConnectorsVolcengineGlm4PlusConnYao, map[string]*bintree{}},
-				"qwen-vl-max.conn.yao":    &bintree{initConnectorsVolcengineQwenVlMaxConnYao, map[string]*bintree{}},
-			}},
-			"xai": &bintree{nil, map[string]*bintree{
-				"grok-4.conn.yao": &bintree{initConnectorsXaiGrok4ConnYao, map[string]*bintree{}},
-			}},
-		}},
-		"data": &bintree{nil, map[string]*bintree{
-			"README.md": &bintree{initDataReadmeMd, map[string]*bintree{}},
-			"templates": &bintree{nil, map[string]*bintree{
-				"default": &bintree{nil, map[string]*bintree{
-					"__assets": &bintree{nil, map[string]*bintree{
-						"README.md": &bintree{initDataTemplatesDefault__assetsReadmeMd, map[string]*bintree{}},
-						"brands": &bintree{nil, map[string]*bintree{
-							"apple.svg":     &bintree{initDataTemplatesDefault__assetsBrandsAppleSvg, map[string]*bintree{}},
-							"discord.svg":   &bintree{initDataTemplatesDefault__assetsBrandsDiscordSvg, map[string]*bintree{}},
-							"github.svg":    &bintree{initDataTemplatesDefault__assetsBrandsGithubSvg, map[string]*bintree{}},
-							"google.svg":    &bintree{initDataTemplatesDefault__assetsBrandsGoogleSvg, map[string]*bintree{}},
-							"microsoft.svg": &bintree{initDataTemplatesDefault__assetsBrandsMicrosoftSvg, map[string]*bintree{}},
-							"twitter.svg":   &bintree{initDataTemplatesDefault__assetsBrandsTwitterSvg, map[string]*bintree{}},
-							"yao.svg":       &bintree{initDataTemplatesDefault__assetsBrandsYaoSvg, map[string]*bintree{}},
-							"yaoagents.svg": &bintree{initDataTemplatesDefault__assetsBrandsYaoagentsSvg, map[string]*bintree{}},
+			"prompts.yml": {initAgentPromptsYml, map[string]*bintree{}},
+			"search.yml":  {initAgentSearchYml, map[string]*bintree{}},
+			"template": {nil, map[string]*bintree{
+				"__assets": {nil, map[string]*bintree{
+					"README.md": {initAgentTemplate__assetsReadmeMd, map[string]*bintree{}},
+					"brands": {nil, map[string]*bintree{
+						"apple.svg":     {initAgentTemplate__assetsBrandsAppleSvg, map[string]*bintree{}},
+						"github.svg":    {initAgentTemplate__assetsBrandsGithubSvg, map[string]*bintree{}},
+						"google.svg":    {initAgentTemplate__assetsBrandsGoogleSvg, map[string]*bintree{}},
+						"microsoft.svg": {initAgentTemplate__assetsBrandsMicrosoftSvg, map[string]*bintree{}},
+					}},
+					"css": {nil, map[string]*bintree{
+						"vars.css": {initAgentTemplate__assetsCssVarsCss, map[string]*bintree{}},
+					}},
+					"images": {nil, map[string]*bintree{
+						"assistants": {nil, map[string]*bintree{
+							"expense.png": {initAgentTemplate__assetsImagesAssistantsExpensePng, map[string]*bintree{}},
+							"tasks.svg":   {initAgentTemplate__assetsImagesAssistantsTasksSvg, map[string]*bintree{}},
 						}},
-						"images": &bintree{nil, map[string]*bintree{
-							"icons": &bintree{nil, map[string]*bintree{
-								"app.png": &bintree{initDataTemplatesDefault__assetsImagesIconsAppPng, map[string]*bintree{}},
+						"icons": {nil, map[string]*bintree{
+							"app.png": {initAgentTemplate__assetsImagesIconsAppPng, map[string]*bintree{}},
+						}},
+						"logos": {nil, map[string]*bintree{
+							"logo_color.svg": {initAgentTemplate__assetsImagesLogosLogo_colorSvg, map[string]*bintree{}},
+							"wordmark.svg":   {initAgentTemplate__assetsImagesLogosWordmarkSvg, map[string]*bintree{}},
+						}},
+					}},
+					"js": {nil, map[string]*bintree{
+						"echarts-5.4.3.min.js": {initAgentTemplate__assetsJsEcharts543MinJs, map[string]*bintree{}},
+						"highlight.min.js":     {initAgentTemplate__assetsJsHighlightMinJs, map[string]*bintree{}},
+						"remarkable.min.js":    {initAgentTemplate__assetsJsRemarkableMinJs, map[string]*bintree{}},
+						"yao-agent.d.ts":       {initAgentTemplate__assetsJsYaoAgentDTs, map[string]*bintree{}},
+						"yao-agent.js":         {initAgentTemplate__assetsJsYaoAgentJs, map[string]*bintree{}},
+					}},
+				}},
+				"__data.json":     {initAgentTemplate__dataJson, map[string]*bintree{}},
+				"__document.html": {initAgentTemplate__documentHtml, map[string]*bintree{}},
+				"package.json":    {initAgentTemplatePackageJson, map[string]*bintree{}},
+				"pages": {nil, map[string]*bintree{
+					"401": {nil, map[string]*bintree{
+						"401.css":  {initAgentTemplatePages401401Css, map[string]*bintree{}},
+						"401.html": {initAgentTemplatePages401401Html, map[string]*bintree{}},
+						"401.json": {initAgentTemplatePages401401Json, map[string]*bintree{}},
+						"401.ts":   {initAgentTemplatePages401401Ts, map[string]*bintree{}},
+						"__locales": {nil, map[string]*bintree{
+							"en-us.yml": {initAgentTemplatePages401__localesEnUsYml, map[string]*bintree{}},
+							"zh-cn.yml": {initAgentTemplatePages401__localesZhCnYml, map[string]*bintree{}},
+						}},
+					}},
+					"404": {nil, map[string]*bintree{
+						"404.css":  {initAgentTemplatePages404404Css, map[string]*bintree{}},
+						"404.html": {initAgentTemplatePages404404Html, map[string]*bintree{}},
+						"404.json": {initAgentTemplatePages404404Json, map[string]*bintree{}},
+						"404.ts":   {initAgentTemplatePages404404Ts, map[string]*bintree{}},
+						"__locales": {nil, map[string]*bintree{
+							"en-us.yml": {initAgentTemplatePages404__localesEnUsYml, map[string]*bintree{}},
+							"zh-cn.yml": {initAgentTemplatePages404__localesZhCnYml, map[string]*bintree{}},
+						}},
+					}},
+				}},
+			}},
+		}},
+		"ai-docs": {nil, map[string]*bintree{
+			"README.md":     {initAiDocsReadmeMd, map[string]*bintree{}},
+			"agent.md":      {initAiDocsAgentMd, map[string]*bintree{}},
+			"attachment.md": {initAiDocsAttachmentMd, map[string]*bintree{}},
+			"authorized.md": {initAiDocsAuthorizedMd, map[string]*bintree{}},
+			"concurrent.md": {initAiDocsConcurrentMd, map[string]*bintree{}},
+			"excel.md":      {initAiDocsExcelMd, map[string]*bintree{}},
+			"exception.md":  {initAiDocsExceptionMd, map[string]*bintree{}},
+			"ffmpeg.md":     {initAiDocsFfmpegMd, map[string]*bintree{}},
+			"fs.md":         {initAiDocsFsMd, map[string]*bintree{}},
+			"http.md":       {initAiDocsHttpMd, map[string]*bintree{}},
+			"job.md":        {initAiDocsJobMd, map[string]*bintree{}},
+			"model.md":      {initAiDocsModelMd, map[string]*bintree{}},
+			"office.md":     {initAiDocsOfficeMd, map[string]*bintree{}},
+			"pdf.md":        {initAiDocsPdfMd, map[string]*bintree{}},
+			"rss.md":        {initAiDocsRssMd, map[string]*bintree{}},
+			"sitemap.md":    {initAiDocsSitemapMd, map[string]*bintree{}},
+			"store.md":      {initAiDocsStoreMd, map[string]*bintree{}},
+			"sui.md":        {initAiDocsSuiMd, map[string]*bintree{}},
+			"testing.md":    {initAiDocsTestingMd, map[string]*bintree{}},
+			"text.md":       {initAiDocsTextMd, map[string]*bintree{}},
+		}},
+		"app.yao": {initAppYao, map[string]*bintree{}},
+		"assistants": {nil, map[string]*bintree{
+			"llms": {nil, map[string]*bintree{
+				"locales": {nil, map[string]*bintree{
+					"en-us.yml": {initAssistantsLlmsLocalesEnUsYml, map[string]*bintree{}},
+					"zh-cn.yml": {initAssistantsLlmsLocalesZhCnYml, map[string]*bintree{}},
+				}},
+				"package.yao": {initAssistantsLlmsPackageYao, map[string]*bintree{}},
+				"prompts.yml": {initAssistantsLlmsPromptsYml, map[string]*bintree{}},
+			}},
+			"messages": {nil, map[string]*bintree{
+				"locales": {nil, map[string]*bintree{
+					"en-us.yml": {initAssistantsMessagesLocalesEnUsYml, map[string]*bintree{}},
+					"zh-cn.yml": {initAssistantsMessagesLocalesZhCnYml, map[string]*bintree{}},
+				}},
+				"package.yao": {initAssistantsMessagesPackageYao, map[string]*bintree{}},
+				"src": {nil, map[string]*bintree{
+					"action.ts":   {initAssistantsMessagesSrcActionTs, map[string]*bintree{}},
+					"basic.ts":    {initAssistantsMessagesSrcBasicTs, map[string]*bintree{}},
+					"code.ts":     {initAssistantsMessagesSrcCodeTs, map[string]*bintree{}},
+					"error.ts":    {initAssistantsMessagesSrcErrorTs, map[string]*bintree{}},
+					"index.ts":    {initAssistantsMessagesSrcIndexTs, map[string]*bintree{}},
+					"markdown.ts": {initAssistantsMessagesSrcMarkdownTs, map[string]*bintree{}},
+				}},
+			}},
+			"yao": {nil, map[string]*bintree{
+				"locales": {nil, map[string]*bintree{
+					"en-us.yml": {initAssistantsYaoLocalesEnUsYml, map[string]*bintree{}},
+					"zh-cn.yml": {initAssistantsYaoLocalesZhCnYml, map[string]*bintree{}},
+				}},
+				"package.yao": {initAssistantsYaoPackageYao, map[string]*bintree{}},
+				"prompts.yml": {initAssistantsYaoPromptsYml, map[string]*bintree{}},
+			}},
+		}},
+		"connectors": {nil, map[string]*bintree{
+			"anthropic": {nil, map[string]*bintree{
+				"claude-opus-4_5.conn.yao":   {initConnectorsAnthropicClaudeOpus4_5ConnYao, map[string]*bintree{}},
+				"claude-sonnet-4_5.conn.yao": {initConnectorsAnthropicClaudeSonnet4_5ConnYao, map[string]*bintree{}},
+			}},
+			"azure": {nil, map[string]*bintree{
+				"gpt-5_2.conn.yao": {initConnectorsAzureGpt5_2ConnYao, map[string]*bintree{}},
+			}},
+			"claude": {nil, map[string]*bintree{
+				"haiku-3_0.conn.yao":           {initConnectorsClaudeHaiku3_0ConnYao, map[string]*bintree{}},
+				"haiku-4_5-thinking.conn.yao":  {initConnectorsClaudeHaiku4_5ThinkingConnYao, map[string]*bintree{}},
+				"haiku-4_5.conn.yao":           {initConnectorsClaudeHaiku4_5ConnYao, map[string]*bintree{}},
+				"opus-4_6.conn.yao":            {initConnectorsClaudeOpus4_6ConnYao, map[string]*bintree{}},
+				"sonnet-4_5-thinking.conn.yao": {initConnectorsClaudeSonnet4_5ThinkingConnYao, map[string]*bintree{}},
+				"sonnet-4_5.conn.yao":          {initConnectorsClaudeSonnet4_5ConnYao, map[string]*bintree{}},
+			}},
+			"deepseek": {nil, map[string]*bintree{
+				"deepseek-chat.conn.yao":     {initConnectorsDeepseekDeepseekChatConnYao, map[string]*bintree{}},
+				"deepseek-reasoner.conn.yao": {initConnectorsDeepseekDeepseekReasonerConnYao, map[string]*bintree{}},
+			}},
+			"fireworks": {nil, map[string]*bintree{
+				"llama-4-maverick.conn.yao": {initConnectorsFireworksLlama4MaverickConnYao, map[string]*bintree{}},
+			}},
+			"google": {nil, map[string]*bintree{
+				"gemini-2_5-pro.conn.yao": {initConnectorsGoogleGemini2_5ProConnYao, map[string]*bintree{}},
+				"gemini-3-flash.conn.yao": {initConnectorsGoogleGemini3FlashConnYao, map[string]*bintree{}},
+			}},
+			"groq": {nil, map[string]*bintree{
+				"llama-4-maverick.conn.yao": {initConnectorsGroqLlama4MaverickConnYao, map[string]*bintree{}},
+			}},
+			"meta": {nil, map[string]*bintree{
+				"llama-4-maverick.conn.yao": {initConnectorsMetaLlama4MaverickConnYao, map[string]*bintree{}},
+			}},
+			"mistral": {nil, map[string]*bintree{
+				"mistral-large-3.conn.yao": {initConnectorsMistralMistralLarge3ConnYao, map[string]*bintree{}},
+			}},
+			"moonshot": {nil, map[string]*bintree{
+				"kimi-k2-0905-preview.conn.yao":   {initConnectorsMoonshotKimiK20905PreviewConnYao, map[string]*bintree{}},
+				"kimi-k2-thinking-turbo.conn.yao": {initConnectorsMoonshotKimiK2ThinkingTurboConnYao, map[string]*bintree{}},
+				"kimi-k2-thinking.conn.yao":       {initConnectorsMoonshotKimiK2ThinkingConnYao, map[string]*bintree{}},
+				"kimi-k2-turbo-preview.conn.yao":  {initConnectorsMoonshotKimiK2TurboPreviewConnYao, map[string]*bintree{}},
+				"kimi-k2_5-code.conn.yao":         {initConnectorsMoonshotKimiK2_5CodeConnYao, map[string]*bintree{}},
+				"kimi-k2_5-thinking.conn.yao":     {initConnectorsMoonshotKimiK2_5ThinkingConnYao, map[string]*bintree{}},
+				"kimi-k2_5.conn.yao":              {initConnectorsMoonshotKimiK2_5ConnYao, map[string]*bintree{}},
+			}},
+			"ollama": {nil, map[string]*bintree{
+				"deepseek-r1.conn.yao":   {initConnectorsOllamaDeepseekR1ConnYao, map[string]*bintree{}},
+				"gemma3.conn.yao":        {initConnectorsOllamaGemma3ConnYao, map[string]*bintree{}},
+				"llama3_3.conn.yao":      {initConnectorsOllamaLlama3_3ConnYao, map[string]*bintree{}},
+				"qwen2_5-0_5b.conn.yao":  {initConnectorsOllamaQwen2_50_5bConnYao, map[string]*bintree{}},
+				"qwen2_5-coder-0_5b.yao": {initConnectorsOllamaQwen2_5Coder0_5bYao, map[string]*bintree{}},
+				"qwen2_5-coder.conn.yao": {initConnectorsOllamaQwen2_5CoderConnYao, map[string]*bintree{}},
+				"qwen3.conn.yao":         {initConnectorsOllamaQwen3ConnYao, map[string]*bintree{}},
+			}},
+			"openai": {nil, map[string]*bintree{
+				"gpt-4o-mini.conn.yao":            {initConnectorsOpenaiGpt4oMiniConnYao, map[string]*bintree{}},
+				"gpt-4o.conn.yao":                 {initConnectorsOpenaiGpt4oConnYao, map[string]*bintree{}},
+				"gpt-5_2.conn.yao":                {initConnectorsOpenaiGpt5_2ConnYao, map[string]*bintree{}},
+				"o3.conn.yao":                     {initConnectorsOpenaiO3ConnYao, map[string]*bintree{}},
+				"text-embedding-3-large.conn.yao": {initConnectorsOpenaiTextEmbedding3LargeConnYao, map[string]*bintree{}},
+			}},
+			"openrouter": {nil, map[string]*bintree{
+				"auto.conn.yao":            {initConnectorsOpenrouterAutoConnYao, map[string]*bintree{}},
+				"claude-opus-4_5.conn.yao": {initConnectorsOpenrouterClaudeOpus4_5ConnYao, map[string]*bintree{}},
+				"nova-premier.conn.yao":    {initConnectorsOpenrouterNovaPremierConnYao, map[string]*bintree{}},
+			}},
+			"siliconflow": {nil, map[string]*bintree{
+				"deepseek-v3.conn.yao":  {initConnectorsSiliconflowDeepseekV3ConnYao, map[string]*bintree{}},
+				"qwen-2_5-72b.conn.yao": {initConnectorsSiliconflowQwen2_572bConnYao, map[string]*bintree{}},
+			}},
+			"together": {nil, map[string]*bintree{
+				"deepseek-r1.conn.yao":      {initConnectorsTogetherDeepseekR1ConnYao, map[string]*bintree{}},
+				"llama-4-maverick.conn.yao": {initConnectorsTogetherLlama4MaverickConnYao, map[string]*bintree{}},
+			}},
+			"volcengine": {nil, map[string]*bintree{
+				"deepseek-r1.conn.yao":    {initConnectorsVolcengineDeepseekR1ConnYao, map[string]*bintree{}},
+				"deepseek-v3.conn.yao":    {initConnectorsVolcengineDeepseekV3ConnYao, map[string]*bintree{}},
+				"doubao-1_5-pro.conn.yao": {initConnectorsVolcengineDoubao1_5ProConnYao, map[string]*bintree{}},
+				"glm-4-plus.conn.yao":     {initConnectorsVolcengineGlm4PlusConnYao, map[string]*bintree{}},
+				"qwen-vl-max.conn.yao":    {initConnectorsVolcengineQwenVlMaxConnYao, map[string]*bintree{}},
+			}},
+			"xai": {nil, map[string]*bintree{
+				"grok-4.conn.yao": {initConnectorsXaiGrok4ConnYao, map[string]*bintree{}},
+			}},
+		}},
+		"data": {nil, map[string]*bintree{
+			"README.md": {initDataReadmeMd, map[string]*bintree{}},
+			"templates": {nil, map[string]*bintree{
+				"default": {nil, map[string]*bintree{
+					"__assets": {nil, map[string]*bintree{
+						"README.md": {initDataTemplatesDefault__assetsReadmeMd, map[string]*bintree{}},
+						"brands": {nil, map[string]*bintree{
+							"apple.svg":     {initDataTemplatesDefault__assetsBrandsAppleSvg, map[string]*bintree{}},
+							"discord.svg":   {initDataTemplatesDefault__assetsBrandsDiscordSvg, map[string]*bintree{}},
+							"github.svg":    {initDataTemplatesDefault__assetsBrandsGithubSvg, map[string]*bintree{}},
+							"google.svg":    {initDataTemplatesDefault__assetsBrandsGoogleSvg, map[string]*bintree{}},
+							"microsoft.svg": {initDataTemplatesDefault__assetsBrandsMicrosoftSvg, map[string]*bintree{}},
+							"twitter.svg":   {initDataTemplatesDefault__assetsBrandsTwitterSvg, map[string]*bintree{}},
+							"yao.svg":       {initDataTemplatesDefault__assetsBrandsYaoSvg, map[string]*bintree{}},
+							"yaoagents.svg": {initDataTemplatesDefault__assetsBrandsYaoagentsSvg, map[string]*bintree{}},
+						}},
+						"images": {nil, map[string]*bintree{
+							"icons": {nil, map[string]*bintree{
+								"app.png": {initDataTemplatesDefault__assetsImagesIconsAppPng, map[string]*bintree{}},
 							}},
-							"logos": &bintree{nil, map[string]*bintree{
-								"logo_color.svg": &bintree{initDataTemplatesDefault__assetsImagesLogosLogo_colorSvg, map[string]*bintree{}},
-								"wordmark.svg":   &bintree{initDataTemplatesDefault__assetsImagesLogosWordmarkSvg, map[string]*bintree{}},
+							"logos": {nil, map[string]*bintree{
+								"logo_color.svg": {initDataTemplatesDefault__assetsImagesLogosLogo_colorSvg, map[string]*bintree{}},
+								"wordmark.svg":   {initDataTemplatesDefault__assetsImagesLogosWordmarkSvg, map[string]*bintree{}},
 							}},
 						}},
 					}},
-					"__data.json":     &bintree{initDataTemplatesDefault__dataJson, map[string]*bintree{}},
-					"__document.html": &bintree{initDataTemplatesDefault__documentHtml, map[string]*bintree{}},
-					"index": &bintree{nil, map[string]*bintree{
-						"index.backend.ts": &bintree{initDataTemplatesDefaultIndexIndexBackendTs, map[string]*bintree{}},
-						"index.css":        &bintree{initDataTemplatesDefaultIndexIndexCss, map[string]*bintree{}},
-						"index.html":       &bintree{initDataTemplatesDefaultIndexIndexHtml, map[string]*bintree{}},
-						"index.json":       &bintree{initDataTemplatesDefaultIndexIndexJson, map[string]*bintree{}},
+					"__data.json":     {initDataTemplatesDefault__dataJson, map[string]*bintree{}},
+					"__document.html": {initDataTemplatesDefault__documentHtml, map[string]*bintree{}},
+					"index": {nil, map[string]*bintree{
+						"index.backend.ts": {initDataTemplatesDefaultIndexIndexBackendTs, map[string]*bintree{}},
+						"index.css":        {initDataTemplatesDefaultIndexIndexCss, map[string]*bintree{}},
+						"index.html":       {initDataTemplatesDefaultIndexIndexHtml, map[string]*bintree{}},
+						"index.json":       {initDataTemplatesDefaultIndexIndexJson, map[string]*bintree{}},
 					}},
 				}},
 			}},
 		}},
-		"db": &bintree{nil, map[string]*bintree{
-			"README.md": &bintree{initDbReadmeMd, map[string]*bintree{}},
+		"db": {nil, map[string]*bintree{
+			"README.md": {initDbReadmeMd, map[string]*bintree{}},
 		}},
-		"icons": &bintree{nil, map[string]*bintree{
-			"app.icns": &bintree{initIconsAppIcns, map[string]*bintree{}},
-			"app.ico":  &bintree{initIconsAppIco, map[string]*bintree{}},
-			"app.png":  &bintree{initIconsAppPng, map[string]*bintree{}},
+		"icons": {nil, map[string]*bintree{
+			"app.icns": {initIconsAppIcns, map[string]*bintree{}},
+			"app.ico":  {initIconsAppIco, map[string]*bintree{}},
+			"app.png":  {initIconsAppPng, map[string]*bintree{}},
 		}},
-		"logs": &bintree{nil, map[string]*bintree{
-			"README.md": &bintree{initLogsReadmeMd, map[string]*bintree{}},
+		"logs": {nil, map[string]*bintree{
+			"README.md": {initLogsReadmeMd, map[string]*bintree{}},
 		}},
-		"messengers": &bintree{nil, map[string]*bintree{
-			"channels.yao": &bintree{initMessengersChannelsYao, map[string]*bintree{}},
-			"providers": &bintree{nil, map[string]*bintree{
-				"primary.smtp.yao":      &bintree{initMessengersProvidersPrimarySmtpYao, map[string]*bintree{}},
-				"secondary.mailgun.yao": &bintree{initMessengersProvidersSecondaryMailgunYao, map[string]*bintree{}},
-				"unified.twilio.yao":    &bintree{initMessengersProvidersUnifiedTwilioYao, map[string]*bintree{}},
+		"messengers": {nil, map[string]*bintree{
+			"channels.yao": {initMessengersChannelsYao, map[string]*bintree{}},
+			"providers": {nil, map[string]*bintree{
+				"primary.smtp.yao":      {initMessengersProvidersPrimarySmtpYao, map[string]*bintree{}},
+				"secondary.mailgun.yao": {initMessengersProvidersSecondaryMailgunYao, map[string]*bintree{}},
+				"unified.twilio.yao":    {initMessengersProvidersUnifiedTwilioYao, map[string]*bintree{}},
 			}},
-			"templates": &bintree{nil, map[string]*bintree{
-				"en": &bintree{nil, map[string]*bintree{
-					"invite_member.mail.html": &bintree{initMessengersTemplatesEnInvite_memberMailHtml, map[string]*bintree{}},
-					"invite_member.sms.txt":   &bintree{initMessengersTemplatesEnInvite_memberSmsTxt, map[string]*bintree{}},
-					"verify_email.mail.html":  &bintree{initMessengersTemplatesEnVerify_emailMailHtml, map[string]*bintree{}},
-					"verify_mobile.sms.txt":   &bintree{initMessengersTemplatesEnVerify_mobileSmsTxt, map[string]*bintree{}},
+			"templates": {nil, map[string]*bintree{
+				"en": {nil, map[string]*bintree{
+					"invite_member.mail.html": {initMessengersTemplatesEnInvite_memberMailHtml, map[string]*bintree{}},
+					"invite_member.sms.txt":   {initMessengersTemplatesEnInvite_memberSmsTxt, map[string]*bintree{}},
+					"verify_email.mail.html":  {initMessengersTemplatesEnVerify_emailMailHtml, map[string]*bintree{}},
+					"verify_mobile.sms.txt":   {initMessengersTemplatesEnVerify_mobileSmsTxt, map[string]*bintree{}},
 				}},
-				"zh-cn": &bintree{nil, map[string]*bintree{
-					"invite_mail.html":        &bintree{initMessengersTemplatesZhCnInvite_mailHtml, map[string]*bintree{}},
-					"invite_member.mail.html": &bintree{initMessengersTemplatesZhCnInvite_memberMailHtml, map[string]*bintree{}},
-					"invite_sms.txt":          &bintree{initMessengersTemplatesZhCnInvite_smsTxt, map[string]*bintree{}},
-					"verify_email.mail.html":  &bintree{initMessengersTemplatesZhCnVerify_emailMailHtml, map[string]*bintree{}},
-					"verify_mobile.sms.txt":   &bintree{initMessengersTemplatesZhCnVerify_mobileSmsTxt, map[string]*bintree{}},
-				}},
-			}},
-		}},
-		"models": &bintree{nil, map[string]*bintree{
-			"menu.mod.yao": &bintree{initModelsMenuModYao, map[string]*bintree{}},
-		}},
-		"openapi": &bintree{nil, map[string]*bintree{
-			"certs": &bintree{nil, map[string]*bintree{
-				"README.md":                                                    &bintree{initOpenapiCertsReadmeMd, map[string]*bintree{}},
-				"mtls-client-ca-key-TESTING-ONLY-DO-NOT-USE-IN-PRODUCTION.pem": &bintree{initOpenapiCertsMtlsClientCaKeyTestingOnlyDoNotUseInProductionPem, map[string]*bintree{}},
-				"mtls-client-ca.pem":                                           &bintree{initOpenapiCertsMtlsClientCaPem, map[string]*bintree{}},
-				"signing-cert.pem":                                             &bintree{initOpenapiCertsSigningCertPem, map[string]*bintree{}},
-				"signing-key.pem":                                              &bintree{initOpenapiCertsSigningKeyPem, map[string]*bintree{}},
-			}},
-			"features": &bintree{nil, map[string]*bintree{
-				"alias.yml":    &bintree{initOpenapiFeaturesAliasYml, map[string]*bintree{}},
-				"features.yml": &bintree{initOpenapiFeaturesFeaturesYml, map[string]*bintree{}},
-				"user": &bintree{nil, map[string]*bintree{
-					"profile.yml": &bintree{initOpenapiFeaturesUserProfileYml, map[string]*bintree{}},
-					"team.yml":    &bintree{initOpenapiFeaturesUserTeamYml, map[string]*bintree{}},
-				}},
-			}},
-			"openapi.yao": &bintree{initOpenapiOpenapiYao, map[string]*bintree{}},
-			"scopes": &bintree{nil, map[string]*bintree{
-				"__yao": &bintree{nil, map[string]*bintree{
-					"yao.yml": &bintree{initOpenapiScopes__yaoYaoYml, map[string]*bintree{}},
-				}},
-				"agent": &bintree{nil, map[string]*bintree{
-					"assistants.yml": &bintree{initOpenapiScopesAgentAssistantsYml, map[string]*bintree{}},
-					"robots.yml":     &bintree{initOpenapiScopesAgentRobotsYml, map[string]*bintree{}},
-					"tasks.yml":      &bintree{initOpenapiScopesAgentTasksYml, map[string]*bintree{}},
-				}},
-				"alias.yml": &bintree{initOpenapiScopesAliasYml, map[string]*bintree{}},
-				"api": &bintree{nil, map[string]*bintree{
-					"api.yml": &bintree{initOpenapiScopesApiApiYml, map[string]*bintree{}},
-				}},
-				"app": &bintree{nil, map[string]*bintree{
-					"menu.yml": &bintree{initOpenapiScopesAppMenuYml, map[string]*bintree{}},
-				}},
-				"chat": &bintree{nil, map[string]*bintree{
-					"completions.yml": &bintree{initOpenapiScopesChatCompletionsYml, map[string]*bintree{}},
-					"models.yml":      &bintree{initOpenapiScopesChatModelsYml, map[string]*bintree{}},
-					"references.yml":  &bintree{initOpenapiScopesChatReferencesYml, map[string]*bintree{}},
-					"sessions.yml":    &bintree{initOpenapiScopesChatSessionsYml, map[string]*bintree{}},
-				}},
-				"computer": &bintree{nil, map[string]*bintree{
-					"computers.yml": &bintree{initOpenapiScopesComputerComputersYml, map[string]*bintree{}},
-				}},
-				"dsl": &bintree{nil, map[string]*bintree{
-					"dsls.yml": &bintree{initOpenapiScopesDslDslsYml, map[string]*bintree{}},
-				}},
-				"experts": &bintree{nil, map[string]*bintree{
-					"completions.yml": &bintree{initOpenapiScopesExpertsCompletionsYml, map[string]*bintree{}},
-				}},
-				"file": &bintree{nil, map[string]*bintree{
-					"files.yml": &bintree{initOpenapiScopesFileFilesYml, map[string]*bintree{}},
-				}},
-				"job": &bintree{nil, map[string]*bintree{
-					"categories.yml": &bintree{initOpenapiScopesJobCategoriesYml, map[string]*bintree{}},
-					"executions.yml": &bintree{initOpenapiScopesJobExecutionsYml, map[string]*bintree{}},
-					"jobs.yml":       &bintree{initOpenapiScopesJobJobsYml, map[string]*bintree{}},
-					"logs.yml":       &bintree{initOpenapiScopesJobLogsYml, map[string]*bintree{}},
-					"stats.yml":      &bintree{initOpenapiScopesJobStatsYml, map[string]*bintree{}},
-				}},
-				"kb": &bintree{nil, map[string]*bintree{
-					"backups.yml":     &bintree{initOpenapiScopesKbBackupsYml, map[string]*bintree{}},
-					"collections.yml": &bintree{initOpenapiScopesKbCollectionsYml, map[string]*bintree{}},
-					"documents.yml":   &bintree{initOpenapiScopesKbDocumentsYml, map[string]*bintree{}},
-					"graphs.yml":      &bintree{initOpenapiScopesKbGraphsYml, map[string]*bintree{}},
-					"hits.yml":        &bintree{initOpenapiScopesKbHitsYml, map[string]*bintree{}},
-					"providers.yml":   &bintree{initOpenapiScopesKbProvidersYml, map[string]*bintree{}},
-					"search.yml":      &bintree{initOpenapiScopesKbSearchYml, map[string]*bintree{}},
-					"segments.yml":    &bintree{initOpenapiScopesKbSegmentsYml, map[string]*bintree{}},
-					"votes.yml":       &bintree{initOpenapiScopesKbVotesYml, map[string]*bintree{}},
-				}},
-				"llm": &bintree{nil, map[string]*bintree{
-					"completions.yml": &bintree{initOpenapiScopesLlmCompletionsYml, map[string]*bintree{}},
-					"providers.yml":   &bintree{initOpenapiScopesLlmProvidersYml, map[string]*bintree{}},
-				}},
-				"mcp": &bintree{nil, map[string]*bintree{
-					"servers.yml": &bintree{initOpenapiScopesMcpServersYml, map[string]*bintree{}},
-				}},
-				"messenger": &bintree{nil, map[string]*bintree{
-					"channels.yml":  &bintree{initOpenapiScopesMessengerChannelsYml, map[string]*bintree{}},
-					"providers.yml": &bintree{initOpenapiScopesMessengerProvidersYml, map[string]*bintree{}},
-					"webhooks.yml":  &bintree{initOpenapiScopesMessengerWebhooksYml, map[string]*bintree{}},
-				}},
-				"nodes": &bintree{nil, map[string]*bintree{
-					"nodes.yml": &bintree{initOpenapiScopesNodesNodesYml, map[string]*bintree{}},
-				}},
-				"otp": &bintree{nil, map[string]*bintree{
-					"codes.yml": &bintree{initOpenapiScopesOtpCodesYml, map[string]*bintree{}},
-				}},
-				"sandbox": &bintree{nil, map[string]*bintree{
-					"sandboxes.yml": &bintree{initOpenapiScopesSandboxSandboxesYml, map[string]*bintree{}},
-					"vnc.yml":       &bintree{initOpenapiScopesSandboxVncYml, map[string]*bintree{}},
-				}},
-				"scopes.yml": &bintree{initOpenapiScopesScopesYml, map[string]*bintree{}},
-				"setting": &bintree{nil, map[string]*bintree{
-					"agent.yml":        &bintree{initOpenapiScopesSettingAgentYml, map[string]*bintree{}},
-					"api-keys.yml":     &bintree{initOpenapiScopesSettingApiKeysYml, map[string]*bintree{}},
-					"cloud.yml":        &bintree{initOpenapiScopesSettingCloudYml, map[string]*bintree{}},
-					"llm.yml":          &bintree{initOpenapiScopesSettingLlmYml, map[string]*bintree{}},
-					"mcp.yml":          &bintree{initOpenapiScopesSettingMcpYml, map[string]*bintree{}},
-					"ocr.yml":          &bintree{initOpenapiScopesSettingOcrYml, map[string]*bintree{}},
-					"preference.yml":   &bintree{initOpenapiScopesSettingPreferenceYml, map[string]*bintree{}},
-					"sandbox.yml":      &bintree{initOpenapiScopesSettingSandboxYml, map[string]*bintree{}},
-					"search.yml":       &bintree{initOpenapiScopesSettingSearchYml, map[string]*bintree{}},
-					"setup-status.yml": &bintree{initOpenapiScopesSettingSetupStatusYml, map[string]*bintree{}},
-					"smtp.yml":         &bintree{initOpenapiScopesSettingSmtpYml, map[string]*bintree{}},
-					"tao.yml":          &bintree{initOpenapiScopesSettingTaoYml, map[string]*bintree{}},
-				}},
-				"tai": &bintree{nil, map[string]*bintree{
-					"proxy.yml":    &bintree{initOpenapiScopesTaiProxyYml, map[string]*bintree{}},
-					"vnc.yml":      &bintree{initOpenapiScopesTaiVncYml, map[string]*bintree{}},
-					"webproxy.yml": &bintree{initOpenapiScopesTaiWebproxyYml, map[string]*bintree{}},
-				}},
-				"trace": &bintree{nil, map[string]*bintree{
-					"traces.yml": &bintree{initOpenapiScopesTraceTracesYml, map[string]*bintree{}},
-				}},
-				"user": &bintree{nil, map[string]*bintree{
-					"entry.yml":       &bintree{initOpenapiScopesUserEntryYml, map[string]*bintree{}},
-					"features.yml":    &bintree{initOpenapiScopesUserFeaturesYml, map[string]*bintree{}},
-					"invitations.yml": &bintree{initOpenapiScopesUserInvitationsYml, map[string]*bintree{}},
-					"members.yml":     &bintree{initOpenapiScopesUserMembersYml, map[string]*bintree{}},
-					"profile.yml":     &bintree{initOpenapiScopesUserProfileYml, map[string]*bintree{}},
-					"teams.yml":       &bintree{initOpenapiScopesUserTeamsYml, map[string]*bintree{}},
-				}},
-				"workspace": &bintree{nil, map[string]*bintree{
-					"workspaces.yml": &bintree{initOpenapiScopesWorkspaceWorkspacesYml, map[string]*bintree{}},
-				}},
-			}},
-			"user": &bintree{nil, map[string]*bintree{
-				"client.yao": &bintree{initOpenapiUserClientYao, map[string]*bintree{}},
-				"entry": &bintree{nil, map[string]*bintree{
-					"en.yao":    &bintree{initOpenapiUserEntryEnYao, map[string]*bintree{}},
-					"zh-cn.yao": &bintree{initOpenapiUserEntryZhCnYao, map[string]*bintree{}},
-				}},
-				"providers": &bintree{nil, map[string]*bintree{
-					"apple.yao":     &bintree{initOpenapiUserProvidersAppleYao, map[string]*bintree{}},
-					"github.yao":    &bintree{initOpenapiUserProvidersGithubYao, map[string]*bintree{}},
-					"google.yao":    &bintree{initOpenapiUserProvidersGoogleYao, map[string]*bintree{}},
-					"microsoft.yao": &bintree{initOpenapiUserProvidersMicrosoftYao, map[string]*bintree{}},
-				}},
-				"team": &bintree{nil, map[string]*bintree{
-					"en.yao":    &bintree{initOpenapiUserTeamEnYao, map[string]*bintree{}},
-					"zh-cn.yao": &bintree{initOpenapiUserTeamZhCnYao, map[string]*bintree{}},
+				"zh-cn": {nil, map[string]*bintree{
+					"invite_mail.html":        {initMessengersTemplatesZhCnInvite_mailHtml, map[string]*bintree{}},
+					"invite_member.mail.html": {initMessengersTemplatesZhCnInvite_memberMailHtml, map[string]*bintree{}},
+					"invite_sms.txt":          {initMessengersTemplatesZhCnInvite_smsTxt, map[string]*bintree{}},
+					"verify_email.mail.html":  {initMessengersTemplatesZhCnVerify_emailMailHtml, map[string]*bintree{}},
+					"verify_mobile.sms.txt":   {initMessengersTemplatesZhCnVerify_mobileSmsTxt, map[string]*bintree{}},
 				}},
 			}},
 		}},
-		"scripts": &bintree{nil, map[string]*bintree{
-			"menu.ts":  &bintree{initScriptsMenuTs, map[string]*bintree{}},
-			"setup.ts": &bintree{initScriptsSetupTs, map[string]*bintree{}},
+		"models": {nil, map[string]*bintree{
+			"menu.mod.yao": {initModelsMenuModYao, map[string]*bintree{}},
 		}},
-		"seeds": &bintree{nil, map[string]*bintree{
-			"invitation_codes.csv": &bintree{initSeedsInvitation_codesCsv, map[string]*bintree{}},
-			"menus.csv":            &bintree{initSeedsMenusCsv, map[string]*bintree{}},
-			"roles.csv":            &bintree{initSeedsRolesCsv, map[string]*bintree{}},
-			"types.csv":            &bintree{initSeedsTypesCsv, map[string]*bintree{}},
+		"openapi": {nil, map[string]*bintree{
+			"certs": {nil, map[string]*bintree{
+				"README.md": {initOpenapiCertsReadmeMd, map[string]*bintree{}},
+				"mtls-client-ca-key-TESTING-ONLY-DO-NOT-USE-IN-PRODUCTION.pem": {initOpenapiCertsMtlsClientCaKeyTestingOnlyDoNotUseInProductionPem, map[string]*bintree{}},
+				"mtls-client-ca.pem": {initOpenapiCertsMtlsClientCaPem, map[string]*bintree{}},
+				"signing-cert.pem":   {initOpenapiCertsSigningCertPem, map[string]*bintree{}},
+				"signing-key.pem":    {initOpenapiCertsSigningKeyPem, map[string]*bintree{}},
+			}},
+			"features": {nil, map[string]*bintree{
+				"alias.yml":    {initOpenapiFeaturesAliasYml, map[string]*bintree{}},
+				"features.yml": {initOpenapiFeaturesFeaturesYml, map[string]*bintree{}},
+				"user": {nil, map[string]*bintree{
+					"profile.yml": {initOpenapiFeaturesUserProfileYml, map[string]*bintree{}},
+					"team.yml":    {initOpenapiFeaturesUserTeamYml, map[string]*bintree{}},
+				}},
+			}},
+			"openapi.yao": {initOpenapiOpenapiYao, map[string]*bintree{}},
+			"scopes": {nil, map[string]*bintree{
+				"__yao": {nil, map[string]*bintree{
+					"yao.yml": {initOpenapiScopes__yaoYaoYml, map[string]*bintree{}},
+				}},
+				"agent": {nil, map[string]*bintree{
+					"assistants.yml": {initOpenapiScopesAgentAssistantsYml, map[string]*bintree{}},
+					"robots.yml":     {initOpenapiScopesAgentRobotsYml, map[string]*bintree{}},
+					"tasks.yml":      {initOpenapiScopesAgentTasksYml, map[string]*bintree{}},
+				}},
+				"alias.yml": {initOpenapiScopesAliasYml, map[string]*bintree{}},
+				"api": {nil, map[string]*bintree{
+					"api.yml": {initOpenapiScopesApiApiYml, map[string]*bintree{}},
+				}},
+				"app": {nil, map[string]*bintree{
+					"menu.yml": {initOpenapiScopesAppMenuYml, map[string]*bintree{}},
+				}},
+				"chat": {nil, map[string]*bintree{
+					"completions.yml": {initOpenapiScopesChatCompletionsYml, map[string]*bintree{}},
+					"models.yml":      {initOpenapiScopesChatModelsYml, map[string]*bintree{}},
+					"references.yml":  {initOpenapiScopesChatReferencesYml, map[string]*bintree{}},
+					"sessions.yml":    {initOpenapiScopesChatSessionsYml, map[string]*bintree{}},
+				}},
+				"computer": {nil, map[string]*bintree{
+					"computers.yml": {initOpenapiScopesComputerComputersYml, map[string]*bintree{}},
+				}},
+				"dsl": {nil, map[string]*bintree{
+					"dsls.yml": {initOpenapiScopesDslDslsYml, map[string]*bintree{}},
+				}},
+				"experts": {nil, map[string]*bintree{
+					"completions.yml": {initOpenapiScopesExpertsCompletionsYml, map[string]*bintree{}},
+				}},
+				"file": {nil, map[string]*bintree{
+					"files.yml": {initOpenapiScopesFileFilesYml, map[string]*bintree{}},
+				}},
+				"job": {nil, map[string]*bintree{
+					"categories.yml": {initOpenapiScopesJobCategoriesYml, map[string]*bintree{}},
+					"executions.yml": {initOpenapiScopesJobExecutionsYml, map[string]*bintree{}},
+					"jobs.yml":       {initOpenapiScopesJobJobsYml, map[string]*bintree{}},
+					"logs.yml":       {initOpenapiScopesJobLogsYml, map[string]*bintree{}},
+					"stats.yml":      {initOpenapiScopesJobStatsYml, map[string]*bintree{}},
+				}},
+				"kb": {nil, map[string]*bintree{
+					"backups.yml":     {initOpenapiScopesKbBackupsYml, map[string]*bintree{}},
+					"collections.yml": {initOpenapiScopesKbCollectionsYml, map[string]*bintree{}},
+					"documents.yml":   {initOpenapiScopesKbDocumentsYml, map[string]*bintree{}},
+					"graphs.yml":      {initOpenapiScopesKbGraphsYml, map[string]*bintree{}},
+					"hits.yml":        {initOpenapiScopesKbHitsYml, map[string]*bintree{}},
+					"providers.yml":   {initOpenapiScopesKbProvidersYml, map[string]*bintree{}},
+					"search.yml":      {initOpenapiScopesKbSearchYml, map[string]*bintree{}},
+					"segments.yml":    {initOpenapiScopesKbSegmentsYml, map[string]*bintree{}},
+					"votes.yml":       {initOpenapiScopesKbVotesYml, map[string]*bintree{}},
+				}},
+				"llm": {nil, map[string]*bintree{
+					"completions.yml": {initOpenapiScopesLlmCompletionsYml, map[string]*bintree{}},
+					"providers.yml":   {initOpenapiScopesLlmProvidersYml, map[string]*bintree{}},
+				}},
+				"mcp": {nil, map[string]*bintree{
+					"servers.yml": {initOpenapiScopesMcpServersYml, map[string]*bintree{}},
+				}},
+				"messenger": {nil, map[string]*bintree{
+					"channels.yml":  {initOpenapiScopesMessengerChannelsYml, map[string]*bintree{}},
+					"providers.yml": {initOpenapiScopesMessengerProvidersYml, map[string]*bintree{}},
+					"webhooks.yml":  {initOpenapiScopesMessengerWebhooksYml, map[string]*bintree{}},
+				}},
+				"nodes": {nil, map[string]*bintree{
+					"nodes.yml": {initOpenapiScopesNodesNodesYml, map[string]*bintree{}},
+				}},
+				"otp": {nil, map[string]*bintree{
+					"codes.yml": {initOpenapiScopesOtpCodesYml, map[string]*bintree{}},
+				}},
+				"sandbox": {nil, map[string]*bintree{
+					"sandboxes.yml": {initOpenapiScopesSandboxSandboxesYml, map[string]*bintree{}},
+					"vnc.yml":       {initOpenapiScopesSandboxVncYml, map[string]*bintree{}},
+				}},
+				"scopes.yml": {initOpenapiScopesScopesYml, map[string]*bintree{}},
+				"setting": {nil, map[string]*bintree{
+					"agent.yml":        {initOpenapiScopesSettingAgentYml, map[string]*bintree{}},
+					"api-keys.yml":     {initOpenapiScopesSettingApiKeysYml, map[string]*bintree{}},
+					"cloud.yml":        {initOpenapiScopesSettingCloudYml, map[string]*bintree{}},
+					"llm.yml":          {initOpenapiScopesSettingLlmYml, map[string]*bintree{}},
+					"mcp.yml":          {initOpenapiScopesSettingMcpYml, map[string]*bintree{}},
+					"ocr.yml":          {initOpenapiScopesSettingOcrYml, map[string]*bintree{}},
+					"preference.yml":   {initOpenapiScopesSettingPreferenceYml, map[string]*bintree{}},
+					"sandbox.yml":      {initOpenapiScopesSettingSandboxYml, map[string]*bintree{}},
+					"search.yml":       {initOpenapiScopesSettingSearchYml, map[string]*bintree{}},
+					"setup-status.yml": {initOpenapiScopesSettingSetupStatusYml, map[string]*bintree{}},
+					"smtp.yml":         {initOpenapiScopesSettingSmtpYml, map[string]*bintree{}},
+					"tao.yml":          {initOpenapiScopesSettingTaoYml, map[string]*bintree{}},
+				}},
+				"tai": {nil, map[string]*bintree{
+					"proxy.yml":    {initOpenapiScopesTaiProxyYml, map[string]*bintree{}},
+					"vnc.yml":      {initOpenapiScopesTaiVncYml, map[string]*bintree{}},
+					"webproxy.yml": {initOpenapiScopesTaiWebproxyYml, map[string]*bintree{}},
+				}},
+				"trace": {nil, map[string]*bintree{
+					"traces.yml": {initOpenapiScopesTraceTracesYml, map[string]*bintree{}},
+				}},
+				"user": {nil, map[string]*bintree{
+					"entry.yml":       {initOpenapiScopesUserEntryYml, map[string]*bintree{}},
+					"features.yml":    {initOpenapiScopesUserFeaturesYml, map[string]*bintree{}},
+					"invitations.yml": {initOpenapiScopesUserInvitationsYml, map[string]*bintree{}},
+					"members.yml":     {initOpenapiScopesUserMembersYml, map[string]*bintree{}},
+					"profile.yml":     {initOpenapiScopesUserProfileYml, map[string]*bintree{}},
+					"teams.yml":       {initOpenapiScopesUserTeamsYml, map[string]*bintree{}},
+				}},
+				"workspace": {nil, map[string]*bintree{
+					"workspaces.yml": {initOpenapiScopesWorkspaceWorkspacesYml, map[string]*bintree{}},
+				}},
+			}},
+			"user": {nil, map[string]*bintree{
+				"client.yao": {initOpenapiUserClientYao, map[string]*bintree{}},
+				"entry": {nil, map[string]*bintree{
+					"en.yao":    {initOpenapiUserEntryEnYao, map[string]*bintree{}},
+					"zh-cn.yao": {initOpenapiUserEntryZhCnYao, map[string]*bintree{}},
+				}},
+				"providers": {nil, map[string]*bintree{
+					"apple.yao":     {initOpenapiUserProvidersAppleYao, map[string]*bintree{}},
+					"github.yao":    {initOpenapiUserProvidersGithubYao, map[string]*bintree{}},
+					"google.yao":    {initOpenapiUserProvidersGoogleYao, map[string]*bintree{}},
+					"microsoft.yao": {initOpenapiUserProvidersMicrosoftYao, map[string]*bintree{}},
+				}},
+				"team": {nil, map[string]*bintree{
+					"en.yao":    {initOpenapiUserTeamEnYao, map[string]*bintree{}},
+					"zh-cn.yao": {initOpenapiUserTeamZhCnYao, map[string]*bintree{}},
+				}},
+			}},
 		}},
-		"services": &bintree{nil, map[string]*bintree{
-			"READEME.md": &bintree{initServicesReademeMd, map[string]*bintree{}},
+		"scripts": {nil, map[string]*bintree{
+			"menu.ts":  {initScriptsMenuTs, map[string]*bintree{}},
+			"setup.ts": {initScriptsSetupTs, map[string]*bintree{}},
 		}},
-		"suis": &bintree{nil, map[string]*bintree{
-			"web.sui.yao": &bintree{initSuisWebSuiYao, map[string]*bintree{}},
+		"seeds": {nil, map[string]*bintree{
+			"invitation_codes.csv": {initSeedsInvitation_codesCsv, map[string]*bintree{}},
+			"menus.csv":            {initSeedsMenusCsv, map[string]*bintree{}},
+			"roles.csv":            {initSeedsRolesCsv, map[string]*bintree{}},
+			"types.csv":            {initSeedsTypesCsv, map[string]*bintree{}},
 		}},
-		"tsconfig.json": &bintree{initTsconfigJson, map[string]*bintree{}},
+		"services": {nil, map[string]*bintree{
+			"READEME.md": {initServicesReademeMd, map[string]*bintree{}},
+		}},
+		"suis": {nil, map[string]*bintree{
+			"web.sui.yao": {initSuisWebSuiYao, map[string]*bintree{}},
+		}},
+		"tsconfig.json": {initTsconfigJson, map[string]*bintree{}},
 	}},
-	"libsui": &bintree{nil, map[string]*bintree{
-		"index.ts":   &bintree{libsuiIndexTs, map[string]*bintree{}},
-		"openapi.ts": &bintree{libsuiOpenapiTs, map[string]*bintree{}},
-		"utils.ts":   &bintree{libsuiUtilsTs, map[string]*bintree{}},
-		"yao.ts":     &bintree{libsuiYaoTs, map[string]*bintree{}},
+	"libsui": {nil, map[string]*bintree{
+		"index.ts":   {libsuiIndexTs, map[string]*bintree{}},
+		"openapi.ts": {libsuiOpenapiTs, map[string]*bintree{}},
+		"utils.ts":   {libsuiUtilsTs, map[string]*bintree{}},
+		"yao.ts":     {libsuiYaoTs, map[string]*bintree{}},
 	}},
-	"public": &bintree{nil, map[string]*bintree{
-		"index.html": &bintree{publicIndexHtml, map[string]*bintree{}},
+	"public": {nil, map[string]*bintree{
+		"index.html": {publicIndexHtml, map[string]*bintree{}},
 	}},
-	"ui": &bintree{nil, map[string]*bintree{
-		"index.html": &bintree{uiIndexHtml, map[string]*bintree{}},
+	"ui": {nil, map[string]*bintree{
+		"index.html": {uiIndexHtml, map[string]*bintree{}},
 	}},
-	"yao": &bintree{nil, map[string]*bintree{
-		"assistants": &bintree{nil, map[string]*bintree{
-			"entity": &bintree{nil, map[string]*bintree{
-				"package.yao": &bintree{yaoAssistantsEntityPackageYao, map[string]*bintree{}},
-				"prompts.yml": &bintree{yaoAssistantsEntityPromptsYml, map[string]*bintree{}},
+	"yao": {nil, map[string]*bintree{
+		"assistants": {nil, map[string]*bintree{
+			"entity": {nil, map[string]*bintree{
+				"package.yao": {yaoAssistantsEntityPackageYao, map[string]*bintree{}},
+				"prompts.yml": {yaoAssistantsEntityPromptsYml, map[string]*bintree{}},
 			}},
-			"fetch": &bintree{nil, map[string]*bintree{
-				"package.yao": &bintree{yaoAssistantsFetchPackageYao, map[string]*bintree{}},
-				"prompts.yml": &bintree{yaoAssistantsFetchPromptsYml, map[string]*bintree{}},
-				"src": &bintree{nil, map[string]*bintree{
-					"index.ts": &bintree{yaoAssistantsFetchSrcIndexTs, map[string]*bintree{}},
+			"fetch": {nil, map[string]*bintree{
+				"package.yao": {yaoAssistantsFetchPackageYao, map[string]*bintree{}},
+				"prompts.yml": {yaoAssistantsFetchPromptsYml, map[string]*bintree{}},
+				"src": {nil, map[string]*bintree{
+					"index.ts": {yaoAssistantsFetchSrcIndexTs, map[string]*bintree{}},
 				}},
 			}},
-			"keyword": &bintree{nil, map[string]*bintree{
-				"package.yao": &bintree{yaoAssistantsKeywordPackageYao, map[string]*bintree{}},
-				"prompts.yml": &bintree{yaoAssistantsKeywordPromptsYml, map[string]*bintree{}},
-				"src": &bintree{nil, map[string]*bintree{
-					"index.ts": &bintree{yaoAssistantsKeywordSrcIndexTs, map[string]*bintree{}},
+			"keyword": {nil, map[string]*bintree{
+				"package.yao": {yaoAssistantsKeywordPackageYao, map[string]*bintree{}},
+				"prompts.yml": {yaoAssistantsKeywordPromptsYml, map[string]*bintree{}},
+				"src": {nil, map[string]*bintree{
+					"index.ts": {yaoAssistantsKeywordSrcIndexTs, map[string]*bintree{}},
 				}},
 			}},
-			"loop_fallback": &bintree{nil, map[string]*bintree{
-				"package.yao": &bintree{yaoAssistantsLoop_fallbackPackageYao, map[string]*bintree{}},
-				"prompts.yml": &bintree{yaoAssistantsLoop_fallbackPromptsYml, map[string]*bintree{}},
+			"loop_fallback": {nil, map[string]*bintree{
+				"package.yao": {yaoAssistantsLoop_fallbackPackageYao, map[string]*bintree{}},
+				"prompts.yml": {yaoAssistantsLoop_fallbackPromptsYml, map[string]*bintree{}},
 			}},
-			"needsearch": &bintree{nil, map[string]*bintree{
-				"package.yao": &bintree{yaoAssistantsNeedsearchPackageYao, map[string]*bintree{}},
-				"prompts.yml": &bintree{yaoAssistantsNeedsearchPromptsYml, map[string]*bintree{}},
-				"src": &bintree{nil, map[string]*bintree{
-					"index.ts": &bintree{yaoAssistantsNeedsearchSrcIndexTs, map[string]*bintree{}},
+			"needsearch": {nil, map[string]*bintree{
+				"package.yao": {yaoAssistantsNeedsearchPackageYao, map[string]*bintree{}},
+				"prompts.yml": {yaoAssistantsNeedsearchPromptsYml, map[string]*bintree{}},
+				"src": {nil, map[string]*bintree{
+					"index.ts": {yaoAssistantsNeedsearchSrcIndexTs, map[string]*bintree{}},
 				}},
 			}},
-			"prompt": &bintree{nil, map[string]*bintree{
-				"package.yao": &bintree{yaoAssistantsPromptPackageYao, map[string]*bintree{}},
-				"prompts.yml": &bintree{yaoAssistantsPromptPromptsYml, map[string]*bintree{}},
+			"prompt": {nil, map[string]*bintree{
+				"package.yao": {yaoAssistantsPromptPackageYao, map[string]*bintree{}},
+				"prompts.yml": {yaoAssistantsPromptPromptsYml, map[string]*bintree{}},
 			}},
-			"querydsl": &bintree{nil, map[string]*bintree{
-				"package.yao": &bintree{yaoAssistantsQuerydslPackageYao, map[string]*bintree{}},
-				"prompts": &bintree{nil, map[string]*bintree{
-					"aggregation.yml": &bintree{yaoAssistantsQuerydslPromptsAggregationYml, map[string]*bintree{}},
-					"complex.yml":     &bintree{yaoAssistantsQuerydslPromptsComplexYml, map[string]*bintree{}},
-					"filter.yml":      &bintree{yaoAssistantsQuerydslPromptsFilterYml, map[string]*bintree{}},
-					"join.yml":        &bintree{yaoAssistantsQuerydslPromptsJoinYml, map[string]*bintree{}},
+			"querydsl": {nil, map[string]*bintree{
+				"package.yao": {yaoAssistantsQuerydslPackageYao, map[string]*bintree{}},
+				"prompts": {nil, map[string]*bintree{
+					"aggregation.yml": {yaoAssistantsQuerydslPromptsAggregationYml, map[string]*bintree{}},
+					"complex.yml":     {yaoAssistantsQuerydslPromptsComplexYml, map[string]*bintree{}},
+					"filter.yml":      {yaoAssistantsQuerydslPromptsFilterYml, map[string]*bintree{}},
+					"join.yml":        {yaoAssistantsQuerydslPromptsJoinYml, map[string]*bintree{}},
 				}},
-				"prompts.yml": &bintree{yaoAssistantsQuerydslPromptsYml, map[string]*bintree{}},
-				"src": &bintree{nil, map[string]*bintree{
-					"index.ts": &bintree{yaoAssistantsQuerydslSrcIndexTs, map[string]*bintree{}},
+				"prompts.yml": {yaoAssistantsQuerydslPromptsYml, map[string]*bintree{}},
+				"src": {nil, map[string]*bintree{
+					"index.ts": {yaoAssistantsQuerydslSrcIndexTs, map[string]*bintree{}},
 				}},
 			}},
-			"robot_prompt": &bintree{nil, map[string]*bintree{
-				"package.yao": &bintree{yaoAssistantsRobot_promptPackageYao, map[string]*bintree{}},
-				"prompts.yml": &bintree{yaoAssistantsRobot_promptPromptsYml, map[string]*bintree{}},
+			"robot_prompt": {nil, map[string]*bintree{
+				"package.yao": {yaoAssistantsRobot_promptPackageYao, map[string]*bintree{}},
+				"prompts.yml": {yaoAssistantsRobot_promptPromptsYml, map[string]*bintree{}},
 			}},
-			"title": &bintree{nil, map[string]*bintree{
-				"package.yao": &bintree{yaoAssistantsTitlePackageYao, map[string]*bintree{}},
-				"prompts.yml": &bintree{yaoAssistantsTitlePromptsYml, map[string]*bintree{}},
+			"title": {nil, map[string]*bintree{
+				"package.yao": {yaoAssistantsTitlePackageYao, map[string]*bintree{}},
+				"prompts.yml": {yaoAssistantsTitlePromptsYml, map[string]*bintree{}},
 			}},
-			"vision": &bintree{nil, map[string]*bintree{
-				"package.yao": &bintree{yaoAssistantsVisionPackageYao, map[string]*bintree{}},
-				"prompts.yml": &bintree{yaoAssistantsVisionPromptsYml, map[string]*bintree{}},
+			"vision": {nil, map[string]*bintree{
+				"package.yao": {yaoAssistantsVisionPackageYao, map[string]*bintree{}},
+				"prompts.yml": {yaoAssistantsVisionPromptsYml, map[string]*bintree{}},
 			}},
 		}},
-		"data": &bintree{nil, map[string]*bintree{
-			"icons": &bintree{nil, map[string]*bintree{
-				"404.png":   &bintree{yaoDataIcons404Png, map[string]*bintree{}},
-				"icon.icns": &bintree{yaoDataIconsIconIcns, map[string]*bintree{}},
-				"icon.ico":  &bintree{yaoDataIconsIconIco, map[string]*bintree{}},
-				"icon.png":  &bintree{yaoDataIconsIconPng, map[string]*bintree{}},
+		"data": {nil, map[string]*bintree{
+			"icons": {nil, map[string]*bintree{
+				"404.png":   {yaoDataIcons404Png, map[string]*bintree{}},
+				"icon.icns": {yaoDataIconsIconIcns, map[string]*bintree{}},
+				"icon.ico":  {yaoDataIconsIconIco, map[string]*bintree{}},
+				"icon.png":  {yaoDataIconsIconPng, map[string]*bintree{}},
 			}},
-			"index.html": &bintree{yaoDataIndexHtml, map[string]*bintree{}},
+			"index.html": {yaoDataIndexHtml, map[string]*bintree{}},
 		}},
-		"fields": &bintree{nil, map[string]*bintree{
-			"model.trans.json": &bintree{yaoFieldsModelTransJson, map[string]*bintree{}},
+		"fields": {nil, map[string]*bintree{
+			"model.trans.json": {yaoFieldsModelTransJson, map[string]*bintree{}},
 		}},
-		"langs": &bintree{nil, map[string]*bintree{
-			"en-US.json": &bintree{yaoLangsEnUsJson, map[string]*bintree{}},
-			"zh-cn": &bintree{nil, map[string]*bintree{
-				"global.yml": &bintree{yaoLangsZhCnGlobalYml, map[string]*bintree{}},
-				"logins": &bintree{nil, map[string]*bintree{
-					"admin.login.yml": &bintree{yaoLangsZhCnLoginsAdminLoginYml, map[string]*bintree{}},
-					"user.login.yml":  &bintree{yaoLangsZhCnLoginsUserLoginYml, map[string]*bintree{}},
+		"langs": {nil, map[string]*bintree{
+			"en-US.json": {yaoLangsEnUsJson, map[string]*bintree{}},
+			"zh-cn": {nil, map[string]*bintree{
+				"global.yml": {yaoLangsZhCnGlobalYml, map[string]*bintree{}},
+				"logins": {nil, map[string]*bintree{
+					"admin.login.yml": {yaoLangsZhCnLoginsAdminLoginYml, map[string]*bintree{}},
+					"user.login.yml":  {yaoLangsZhCnLoginsUserLoginYml, map[string]*bintree{}},
 				}},
 			}},
-			"zh-hk": &bintree{nil, map[string]*bintree{
-				"global.yml": &bintree{yaoLangsZhHkGlobalYml, map[string]*bintree{}},
-				"logins": &bintree{nil, map[string]*bintree{
-					"admin.login.yml": &bintree{yaoLangsZhHkLoginsAdminLoginYml, map[string]*bintree{}},
-					"user.login.yml":  &bintree{yaoLangsZhHkLoginsUserLoginYml, map[string]*bintree{}},
+			"zh-hk": {nil, map[string]*bintree{
+				"global.yml": {yaoLangsZhHkGlobalYml, map[string]*bintree{}},
+				"logins": {nil, map[string]*bintree{
+					"admin.login.yml": {yaoLangsZhHkLoginsAdminLoginYml, map[string]*bintree{}},
+					"user.login.yml":  {yaoLangsZhHkLoginsUserLoginYml, map[string]*bintree{}},
 				}},
 			}},
 		}},
-		"models": &bintree{nil, map[string]*bintree{
-			"access_grants.mod.yao":       &bintree{yaoModelsAccess_grantsModYao, map[string]*bintree{}},
-			"agent_tasks.mod.yao":         &bintree{yaoModelsAgent_tasksModYao, map[string]*bintree{}},
-			"approval_requests.mod.yao":   &bintree{yaoModelsApproval_requestsModYao, map[string]*bintree{}},
-			"apps.mod.yao":                &bintree{yaoModelsAppsModYao, map[string]*bintree{}},
-			"attachment.mod.yao":          &bintree{yaoModelsAttachmentModYao, map[string]*bintree{}},
-			"audit.mod.yao":               &bintree{yaoModelsAuditModYao, map[string]*bintree{}},
-			"board_columns.mod.yao":       &bintree{yaoModelsBoard_columnsModYao, map[string]*bintree{}},
-			"board_items.mod.yao":         &bintree{yaoModelsBoard_itemsModYao, map[string]*bintree{}},
-			"boards.mod.yao":              &bintree{yaoModelsBoardsModYao, map[string]*bintree{}},
-			"bots.mod.yao":                &bintree{yaoModelsBotsModYao, map[string]*bintree{}},
-			"computers.mod.yao":           &bintree{yaoModelsComputersModYao, map[string]*bintree{}},
-			"config.mod.yao":              &bintree{yaoModelsConfigModYao, map[string]*bintree{}},
-			"credit_transactions.mod.yao": &bintree{yaoModelsCredit_transactionsModYao, map[string]*bintree{}},
-			"dsl.mod.yao":                 &bintree{yaoModelsDslModYao, map[string]*bintree{}},
-			"inbox_items.mod.yao":         &bintree{yaoModelsInbox_itemsModYao, map[string]*bintree{}},
-			"inbox_messages.mod.yao":      &bintree{yaoModelsInbox_messagesModYao, map[string]*bintree{}},
-			"invitation.mod.yao":          &bintree{yaoModelsInvitationModYao, map[string]*bintree{}},
-			"job": &bintree{nil, map[string]*bintree{
-				"category.mod.yao":  &bintree{yaoModelsJobCategoryModYao, map[string]*bintree{}},
-				"execution.mod.yao": &bintree{yaoModelsJobExecutionModYao, map[string]*bintree{}},
-				"job.mod.yao":       &bintree{yaoModelsJobJobModYao, map[string]*bintree{}},
-				"log.mod.yao":       &bintree{yaoModelsJobLogModYao, map[string]*bintree{}},
+		"models": {nil, map[string]*bintree{
+			"access_grants.mod.yao":       {yaoModelsAccess_grantsModYao, map[string]*bintree{}},
+			"agent_tasks.mod.yao":         {yaoModelsAgent_tasksModYao, map[string]*bintree{}},
+			"approval_requests.mod.yao":   {yaoModelsApproval_requestsModYao, map[string]*bintree{}},
+			"apps.mod.yao":                {yaoModelsAppsModYao, map[string]*bintree{}},
+			"attachment.mod.yao":          {yaoModelsAttachmentModYao, map[string]*bintree{}},
+			"audit.mod.yao":               {yaoModelsAuditModYao, map[string]*bintree{}},
+			"board_columns.mod.yao":       {yaoModelsBoard_columnsModYao, map[string]*bintree{}},
+			"board_items.mod.yao":         {yaoModelsBoard_itemsModYao, map[string]*bintree{}},
+			"boards.mod.yao":              {yaoModelsBoardsModYao, map[string]*bintree{}},
+			"bots.mod.yao":                {yaoModelsBotsModYao, map[string]*bintree{}},
+			"computers.mod.yao":           {yaoModelsComputersModYao, map[string]*bintree{}},
+			"config.mod.yao":              {yaoModelsConfigModYao, map[string]*bintree{}},
+			"credit_transactions.mod.yao": {yaoModelsCredit_transactionsModYao, map[string]*bintree{}},
+			"dsl.mod.yao":                 {yaoModelsDslModYao, map[string]*bintree{}},
+			"inbox_items.mod.yao":         {yaoModelsInbox_itemsModYao, map[string]*bintree{}},
+			"inbox_messages.mod.yao":      {yaoModelsInbox_messagesModYao, map[string]*bintree{}},
+			"invitation.mod.yao":          {yaoModelsInvitationModYao, map[string]*bintree{}},
+			"job": {nil, map[string]*bintree{
+				"category.mod.yao":  {yaoModelsJobCategoryModYao, map[string]*bintree{}},
+				"execution.mod.yao": {yaoModelsJobExecutionModYao, map[string]*bintree{}},
+				"job.mod.yao":       {yaoModelsJobJobModYao, map[string]*bintree{}},
+				"log.mod.yao":       {yaoModelsJobLogModYao, map[string]*bintree{}},
 			}},
-			"llm": &bintree{nil, map[string]*bintree{
-				"model.mod.yao":        &bintree{yaoModelsLlmModelModYao, map[string]*bintree{}},
-				"provider.mod.yao":     &bintree{yaoModelsLlmProviderModYao, map[string]*bintree{}},
-				"role_binding.mod.yao": &bintree{yaoModelsLlmRole_bindingModYao, map[string]*bintree{}},
+			"llm": {nil, map[string]*bintree{
+				"model.mod.yao":        {yaoModelsLlmModelModYao, map[string]*bintree{}},
+				"provider.mod.yao":     {yaoModelsLlmProviderModYao, map[string]*bintree{}},
+				"role_binding.mod.yao": {yaoModelsLlmRole_bindingModYao, map[string]*bintree{}},
 			}},
-			"member.mod.yao":                     &bintree{yaoModelsMemberModYao, map[string]*bintree{}},
-			"notification_deliveries.mod.yao":    &bintree{yaoModelsNotification_deliveriesModYao, map[string]*bintree{}},
-			"notifications.mod.yao":              &bintree{yaoModelsNotificationsModYao, map[string]*bintree{}},
-			"orders.mod.yao":                     &bintree{yaoModelsOrdersModYao, map[string]*bintree{}},
-			"products.mod.yao":                   &bintree{yaoModelsProductsModYao, map[string]*bintree{}},
-			"resource_bindings.mod.yao":          &bintree{yaoModelsResource_bindingsModYao, map[string]*bintree{}},
-			"resources.mod.yao":                  &bintree{yaoModelsResourcesModYao, map[string]*bintree{}},
-			"role.mod.yao":                       &bintree{yaoModelsRoleModYao, map[string]*bintree{}},
-			"search_documents.mod.yao":           &bintree{yaoModelsSearch_documentsModYao, map[string]*bintree{}},
-			"session_realtime.mod.yao":           &bintree{yaoModelsSession_realtimeModYao, map[string]*bintree{}},
-			"session_realtime_snapshots.mod.yao": &bintree{yaoModelsSession_realtime_snapshotsModYao, map[string]*bintree{}},
-			"session_turns.mod.yao":              &bintree{yaoModelsSession_turnsModYao, map[string]*bintree{}},
-			"sessions.mod.yao":                   &bintree{yaoModelsSessionsModYao, map[string]*bintree{}},
-			"team.mod.yao":                       &bintree{yaoModelsTeamModYao, map[string]*bintree{}},
-			"usage_records.mod.yao":              &bintree{yaoModelsUsage_recordsModYao, map[string]*bintree{}},
-			"user": &bintree{nil, map[string]*bintree{
-				"oauth_account.mod.yao": &bintree{yaoModelsUserOauth_accountModYao, map[string]*bintree{}},
-				"type.mod.yao":          &bintree{yaoModelsUserTypeModYao, map[string]*bintree{}},
+			"member.mod.yao":                     {yaoModelsMemberModYao, map[string]*bintree{}},
+			"notification_deliveries.mod.yao":    {yaoModelsNotification_deliveriesModYao, map[string]*bintree{}},
+			"notifications.mod.yao":              {yaoModelsNotificationsModYao, map[string]*bintree{}},
+			"orders.mod.yao":                     {yaoModelsOrdersModYao, map[string]*bintree{}},
+			"products.mod.yao":                   {yaoModelsProductsModYao, map[string]*bintree{}},
+			"resource_bindings.mod.yao":          {yaoModelsResource_bindingsModYao, map[string]*bintree{}},
+			"resources.mod.yao":                  {yaoModelsResourcesModYao, map[string]*bintree{}},
+			"role.mod.yao":                       {yaoModelsRoleModYao, map[string]*bintree{}},
+			"search_documents.mod.yao":           {yaoModelsSearch_documentsModYao, map[string]*bintree{}},
+			"session_realtime.mod.yao":           {yaoModelsSession_realtimeModYao, map[string]*bintree{}},
+			"session_realtime_snapshots.mod.yao": {yaoModelsSession_realtime_snapshotsModYao, map[string]*bintree{}},
+			"session_turns.mod.yao":              {yaoModelsSession_turnsModYao, map[string]*bintree{}},
+			"sessions.mod.yao":                   {yaoModelsSessionsModYao, map[string]*bintree{}},
+			"team.mod.yao":                       {yaoModelsTeamModYao, map[string]*bintree{}},
+			"usage_records.mod.yao":              {yaoModelsUsage_recordsModYao, map[string]*bintree{}},
+			"user": {nil, map[string]*bintree{
+				"oauth_account.mod.yao": {yaoModelsUserOauth_accountModYao, map[string]*bintree{}},
+				"type.mod.yao":          {yaoModelsUserTypeModYao, map[string]*bintree{}},
 			}},
-			"user.mod.yao":         &bintree{yaoModelsUserModYao, map[string]*bintree{}},
-			"vault_groups.mod.yao": &bintree{yaoModelsVault_groupsModYao, map[string]*bintree{}},
-			"vault_items.mod.yao":  &bintree{yaoModelsVault_itemsModYao, map[string]*bintree{}},
-			"workspaces.mod.yao":   &bintree{yaoModelsWorkspacesModYao, map[string]*bintree{}},
+			"user.mod.yao":         {yaoModelsUserModYao, map[string]*bintree{}},
+			"vault_groups.mod.yao": {yaoModelsVault_groupsModYao, map[string]*bintree{}},
+			"vault_items.mod.yao":  {yaoModelsVault_itemsModYao, map[string]*bintree{}},
+			"workspaces.mod.yao":   {yaoModelsWorkspacesModYao, map[string]*bintree{}},
 		}},
-		"release": &bintree{nil, map[string]*bintree{
-			"app.yaz": &bintree{yaoReleaseAppYaz, map[string]*bintree{}},
+		"release": {nil, map[string]*bintree{
+			"app.yaz": {yaoReleaseAppYaz, map[string]*bintree{}},
 		}},
-		"stores": &bintree{nil, map[string]*bintree{
-			"agent": &bintree{nil, map[string]*bintree{
-				"cache.lru.yao": &bintree{yaoStoresAgentCacheLruYao, map[string]*bintree{}},
-				"memory": &bintree{nil, map[string]*bintree{
-					"chat.xun.yao":    &bintree{yaoStoresAgentMemoryChatXunYao, map[string]*bintree{}},
-					"context.xun.yao": &bintree{yaoStoresAgentMemoryContextXunYao, map[string]*bintree{}},
-					"team.xun.yao":    &bintree{yaoStoresAgentMemoryTeamXunYao, map[string]*bintree{}},
-					"user.xun.yao":    &bintree{yaoStoresAgentMemoryUserXunYao, map[string]*bintree{}},
+		"stores": {nil, map[string]*bintree{
+			"agent": {nil, map[string]*bintree{
+				"cache.lru.yao": {yaoStoresAgentCacheLruYao, map[string]*bintree{}},
+				"memory": {nil, map[string]*bintree{
+					"chat.xun.yao":    {yaoStoresAgentMemoryChatXunYao, map[string]*bintree{}},
+					"context.xun.yao": {yaoStoresAgentMemoryContextXunYao, map[string]*bintree{}},
+					"team.xun.yao":    {yaoStoresAgentMemoryTeamXunYao, map[string]*bintree{}},
+					"user.xun.yao":    {yaoStoresAgentMemoryUserXunYao, map[string]*bintree{}},
 				}},
 			}},
-			"cache.lru.yao": &bintree{yaoStoresCacheLruYao, map[string]*bintree{}},
-			"oauth": &bintree{nil, map[string]*bintree{
-				"cache.lru.yao":  &bintree{yaoStoresOauthCacheLruYao, map[string]*bintree{}},
-				"client.xun.yao": &bintree{yaoStoresOauthClientXunYao, map[string]*bintree{}},
-				"store.xun.yao":  &bintree{yaoStoresOauthStoreXunYao, map[string]*bintree{}},
+			"cache.lru.yao": {yaoStoresCacheLruYao, map[string]*bintree{}},
+			"oauth": {nil, map[string]*bintree{
+				"cache.lru.yao":  {yaoStoresOauthCacheLruYao, map[string]*bintree{}},
+				"client.xun.yao": {yaoStoresOauthClientXunYao, map[string]*bintree{}},
+				"store.xun.yao":  {yaoStoresOauthStoreXunYao, map[string]*bintree{}},
 			}},
-			"store.xun.yao": &bintree{yaoStoresStoreXunYao, map[string]*bintree{}},
+			"store.xun.yao": {yaoStoresStoreXunYao, map[string]*bintree{}},
 		}},
-		"uploaders": &bintree{nil, map[string]*bintree{
-			"attachment.local.yao": &bintree{yaoUploadersAttachmentLocalYao, map[string]*bintree{}},
+		"uploaders": {nil, map[string]*bintree{
+			"attachment.local.yao": {yaoUploadersAttachmentLocalYao, map[string]*bintree{}},
 		}},
 	}},
 }}
