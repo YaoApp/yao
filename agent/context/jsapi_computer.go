@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/YaoApp/v8go"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	infraV2 "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/tai/workspace"
-	"github.com/YaoApp/v8go"
 )
 
 // SetComputer sets the V2 computer and its workspace for this context.

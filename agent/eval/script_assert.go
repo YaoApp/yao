@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/YaoApp/v8go"
+	"github.com/yaoapp/gou/runtime/v8/bridge"
 )
 
 // TestingT represents the testing object passed to test functions

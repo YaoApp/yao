@@ -4,13 +4,15 @@
 // cgo needs the extracted library inside the module cache. This command:
 //  1. ensures github.com/YaoApp/v8go is downloaded;
 //  2. locates the module directory;
-//  3. extracts libv8.a (or v8.lib on Windows) for the current platform.
+//  3. extracts libv8.a (or v8.lib on Windows); with -all it extracts every
+//     platform's prebuilt library for cross-compilation.
 //
 // It is cross-platform (no unzip/make required) and is invoked by `make deps`.
 package main
 
 import (
 	"archive/zip"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -22,7 +24,10 @@ import (
 
 const v8goModule = "github.com/YaoApp/v8go"
 
+var allPlatforms = flag.Bool("all", false, "extract prebuilt libv8/v8.lib for every platform (for cross-compilation)")
+
 func main() {
+	flag.Parse()
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "v8go deps: %v\n", err)
 		os.Exit(1)
@@ -40,6 +45,10 @@ func run() error {
 	dir, err := output("go", "list", "-m", "-f", "{{.Dir}}", v8goModule)
 	if err != nil || dir == "" {
 		return fmt.Errorf("cannot locate %s module (run: go mod download %s): %v", v8goModule, v8goModule, err)
+	}
+
+	if *allPlatforms {
+		return extractAll(dir)
 	}
 
 	plat := platformDir(runtime.GOOS, runtime.GOARCH)
@@ -78,6 +87,62 @@ func run() error {
 	}
 	fmt.Printf("v8go native lib ready: %s\n", libPath)
 	return nil
+}
+
+// extractAll extracts the prebuilt library for every platform under deps/.
+// Cross-compilation (e.g. darwin/arm64 -> darwin/amd64, linux/amd64 ->
+// linux/arm64) needs the target platform's libv8, not just the host's.
+func extractAll(dir string) error {
+	depsRoot := filepath.Join(dir, "deps")
+	entries, err := os.ReadDir(depsRoot)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", depsRoot, err)
+	}
+	n := 0
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		platDir := filepath.Join(depsRoot, e.Name())
+		zipPath := filepath.Join(platDir, "libv8.a.zip")
+		if !fileExists(zipPath) {
+			zipPath = filepath.Join(platDir, "v8.lib.zip")
+		}
+		if !fileExists(zipPath) {
+			continue
+		}
+		_ = os.Chmod(platDir, 0o755)
+		lib, err := extractAuto(zipPath, platDir)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("v8go native lib ready: %s\n", lib)
+		n++
+	}
+	if n == 0 {
+		return fmt.Errorf("no prebuilt libv8 archives found under %s", depsRoot)
+	}
+	return nil
+}
+
+// extractAuto extracts libv8.a or v8.lib (whichever the archive contains).
+func extractAuto(zipPath, destDir string) (string, error) {
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return "", fmt.Errorf("open %s: %w", zipPath, err)
+	}
+	defer zr.Close()
+	for _, f := range zr.File {
+		base := filepath.Base(f.Name)
+		if base != "libv8.a" && base != "v8.lib" {
+			continue
+		}
+		if err := extractFromZip(zipPath, destDir, base); err != nil {
+			return "", err
+		}
+		return filepath.Join(destDir, base), nil
+	}
+	return "", fmt.Errorf("libv8.a/v8.lib not found in %s", zipPath)
 }
 
 // platformDir maps GOOS/GOARCH to v8go's deps directory naming

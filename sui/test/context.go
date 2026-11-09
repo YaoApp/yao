@@ -3,9 +3,9 @@ package test
 import (
 	"fmt"
 
+	"github.com/YaoApp/v8go"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/yao/sui/core"
-	"github.com/YaoApp/v8go"
 )
 
 // SUITestContext provides the test execution context for SUI backend scripts.

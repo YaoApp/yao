@@ -3,9 +3,9 @@ package context
 import (
 	"fmt"
 
+	"github.com/YaoApp/v8go"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/yao/agent/output/message"
-	"github.com/YaoApp/v8go"
 )
 
 // parseMessage parses a JavaScript value into a message.Message

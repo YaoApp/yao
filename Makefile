@@ -519,7 +519,7 @@ bindata:
 
 # make artifacts-linux
 .PHONY: artifacts-linux
-artifacts-linux: deps clean
+artifacts-linux: deps-all clean
 	mkdir -p dist/release
 
 #	Building CUI v1.0
@@ -587,7 +587,7 @@ artifacts-linux: deps clean
 
 # make artifacts-macos
 .PHONY: artifacts-macos
-artifacts-macos: deps clean
+artifacts-macos: deps-all clean
 
 	mkdir -p dist/release
 
@@ -643,7 +643,7 @@ artifacts-macos: deps clean
 
 # make artifacts-windows
 .PHONY: artifacts-windows
-artifacts-windows: deps clean
+artifacts-windows: deps-all clean
 	mkdir -p dist/release
 
 #	Building CUI v1.0
@@ -959,3 +959,7 @@ clean:
 .PHONY: deps
 deps:
 	go run ./scripts/v8godeps
+
+.PHONY: deps-all
+deps-all:
+	go run ./scripts/v8godeps -all

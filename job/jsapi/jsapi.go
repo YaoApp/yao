@@ -3,10 +3,10 @@ package jsapi
 import (
 	"fmt"
 
+	"github.com/YaoApp/v8go"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/yao/job"
-	"github.com/YaoApp/v8go"
 )
 
 func init() {

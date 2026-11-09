@@ -64,8 +64,17 @@ jobs:
           token: ${{ secrets.REPO_GITHUB_TOKEN }}
           path: tai-src
 
+      - name: Checkout Tai-Golang
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/tai-golang
+          token: ${{ secrets.REPO_GITHUB_TOKEN }}
+          path: tai-golang-src
+
       - name: Move Tai Source
-        run: mv tai-src ../tai
+        run: |
+          mv tai-src ../tai
+          mv tai-golang-src ../tai-golang
 
       - name: Add host.tai.internal to hosts
         run: echo "127.0.0.1 host.tai.internal" | sudo tee -a /etc/hosts

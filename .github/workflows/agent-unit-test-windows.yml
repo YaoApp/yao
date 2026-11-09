@@ -51,12 +51,20 @@ jobs:
           token: ${{ secrets.REPO_GITHUB_TOKEN }}
           path: tai
 
+      - name: Checkout Tai-Golang
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/tai-golang
+          token: ${{ secrets.REPO_GITHUB_TOKEN }}
+          path: tai-golang
+
       - name: Move dependencies
         shell: bash
         run: |
           mv app ../
           mv extension ../
           mv tai ../
+          mv tai-golang ../
 
       # ── 3b. Setup WSL2 + Docker Engine (Linux containers) ────────────
       - name: Setup WSL (Ubuntu 24.04)
@@ -122,6 +130,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
+
+      - name: Prepare v8go native libs
+        shell: bash
+        run: go run ./scripts/v8godeps
 
       # ── 6. Install LLVM (clang + lld) ────────────────────────────────
 

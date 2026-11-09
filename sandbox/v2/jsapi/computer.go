@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/YaoApp/v8go"
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
 	wsjsapi "github.com/yaoapp/yao/workspace/jsapi"
-	"github.com/YaoApp/v8go"
 )
 
 // ---------------------------------------------------------------------------

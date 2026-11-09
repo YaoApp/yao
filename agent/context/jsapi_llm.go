@@ -1,9 +1,9 @@
 package context
 
 import (
+	"github.com/YaoApp/v8go"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/yao/agent/output/message"
-	"github.com/YaoApp/v8go"
 )
 
 // LlmAPI defines the LLM JSAPI interface for ctx.llm.*

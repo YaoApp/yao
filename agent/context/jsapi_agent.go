@@ -1,9 +1,9 @@
 package context
 
 import (
+	"github.com/YaoApp/v8go"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/yao/agent/output/message"
-	"github.com/YaoApp/v8go"
 )
 
 // AgentAPI defines the agent JSAPI interface for ctx.agent.*

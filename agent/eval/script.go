@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/YaoApp/v8go"
 	"github.com/yaoapp/gou/application"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/YaoApp/v8go"
 )
 
 // ScriptRunner executes script tests

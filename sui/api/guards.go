@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/YaoApp/v8go"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
@@ -18,7 +19,6 @@ import (
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
-	"github.com/YaoApp/v8go"
 )
 
 // Guards middlewares

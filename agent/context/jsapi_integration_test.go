@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/YaoApp/v8go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v8 "github.com/yaoapp/gou/runtime/v8"
@@ -15,7 +16,6 @@ import (
 	agentctx "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/unit-test/agent/testprepare"
-	"github.com/YaoApp/v8go"
 )
 
 func TestJsValue(t *testing.T) {

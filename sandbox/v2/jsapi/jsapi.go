@@ -36,9 +36,9 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/YaoApp/v8go"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
-	"github.com/YaoApp/v8go"
 )
 
 func init() {

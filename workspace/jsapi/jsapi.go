@@ -5,9 +5,9 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/YaoApp/v8go"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/workspace"
-	"github.com/YaoApp/v8go"
 )
 
 func init() {
