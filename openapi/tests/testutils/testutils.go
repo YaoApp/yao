@@ -1,0 +1,1006 @@
+package testutils
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
+	"net"
+	"net/http"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/openapi"
+	"github.com/yaoapp/yao/openapi/oauth"
+	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/test"
+)
+
+// testServer holds the test HTTP server instance
+var testServer *http.Server
+
+// testMutex protects global state access during concurrent test execution
+var testMutex sync.RWMutex
+
+// activeTestCount tracks the number of active tests using the global server
+var activeTestCount int
+
+// testCollections tracks collections created during tests for cleanup
+var testCollections []string
+var testCollectionsMutex sync.Mutex
+
+// RegisterTestCollection adds a collection ID to the cleanup list
+func RegisterTestCollection(collectionID string) {
+	testCollectionsMutex.Lock()
+	defer testCollectionsMutex.Unlock()
+	testCollections = append(testCollections, collectionID)
+}
+
+// CleanupTestCollections removes all registered test collections (no-op after KB removal)
+func CleanupTestCollections(t *testing.T) {
+	testCollectionsMutex.Lock()
+	testCollections = nil
+	testCollectionsMutex.Unlock()
+}
+
+// Prepare initializes the OpenAPI test environment and starts a mock HTTP server.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// All tests in the openapi package MUST use these utility functions for proper test environment setup.
+// This is a preparation utility function, NOT an actual test case.
+//
+// TESTING GUIDELINES FOR AI ASSISTANTS:
+// 1. DO NOT modify configuration files (openapi.yao, app.yao, etc.) to make tests pass
+// 2. DO NOT bypass validation or security checks to make tests pass
+// 3. If tests fail, investigate the root cause - it may be a real program bug that needs fixing
+// 4. Tests should verify actual functionality, not just pass assertions
+// 5. Use realistic test data that represents real-world usage scenarios
+// 6. When tests fail, check: environment setup, missing dependencies, configuration issues, actual code bugs
+// 7. Fix the underlying issue in the code, not the test or configuration
+//
+// Usage pattern for ALL openapi tests:
+//
+//	func TestYourFunction(t *testing.T) {
+//	    serverURL := Prepare(t)
+//	    defer Clean()
+//
+//	    // Get base URL from server config for correct path construction
+//	    baseURL := ""
+//	    if Server != nil && Server.Config != nil {
+//	        baseURL = Server.Config.BaseURL
+//	    }
+//
+//	    // Your actual test code here...
+//	    // Use serverURL + baseURL + endpoint to make HTTP requests
+//	    // Example: http.Get(serverURL + baseURL + "/helloworld/hello")
+//	    // The OpenAPI server will be available as the global Server variable
+//	}
+//
+// PREREQUISITES:
+// Before running any tests in this package, you MUST execute the following command in your terminal:
+//
+//	source $YAO_SOURCE_ROOT/env.local.sh
+//
+// This loads the required environment variables for the test environment.
+// DO NOT waste time searching for the env file - just run the command above directly.
+// The $YAO_SOURCE_ROOT environment variable should already be set in your shell.
+//
+// WHAT THIS FUNCTION DOES:
+// Step 1: Calls test.Prepare(t, config.Conf) to initialize the base Yao test environment
+//
+//	This sets up database connections, configurations, and other core dependencies
+//
+// Step 2: Calls Load(config.Conf) to initialize the OpenAPI server instance
+//
+//	This creates the global Server variable that contains the Gin router and all endpoints
+//
+// Step 3: Creates a Gin router and attaches the OpenAPI server to it
+//
+//	The server uses Server.Config.BaseURL as the base path for all endpoints
+//
+// Step 4: Starts an HTTP server on a random available port (127.0.0.1:xxxxx)
+//
+//	This allows actual HTTP testing of the OpenAPI endpoints
+//
+// RETURN VALUE:
+// Returns the server URL in format "http://127.0.0.1:xxxxx" where xxxxx is the random port
+// NOTE: You need to append Server.Config.BaseURL to construct the full endpoint URL
+//
+// ERROR HANDLING:
+// If any step fails, the test will fail immediately with a descriptive error message.
+func Prepare(t *testing.T) string {
+	// Use write lock to protect global state initialization
+	testMutex.Lock()
+	defer func() {
+		activeTestCount++
+		testMutex.Unlock()
+	}()
+
+	// Step 1: Initialize base test environment with all Yao dependencies
+	test.Prepare(t, config.Conf)
+
+	// Step 2: Initialize OpenAPI server and make it available globally (only if not already initialized)
+	if openapi.Server == nil {
+		_, err := openapi.Load(config.Conf)
+		if err != nil {
+			t.Fatalf("Failed to load OpenAPI server: %v", err)
+		}
+	}
+
+	// Step 3: Create Gin router and attach OpenAPI server
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	// Attach the OpenAPI server to the router
+	if openapi.Server != nil {
+		openapi.Server.Attach(router)
+	}
+
+	// Step 4: Start HTTP server on random available port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to create listener: %v", err)
+	}
+
+	server := &http.Server{
+		Handler: router,
+	}
+
+	// Start server in background
+	go func() {
+		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+			t.Errorf("Failed to start test server: %v", err)
+		}
+	}()
+
+	// Wait a moment for server to start
+	time.Sleep(10 * time.Millisecond)
+
+	// Store server instance for this test (each test gets its own HTTP server)
+	testServer = server
+
+	// Return server URL
+	serverURL := fmt.Sprintf("http://%s", listener.Addr().String())
+	return serverURL
+}
+
+// Clean cleans up the OpenAPI test environment and shuts down the test server.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// This function MUST be called with defer in every test that uses Prepare().
+// This is a cleanup utility function, NOT an actual test case.
+// Always use: defer Clean()
+//
+// WHAT THIS FUNCTION DOES:
+// Step 1: Gracefully shutdown the HTTP test server if it exists
+//
+//	This ensures all pending requests are completed and resources are freed
+//
+// Step 2: Reset the global Server variable to nil
+//
+//	This ensures no state leakage between tests and prevents memory leaks
+//
+// Step 3: Clean up GraphRag test collections
+//
+//	This removes any test collections that were created during the test
+//
+// Step 4: Calls test.Clean() to clean up the base test environment
+//
+//	This closes database connections, cleans up temporary files, and resets global state
+//
+// IMPORTANT NOTES:
+// - This function should ALWAYS be called with defer to ensure cleanup happens even if tests panic
+// - Proper cleanup prevents test interference and resource leaks
+// - The order of cleanup steps is important: HTTP server first, then OpenAPI cleanup, then base cleanup
+// - Server shutdown has a 5-second timeout to prevent hanging tests
+func Clean() {
+	// Step 1: Gracefully shutdown the HTTP test server for this test
+	if testServer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := testServer.Shutdown(ctx); err != nil {
+			// Force close if graceful shutdown fails
+			testServer.Close()
+		}
+		testServer = nil
+	}
+
+	// Step 2: Use lock to safely decrement active test count and clean global state if needed
+	testMutex.Lock()
+	activeTestCount--
+	shouldCleanGlobalState := activeTestCount <= 0
+	if shouldCleanGlobalState {
+		// Reset global state only when no other tests are active
+		openapi.Server = nil
+		activeTestCount = 0 // Ensure it doesn't go negative
+	}
+	testMutex.Unlock()
+
+	// Step 3: Clean up test collections (no-op after KB removal)
+	if shouldCleanGlobalState {
+		testCollectionsMutex.Lock()
+		testCollections = nil
+		testCollectionsMutex.Unlock()
+	}
+
+	// Step 4: Clean up base test environment
+	if shouldCleanGlobalState {
+		test.Clean()
+	}
+}
+
+// RegisterTestClient registers a test OAuth client and returns the client information.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// Use this function to create test OAuth clients for testing OAuth endpoints.
+// This function provides realistic test clients that can be used for authentication flows.
+// ALWAYS clean up test clients using CleanupTestClient() to prevent test interference.
+//
+// Usage pattern:
+//
+//	func TestOAuthEndpoint(t *testing.T) {
+//	    serverURL := Prepare(t)
+//	    defer Clean()
+//
+//	    // Register a test client
+//	    client := RegisterTestClient(t, "Test Client", []string{"http://localhost/callback"})
+//	    defer CleanupTestClient(t, client.ClientID)
+//
+//	    // Use client.ClientID and client.ClientSecret in your tests
+//	    // Example: test OAuth authorize with real client_id
+//	}
+//
+// PARAMETERS:
+// - t: The test instance for error reporting
+// - clientName: Human-readable name for the client (e.g., "Test Web App")
+// - redirectURIs: List of valid redirect URIs for the client
+//
+// RETURN VALUE:
+// Returns a pointer to types.ClientInfo containing:
+// - ClientID: Generated unique client identifier
+// - ClientSecret: Generated client secret (for confidential clients)
+// - RedirectURIs: The provided redirect URIs
+// - Other OAuth client metadata
+//
+// ERROR HANDLING:
+// If client registration fails, the test will fail immediately with a descriptive error message.
+func RegisterTestClient(t *testing.T, clientName string, redirectURIs []string) *types.ClientInfo {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
+		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
+	}
+
+	// Create dynamic client registration request
+	req := &types.DynamicClientRegistrationRequest{
+		ClientName:   clientName,
+		RedirectURIs: redirectURIs,
+		GrantTypes: []string{
+			"authorization_code",
+			"refresh_token",
+			"client_credentials",
+		},
+		ResponseTypes: []string{
+			"code",
+		},
+		ApplicationType:         "web",
+		TokenEndpointAuthMethod: "client_secret_basic",
+		Scope:                   "openid profile email",
+	}
+
+	// Register the client using the OAuth service
+	ctx := context.Background()
+	response, err := server.OAuth.DynamicClientRegistration(ctx, req)
+	if err != nil {
+		t.Fatalf("Failed to register test client: %v", err)
+	}
+
+	// Convert response to ClientInfo for easier usage
+	clientInfo := &types.ClientInfo{
+		ClientID:                response.ClientID,
+		ClientSecret:            response.ClientSecret,
+		ClientName:              response.ClientName,
+		RedirectURIs:            response.RedirectURIs,
+		GrantTypes:              response.GrantTypes,
+		ResponseTypes:           response.ResponseTypes,
+		ApplicationType:         response.ApplicationType,
+		TokenEndpointAuthMethod: response.TokenEndpointAuthMethod,
+		Scope:                   response.Scope,
+		ClientURI:               response.ClientURI,
+		LogoURI:                 response.LogoURI,
+		TosURI:                  response.TosURI,
+		PolicyURI:               response.PolicyURI,
+		Contacts:                response.Contacts,
+	}
+
+	t.Logf("Registered test client: %s (ID: %s)", clientName, clientInfo.ClientID)
+	return clientInfo
+}
+
+// CleanupTestClient removes a test OAuth client from the system.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// ALWAYS call this function to clean up test clients created with RegisterTestClient().
+// Use defer to ensure cleanup happens even if tests fail or panic.
+// Proper cleanup prevents test interference and maintains a clean test environment.
+//
+// Usage pattern:
+//
+//	client := RegisterTestClient(t, "Test Client", []string{"http://localhost/callback"})
+//	defer CleanupTestClient(t, client.ClientID)
+//
+// PARAMETERS:
+// - t: The test instance for error reporting
+// - clientID: The client ID to remove (obtained from RegisterTestClient return value)
+//
+// ERROR HANDLING:
+// If client deletion fails, logs an error but does not fail the test.
+// This prevents cleanup failures from affecting test results.
+func CleanupTestClient(t *testing.T, clientID string) {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
+		// Server might already be cleaned up, which is OK
+		return
+	}
+
+	if clientID == "" {
+		return
+	}
+
+	// Delete the client using the OAuth service
+	ctx := context.Background()
+	err := server.OAuth.DeleteClient(ctx, clientID)
+	if err != nil {
+		// Log error but don't fail the test - cleanup should be resilient
+		t.Logf("Warning: Failed to cleanup test client %s: %v", clientID, err)
+	} else {
+		t.Logf("Cleaned up test client: %s", clientID)
+	}
+}
+
+// CreateTestClientCredentials creates a simple test client with just ID and secret for basic testing.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// Use this function when you need a quick test client without full OAuth registration.
+// This is useful for testing non-OAuth endpoints or when you need predictable client credentials.
+// This creates an in-memory client that doesn't persist and doesn't need cleanup.
+//
+// Usage pattern:
+//
+//	clientID, clientSecret := CreateTestClientCredentials()
+//	// Use in Basic Auth or client_credentials grant tests
+//
+// RETURN VALUES:
+// - clientID: A predictable test client ID
+// - clientSecret: A predictable test client secret
+//
+// NOTE: This function creates temporary credentials and doesn't register them with the OAuth service.
+// For full OAuth flow testing, use RegisterTestClient() instead.
+func CreateTestClientCredentials() (clientID, clientSecret string) {
+	return "test-client-id", "test-client-secret"
+}
+
+// AuthorizationInfo represents the information needed for OAuth authorization.
+// ObtainAuthorizationCode dynamically obtains an authorization code for testing OAuth token endpoints.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// Use this function to get a real authorization code for testing OAuth token exchange.
+// This function simulates the complete OAuth authorization flow and returns all necessary information
+// for testing the token endpoint with realistic data.
+//
+// Usage pattern:
+//
+//	func TestOAuthToken(t *testing.T) {
+//	    serverURL := Prepare(t)
+//	    defer Clean()
+//
+//	    // Register a test client
+//	    client := RegisterTestClient(t, "Test Client", []string{"https://localhost/callback"})
+//	    defer CleanupTestClient(t, client.ClientID)
+//
+//	    // Obtain authorization code dynamically
+//	    authInfo := ObtainAuthorizationCode(t, serverURL, client.ClientID, "https://localhost/callback", "openid profile")
+//
+//	    // Now test token endpoint with real authorization code
+//	    // POST to /oauth/token with grant_type=authorization_code&code=authInfo.Code&...
+//	}
+//
+// PARAMETERS:
+// - t: The test instance for error reporting
+// - serverURL: The test server URL (from Prepare function)
+// - clientID: The OAuth client ID (from RegisterTestClient)
+// - redirectURI: The redirect URI (must match client registration)
+// - scope: The requested OAuth scope (e.g., "openid profile email")
+//
+// RETURN VALUE:
+// Returns AuthorizationInfo struct containing:
+// - Code: The authorization code for token exchange
+// - State: The state parameter for CSRF protection
+// - RedirectURI: The redirect URI used in the flow
+// - ClientID: The client ID used in the flow
+// - Scope: The scope requested in the flow
+// - CodeVerifier: The PKCE code verifier for token exchange
+// - CodeChallenge: The PKCE code challenge used in authorization
+// - CodeChallengeMethod: The PKCE challenge method (S256)
+//
+// WHAT THIS FUNCTION DOES:
+// 1. Generates PKCE parameters for OAuth 2.1 compliance
+// 2. Creates a realistic authorization request with proper parameters
+// 3. Calls the OAuth service directly to simulate user authorization
+// 4. Extracts the authorization code from the response
+// 5. Returns all information needed for token endpoint testing
+//
+// ERROR HANDLING:
+// If authorization fails, the test will fail immediately with a descriptive error message.
+type AuthorizationInfo struct {
+	Code                string
+	State               string
+	RedirectURI         string
+	ClientID            string
+	Scope               string
+	CodeVerifier        string
+	CodeChallenge       string
+	CodeChallengeMethod string
+}
+
+// ObtainAuthorizationCode obtains an authorization code for testing OAuth token endpoints.
+func ObtainAuthorizationCode(t *testing.T, serverURL, clientID, redirectURI, scope string) *AuthorizationInfo {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
+		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
+	}
+
+	// Generate a unique state parameter for CSRF protection
+	state := fmt.Sprintf("test-state-%d", time.Now().UnixNano())
+
+	// Generate PKCE parameters for OAuth 2.1 compliance
+	codeVerifier := generateCodeVerifier()
+	codeChallenge := generateCodeChallenge(codeVerifier)
+	codeChallengeMethod := "S256"
+
+	// Create authorization request with PKCE parameters
+	authReq := &types.AuthorizationRequest{
+		ClientID:            clientID,
+		ResponseType:        "code",
+		RedirectURI:         redirectURI,
+		Scope:               scope,
+		State:               state,
+		CodeChallenge:       codeChallenge,
+		CodeChallengeMethod: codeChallengeMethod,
+	}
+
+	// Call OAuth service to process authorization request
+	ctx := context.Background()
+	authResp, err := server.OAuth.Authorize(ctx, authReq)
+	if err != nil {
+		t.Fatalf("Failed to obtain authorization code: %v", err)
+	}
+
+	// Check if authorization response contains an error
+	if authResp.Error != "" {
+		t.Fatalf("Authorization failed: %s - %s", authResp.Error, authResp.ErrorDescription)
+	}
+
+	// Verify we got an authorization code
+	if authResp.Code == "" {
+		t.Fatal("Authorization response missing code")
+	}
+
+	authInfo := &AuthorizationInfo{
+		Code:                authResp.Code,
+		State:               authResp.State,
+		RedirectURI:         redirectURI,
+		ClientID:            clientID,
+		Scope:               scope,
+		CodeVerifier:        codeVerifier,
+		CodeChallenge:       codeChallenge,
+		CodeChallengeMethod: codeChallengeMethod,
+	}
+
+	t.Logf("Obtained authorization code: %s (state: %s)", authInfo.Code, authInfo.State)
+	return authInfo
+}
+
+// TokenInfo represents the information needed for OAuth token exchange.
+// ObtainAccessToken directly obtains an access token for testing OAuth endpoints that require authentication.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// Use this function to get a real access token for testing OAuth endpoints like introspect, revoke, etc.
+// This function handles the complete OAuth flow (authorization + token exchange) and returns a ready-to-use token.
+//
+// Usage pattern:
+//
+//	func TestOAuthIntrospect(t *testing.T) {
+//	    serverURL := Prepare(t)
+//	    defer Clean()
+//
+//	    // Register a test client
+//	    client := RegisterTestClient(t, "Test Client", []string{"https://localhost/callback"})
+//	    defer CleanupTestClient(t, client.ClientID)
+//
+//	    // Obtain access token directly
+//	    tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+//
+//	    // Now test introspect endpoint with real access token
+//	    // POST to /oauth/introspect with token=tokenInfo.AccessToken
+//	}
+//
+// PARAMETERS:
+// - t: The test instance for error reporting
+// - serverURL: The test server URL (from Prepare function)
+// - clientID: The OAuth client ID (from RegisterTestClient)
+// - clientSecret: The OAuth client secret (from RegisterTestClient)
+// - redirectURI: The redirect URI (must match client registration)
+// - scope: The requested OAuth scope (e.g., "openid profile email")
+//
+// RETURN VALUE:
+// Returns TokenInfo struct containing:
+// - AccessToken: The access token for API calls
+// - RefreshToken: The refresh token for token renewal
+// - TokenType: The token type (usually "Bearer")
+// - ExpiresIn: Token expiration time in seconds
+// - Scope: The granted scope
+// - ClientID: The client ID used to obtain the token
+//
+// WHAT THIS FUNCTION DOES:
+// 1. Calls ObtainAuthorizationCode to get an authorization code
+// 2. Exchanges the authorization code for an access token using the OAuth service
+// 3. Returns all token information needed for authenticated API testing
+//
+// ERROR HANDLING:
+// If token exchange fails, the test will fail immediately with a descriptive error message.
+type TokenInfo struct {
+	AccessToken  string
+	RefreshToken string
+	TokenType    string
+	ExpiresIn    int
+	Scope        string
+	ClientID     string
+	UserID       string
+}
+
+// ObtainAccessTokenWithRootPermission creates a complete test user with root permissions and obtains an access token.
+// This simulates a real user login flow:
+// 1. Creates a role with root permissions if it doesn't exist
+// 2. Creates a real user in the database with this role
+// 3. Issues a token with system:root scope for full permissions
+func ObtainAccessTokenWithRootPermission(t *testing.T, serverURL, clientID, clientSecret, redirectURI, scope string) *TokenInfo {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
+		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
+	}
+
+	oauthService := oauth.OAuth
+	if oauthService == nil {
+		t.Fatal("Global OAuth service not initialized")
+	}
+
+	userProvider, err := oauthService.GetUserProvider()
+	if err != nil || userProvider == nil {
+		t.Fatal("UserProvider not available")
+	}
+
+	ctx := context.Background()
+
+	// Step 1: Ensure system:root role exists in database (delete and recreate if exists)
+	// Note: This is the default client role used by ACL
+	roleID := "system:root"
+	t.Logf("Setting up role %s in database", roleID)
+
+	// Check if role already exists and delete it for clean state
+	_, err = userProvider.GetRole(ctx, roleID)
+	if err == nil {
+		// Role exists, delete it first
+		t.Logf("Role %s already exists, deleting for clean state", roleID)
+		err = userProvider.DeleteRole(ctx, roleID)
+		if err != nil {
+			t.Logf("Warning: Failed to delete existing role: %v", err)
+		}
+	}
+
+	// Clear role cache to ensure fresh data
+	if oauthService.GetCache() != nil {
+		cache := oauthService.GetCache()
+		// Clear all role-related cache with the correct prefix
+		cache.Del("acl:role:scopes:" + roleID)
+		cache.Del("acl:role:scopes:restricted:" + roleID)
+		t.Logf("Cleared ACL role cache for %s", roleID)
+	}
+
+	// Create the role with system:root permissions
+	// Pass permissions as []string directly
+	roleData := map[string]interface{}{
+		"role_id":     roleID,
+		"name":        "System Root",
+		"description": "System root role with full system access",
+		"permissions": []string{"system:root"},
+		"is_active":   true,
+	}
+
+	_, err = userProvider.CreateRole(ctx, roleData)
+	if err != nil {
+		t.Fatalf("Failed to create test role: %v", err)
+	}
+	t.Logf("Successfully created role %s with system:root permissions", roleID)
+
+	// Step 2: Create a real test user in the database
+	testUserID := fmt.Sprintf("test_user_root_%d", time.Now().UnixNano())
+	userData := map[string]interface{}{
+		"user_id": testUserID,
+		"status":  "active",
+		"role_id": roleID, // Assign test_root role (which has system:root scope)
+	}
+
+	_, err = userProvider.CreateUser(ctx, userData)
+	if err != nil {
+		t.Fatalf("Failed to create test user in database: %v", err)
+	}
+	t.Logf("Created test user %s with role %s in database", testUserID, roleID)
+
+	// Step 3: Create subject (fingerprint) for OAuth
+	subject, err := oauthService.Subject(clientID, testUserID)
+	if err != nil {
+		t.Fatalf("Failed to create user subject: %v", err)
+	}
+	t.Logf("Created subject mapping: clientID=%s, userID=%s, subject=%s", clientID, testUserID, subject)
+
+	// Step 4: Create access token with system:root scope for full permissions
+	fullScope := scope
+	if scope != "" && !strings.Contains(scope, "system:root") {
+		fullScope = scope + " system:root"
+	} else if scope == "" {
+		fullScope = "system:root"
+	}
+
+	extraClaims := map[string]interface{}{
+		"user_id": testUserID,
+	}
+
+	accessToken, err := oauthService.MakeAccessToken(clientID, fullScope, subject, 3600, extraClaims)
+	if err != nil {
+		t.Fatalf("Failed to create access token: %v", err)
+	}
+
+	refreshToken, err := oauthService.MakeRefreshToken(clientID, fullScope, subject, 7200, extraClaims)
+	if err != nil {
+		t.Fatalf("Failed to create refresh token: %v", err)
+	}
+
+	tokenInfo := &TokenInfo{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    3600,
+		Scope:        fullScope,
+		ClientID:     clientID,
+		UserID:       testUserID,
+	}
+
+	t.Logf("Issued token for user %s with scope: %s", testUserID, fullScope)
+	return tokenInfo
+}
+
+// ObtainAccessToken obtains an access token for testing OAuth endpoints that require authentication.
+func ObtainAccessToken(t *testing.T, serverURL, clientID, clientSecret, redirectURI, scope string) *TokenInfo {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
+		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
+	}
+
+	// Step 1: Create a test user and set up fingerprint mapping
+	testUserID, subject := createTestUser(t, server, clientID)
+
+	// Step 2: Create access token directly using the OAuth service
+	// This bypasses the authorization flow and creates a token for our test user
+	oauthService := oauth.OAuth
+	if oauthService == nil {
+		t.Fatal("Global OAuth service not initialized")
+	}
+
+	// Step 3: Add system:root to scope for full permissions in tests
+	fullScope := scope
+	if scope != "" && !strings.Contains(scope, "system:root") {
+		fullScope = scope + " system:root"
+	} else if scope == "" {
+		fullScope = "system:root"
+	}
+
+	// Step 4: Create access token with system:root scope
+	accessToken, err := oauthService.MakeAccessToken(clientID, fullScope, subject, 3600)
+	if err != nil {
+		t.Fatalf("Failed to create access token: %v", err)
+	}
+
+	refreshToken, err := oauthService.MakeRefreshToken(clientID, fullScope, subject, 7200)
+	if err != nil {
+		t.Fatalf("Failed to create refresh token: %v", err)
+	}
+
+	tokenInfo := &TokenInfo{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    3600,
+		Scope:        fullScope,
+		ClientID:     clientID,
+		UserID:       testUserID,
+	}
+
+	t.Logf("Obtained access token with scope: %s (user_id: %s)", fullScope, testUserID)
+	return tokenInfo
+}
+
+// generateCodeVerifier generates a cryptographically random code verifier for PKCE
+func generateCodeVerifier() string {
+	// PKCE code verifier should be 43-128 characters long
+	// We'll generate 32 random bytes and base64url encode them (43 characters)
+	bytes := make([]byte, 32)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to generate random bytes: %v", err))
+	}
+
+	// Base64 URL encoding without padding
+	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(bytes)
+}
+
+// generateCodeChallenge generates a code challenge from the code verifier using S256 method
+func generateCodeChallenge(codeVerifier string) string {
+	// SHA256 hash the code verifier
+	hash := sha256.Sum256([]byte(codeVerifier))
+
+	// Base64 URL encode the hash without padding
+	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hash[:])
+}
+
+// ObtainTokenForUser creates a token for a specific user ID.
+// This function creates the OAuth fingerprint mapping and issues tokens for the given userID.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// Use this function when you need to issue a token for a pre-existing user ID.
+// This is useful for testing scenarios where user records already exist in the database.
+//
+// Usage pattern:
+//
+//	func TestWithExistingUser(t *testing.T) {
+//	    serverURL := Prepare(t)
+//	    defer Clean()
+//
+//	    // Create user in database first
+//	    userID := "user_123"
+//	    // ... create user record in DB ...
+//
+//	    // Register a test client
+//	    client := RegisterTestClient(t, "Test Client", []string{"https://localhost/callback"})
+//	    defer CleanupTestClient(t, client.ClientID)
+//
+//	    // Obtain token for the existing user
+//	    tokenInfo := ObtainTokenForUser(t, client.ClientID, client.ClientSecret, userID, "openid profile")
+//
+//	    // Now use tokenInfo.AccessToken to make authenticated requests
+//	}
+//
+// PARAMETERS:
+// - t: The test instance for error reporting
+// - clientID: The OAuth client ID (from RegisterTestClient)
+// - clientSecret: The OAuth client secret (from RegisterTestClient)
+// - userID: The user ID to issue the token for (must exist in database)
+// - scope: The requested OAuth scope (e.g., "openid profile email")
+//
+// RETURN VALUE:
+// Returns TokenInfo struct containing:
+// - AccessToken: The access token for API calls
+// - RefreshToken: The refresh token for token renewal
+// - TokenType: The token type (usually "Bearer")
+// - ExpiresIn: Token expiration time in seconds
+// - Scope: The granted scope
+// - ClientID: The client ID used to obtain the token
+// - UserID: The user ID the token was issued for
+//
+// WHAT THIS FUNCTION DOES:
+// 1. Creates a fingerprint mapping: clientID + subject -> userID
+// 2. Issues access and refresh tokens for the subject
+// 3. Returns all token information needed for authenticated API testing
+//
+// ERROR HANDLING:
+// If token creation fails, the test will fail immediately with a descriptive error message.
+func ObtainTokenForUser(t *testing.T, clientID, clientSecret, userID, scope string) *TokenInfo {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
+		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
+	}
+
+	// Access the global OAuth service
+	oauthService := oauth.OAuth
+	if oauthService == nil {
+		t.Fatal("Global OAuth service not initialized")
+	}
+
+	// Get user provider to assign root role
+	userProvider, err := oauthService.GetUserProvider()
+	if err != nil || userProvider == nil {
+		t.Fatal("UserProvider not available")
+	}
+
+	ctx := context.Background()
+
+	// Ensure system:root role exists (create if needed)
+	roleID := "system:root"
+	_, err = userProvider.GetRole(ctx, roleID)
+	if err != nil {
+		// Role doesn't exist, create it
+		t.Logf("Creating system:root role for user %s", userID)
+		roleData := map[string]interface{}{
+			"role_id":     roleID,
+			"name":        "System Root",
+			"description": "System root role with full system access",
+			"permissions": []string{"system:root"},
+			"is_active":   true,
+		}
+		_, err = userProvider.CreateRole(ctx, roleData)
+		if err != nil {
+			t.Logf("Warning: Failed to create system:root role: %v", err)
+		}
+	}
+
+	// Assign system:root role to the user
+	err = userProvider.SetUserRole(ctx, userID, roleID)
+	if err != nil {
+		t.Logf("Warning: Failed to assign system:root role to user: %v", err)
+	} else {
+		t.Logf("Assigned system:root role to user %s", userID)
+	}
+
+	// Create subject (fingerprint) for this user
+	// This sets up the fingerprint mapping: clientID:subject -> userID
+	subject, err := oauthService.Subject(clientID, userID)
+	if err != nil {
+		t.Fatalf("Failed to create user subject: %v", err)
+	}
+
+	t.Logf("Created fingerprint mapping: clientID=%s, userID=%s, subject=%s", clientID, userID, subject)
+
+	// Add system:root to scope for full permissions
+	fullScope := scope
+	if scope != "" && !strings.Contains(scope, "system:root") {
+		fullScope = scope + " system:root"
+	} else if scope == "" {
+		fullScope = "system:root"
+	}
+
+	// Create access token with system:root scope
+	accessToken, err := oauthService.MakeAccessToken(clientID, fullScope, subject, 3600)
+	if err != nil {
+		t.Fatalf("Failed to create access token: %v", err)
+	}
+
+	// Create refresh token
+	refreshToken, err := oauthService.MakeRefreshToken(clientID, fullScope, subject, 7200)
+	if err != nil {
+		t.Fatalf("Failed to create refresh token: %v", err)
+	}
+
+	tokenInfo := &TokenInfo{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    3600,
+		Scope:        fullScope,
+		ClientID:     clientID,
+		UserID:       userID,
+	}
+
+	t.Logf("Issued token for user %s with scope: %s (subject: %s)", userID, fullScope, subject)
+	return tokenInfo
+}
+
+// createTestUser creates a test user and sets up proper fingerprint mapping for OAuth authentication
+func createTestUser(t *testing.T, server *openapi.OpenAPI, clientID string) (string, string) {
+	if server.OAuth == nil {
+		t.Fatal("OAuth service not initialized")
+	}
+
+	// Generate a unique test user ID
+	testUserID := fmt.Sprintf("test_user_%d", time.Now().UnixNano())
+
+	// Access the global OAuth service
+	oauthService := oauth.OAuth
+	if oauthService == nil {
+		t.Fatal("Global OAuth service not initialized")
+	}
+
+	// Create user in database with system:root role
+	userProvider, err := oauthService.GetUserProvider()
+	if err == nil && userProvider != nil {
+		ctx := context.Background()
+		roleID := "system:root"
+
+		// Ensure system:root role exists
+		_, err := userProvider.GetRole(ctx, roleID)
+		if err != nil {
+			// Role doesn't exist, create it
+			roleData := map[string]interface{}{
+				"role_id":     roleID,
+				"name":        "System Root",
+				"description": "System root role with full system access",
+				"permissions": []string{"system:root"},
+				"is_active":   true,
+			}
+			_, err = userProvider.CreateRole(ctx, roleData)
+			if err != nil {
+				t.Logf("Warning: Failed to create system:root role: %v", err)
+			}
+		}
+
+		// Create user in database with system:root role
+		userData := map[string]interface{}{
+			"user_id": testUserID,
+			"status":  "active",
+			"role_id": roleID,
+		}
+		_, err = userProvider.CreateUser(ctx, userData)
+		if err != nil {
+			t.Logf("Warning: Failed to create user in database: %v", err)
+		}
+	}
+
+	// Create subject (fingerprint) for this user using the concrete OAuth service
+	// This will set up the proper fingerprint mapping: clientID:subject -> userID
+	subject, err := oauthService.Subject(clientID, testUserID)
+	if err != nil {
+		t.Fatalf("Failed to create user subject: %v", err)
+	}
+
+	t.Logf("Created test user: %s with subject: %s", testUserID, subject)
+	return testUserID, subject
+}
+
+// GetUserProvider returns the UserProvider instance for direct database operations in tests.
+// This is useful for creating test data directly without going through API endpoints.
+//
+// USAGE:
+//
+//	provider := testutils.GetUserProvider(t)
+//	memberID, err := provider.CreateMember(ctx, memberData)
+//
+// ERROR HANDLING:
+// If the provider is not available, the test will fail immediately with a descriptive error message.
+func GetUserProvider(t *testing.T) types.UserProvider {
+	testMutex.RLock()
+	defer testMutex.RUnlock()
+
+	oauthService := oauth.OAuth
+	if oauthService == nil {
+		t.Fatal("Global OAuth service not initialized. Call Prepare(t) first.")
+	}
+
+	provider, err := oauthService.GetUserProvider()
+	if err != nil || provider == nil {
+		t.Fatalf("UserProvider not available: %v", err)
+	}
+
+	return provider
+}
