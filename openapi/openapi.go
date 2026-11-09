@@ -6,33 +6,24 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/openapi/agent"
 	"github.com/yaoapp/yao/openapi/app"
 	"github.com/yaoapp/yao/openapi/captcha"
-	"github.com/yaoapp/yao/openapi/chat"
-	openapiComputer "github.com/yaoapp/yao/openapi/computer"
 	"github.com/yaoapp/yao/openapi/dsl"
 	openapiEvent "github.com/yaoapp/yao/openapi/event"
 	"github.com/yaoapp/yao/openapi/file"
 	"github.com/yaoapp/yao/openapi/hello"
 	openintegrations "github.com/yaoapp/yao/openapi/integrations"
 	"github.com/yaoapp/yao/openapi/job"
-	"github.com/yaoapp/yao/openapi/llm"
 	"github.com/yaoapp/yao/openapi/mcp"
 	"github.com/yaoapp/yao/openapi/messenger"
-	"github.com/yaoapp/yao/openapi/nodes"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/otp"
 	"github.com/yaoapp/yao/openapi/response"
-	"github.com/yaoapp/yao/openapi/sandbox"
-	openAPISetting "github.com/yaoapp/yao/openapi/setting"
-	openapiTai "github.com/yaoapp/yao/openapi/tai"
 	"github.com/yaoapp/yao/openapi/team"
 	"github.com/yaoapp/yao/openapi/testmode"
 	"github.com/yaoapp/yao/openapi/user"
-	openapiWorkspace "github.com/yaoapp/yao/openapi/workspace"
 )
 
 // Server is the OpenAPI server
@@ -117,12 +108,6 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	// Well-known handlers
 	openapi.attachWellKnown(router)
 
-	// Models ( LLM Agent )
-	group.GET("/models", openapi.OAuth.Guard, agent.GetModels)
-
-	// Get Model Details ( LLM Agent )
-	group.GET("/models/:model_name", openapi.OAuth.Guard, agent.GetModelDetails)
-
 	// OAuth handlers
 	openapi.attachOAuth(group)
 
@@ -137,12 +122,6 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// Job Management handlers
 	job.Attach(group.Group("/job"), openapi.OAuth)
-
-	// Chat handlers
-	chat.Attach(group.Group("/chat"), openapi.OAuth)
-
-	// Experts chat completions (path-based assistant routing)
-	group.POST("/experts/:assistant_id/chat/completions", openapi.OAuth.Guard, chat.GinCreateCompletions)
 
 	// Captcha handlers
 	captcha.Attach(group.Group("/captcha"), openapi.OAuth)
@@ -162,12 +141,6 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	// System event WebSocket (top-level, not under /agent)
 	openapiEvent.Attach(group.Group("/events"), openapi.OAuth)
 
-	// Agent handlers
-	agent.Attach(group.Group("/agent"), openapi.OAuth)
-
-	// LLM Provider handlers
-	llm.Attach(group.Group("/llm"), openapi.OAuth)
-
 	// MCP Server handlers
 	mcp.Attach(group.Group("/mcp"), openapi.OAuth)
 
@@ -176,25 +149,6 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// OTP handlers (passwordless authentication)
 	otp.Attach(group.Group("/otp"), openapi.OAuth)
-
-	// Sandbox management handlers
-	sandboxGroup := group.Group("/sandbox")
-	sandbox.AttachManage(sandboxGroup, openapi.OAuth)
-
-	// Computer option handlers (for InputArea selector)
-	openapiComputer.Attach(group.Group("/computer"), openapi.OAuth)
-
-	// Workspace handlers
-	openapiWorkspace.Attach(group.Group("/workspace"), openapi.OAuth)
-
-	// Tai nodes handlers
-	nodes.Attach(group.Group("/nodes"), openapi.OAuth)
-
-	// Tai forward handlers (proxy + VNC, dispatches tunnel vs local)
-	openapiTai.Attach(group, openapi.OAuth)
-
-	// Setting handlers (unified /setting/* endpoints)
-	openAPISetting.Attach(group.Group("/setting"), openapi.OAuth)
 
 	// Test mode endpoints (public, no OAuth guard)
 	// Blocked unconditionally in production mode regardless of TestMode flag.

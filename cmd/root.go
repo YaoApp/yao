@@ -7,7 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/yao/cmd/agent"
 	yaodoc "github.com/yaoapp/yao/cmd/doc"
 	"github.com/yaoapp/yao/cmd/mcp"
 	"github.com/yaoapp/yao/cmd/robot"
@@ -134,18 +133,6 @@ var suiCmd = &cobra.Command{
 	},
 }
 
-var agentCmd = &cobra.Command{
-	Use:   "agent",
-	Short: L("Agent commands"),
-	Long:  L("Agent commands for testing and management"),
-	CompletionOptions: cobra.CompletionOptions{
-		DisableDefaultCmd: true,
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
-	},
-}
-
 var mcpCmd = &cobra.Command{
 	Use:   "mcp",
 	Short: L("MCP commands"),
@@ -198,15 +185,8 @@ func init() {
 	suiCmd.AddCommand(sui.WatchCmd)
 	suiCmd.AddCommand(sui.BuildCmd)
 	suiCmd.AddCommand(sui.TransCmd)
-	suiCmd.AddCommand(sui.TestCmd)
 
 	// Agent
-	agentCmd.AddCommand(agent.EvalCmd)
-	agentCmd.AddCommand(agent.ExtractCmd)
-	agentCmd.AddCommand(agent.AddCmd)
-	agentCmd.AddCommand(agent.UpdateCmd)
-	agentCmd.AddCommand(agent.PushCmd)
-	agentCmd.AddCommand(agent.ForkCmd)
 
 	// MCP
 	mcpCmd.AddCommand(mcp.AddCmd)
@@ -240,7 +220,6 @@ func init() {
 		// websocketCmd,
 		// packCmd,
 		suiCmd,
-		agentCmd,
 		mcpCmd,
 		robotCmd,
 		docCmd,

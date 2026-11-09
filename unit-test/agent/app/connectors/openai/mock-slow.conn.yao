@@ -1,9 +1,0 @@
-{
-  "label": "Mock Slow",
-  "type": "openai",
-  "options": {
-    "model": "mock-slow",
-    "host": "$ENV.MOCK_LLM_HOST",
-    "key": "mock-key-not-validated"
-  }
-}

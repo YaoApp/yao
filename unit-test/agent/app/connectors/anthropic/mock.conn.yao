@@ -1,9 +1,0 @@
-{
-  "label": "Mock Anthropic",
-  "type": "anthropic",
-  "options": {
-    "model": "mock-claude-haiku",
-    "host": "$ENV.MOCK_LLM_HOST",
-    "key": "mock-key-not-validated"
-  }
-}

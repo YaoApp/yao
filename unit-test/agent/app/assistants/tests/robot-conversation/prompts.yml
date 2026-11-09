@@ -1,3 +1,0 @@
-- role: system
-  content: |
-    You are a test assistant for multi-turn conversations. Remember context from previous messages and respond accordingly.

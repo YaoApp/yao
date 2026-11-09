@@ -19,19 +19,12 @@ import (
 
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
-	agenthandler "github.com/yaoapp/yao/grpc/agent"
 	apihandler "github.com/yaoapp/yao/grpc/api"
 	"github.com/yaoapp/yao/grpc/auth"
 	"github.com/yaoapp/yao/grpc/health"
-	llmhandler "github.com/yaoapp/yao/grpc/llm"
 	mcphandler "github.com/yaoapp/yao/grpc/mcp"
 	"github.com/yaoapp/yao/grpc/pb"
-	runhandler "github.com/yaoapp/yao/grpc/run"
-	sandboxhandler "github.com/yaoapp/yao/grpc/sandbox"
 	shellhandler "github.com/yaoapp/yao/grpc/shell"
-	"github.com/yaoapp/yao/tai/registry"
-	"github.com/yaoapp/yao/tai/tunnel"
-	"github.com/yaoapp/yao/tai/tunnel/taipb"
 )
 
 const maxGRPCMsgSize = 500 * 1024 * 1024 // 500 MB
@@ -45,14 +38,10 @@ var (
 
 type yaoServer struct {
 	pb.UnimplementedYaoServer
-	health  health.Handler
-	run     runhandler.Handler
-	shell   shellhandler.Handler
-	api     apihandler.Handler
-	mcp     mcphandler.Handler
-	llm     llmhandler.Handler
-	agent   agenthandler.Handler
-	sandbox *sandboxhandler.Handler
+	health health.Handler
+	shell  shellhandler.Handler
+	api    apihandler.Handler
+	mcp    mcphandler.Handler
 }
 
 // ── Health ───────────────────────────────────────────────────────────────────
@@ -63,16 +52,8 @@ func (s *yaoServer) Healthz(ctx context.Context, req *pb.Empty) (*pb.HealthzResp
 
 // ── Base ─────────────────────────────────────────────────────────────────────
 
-func (s *yaoServer) Run(ctx context.Context, req *pb.RunRequest) (*pb.RunResponse, error) {
-	return s.run.Run(ctx, req)
-}
-
 func (s *yaoServer) Shell(ctx context.Context, req *pb.ShellRequest) (*pb.ShellResponse, error) {
 	return s.shell.Shell(ctx, req)
-}
-
-func (s *yaoServer) Stream(req *pb.RunRequest, stream grpc.ServerStreamingServer[pb.Chunk]) error {
-	return s.run.Stream(req, stream)
 }
 
 func (s *yaoServer) ShellStream(req *pb.ShellRequest, stream grpc.ServerStreamingServer[pb.Chunk]) error {
@@ -105,45 +86,14 @@ func (s *yaoServer) MCPReadResource(ctx context.Context, req *pb.MCPResourceRequ
 
 // ── LLM ──────────────────────────────────────────────────────────────────────
 
-func (s *yaoServer) ChatCompletions(ctx context.Context, req *pb.ChatRequest) (*pb.ChatResponse, error) {
-	return s.llm.ChatCompletions(ctx, req)
-}
-
-func (s *yaoServer) ChatCompletionsStream(req *pb.ChatRequest, stream grpc.ServerStreamingServer[pb.ChatChunk]) error {
-	return s.llm.ChatCompletionsStream(req, stream)
-}
-
 // ── Agent ────────────────────────────────────────────────────────────────────
-
-func (s *yaoServer) AgentStream(req *pb.AgentRequest, stream grpc.ServerStreamingServer[pb.AgentChunk]) error {
-	return s.agent.AgentStream(req, stream)
-}
 
 // ── Sandbox ──────────────────────────────────────────────────────────────────
 
-func (s *yaoServer) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
-	if s.sandbox == nil {
-		return &pb.HeartbeatResponse{Action: "ok"}, nil
-	}
-	return s.sandbox.Heartbeat(ctx, req)
-}
-
 // SandboxHandler returns the sandbox handler for external access (e.g., Manager integration).
-func SandboxHandler() *sandboxhandler.Handler {
-	mu.Lock()
-	defer mu.Unlock()
-	return sandboxH
-}
-
-var sandboxH *sandboxhandler.Handler
-var tunnelH *tunnel.TunnelHandler
 
 // SetSandboxOnBeat sets the heartbeat callback for the sandbox handler.
 // Must be called before StartServer.
-func SetSandboxOnBeat(fn func(data *sandboxhandler.HeartbeatData) string) {
-	sandboxH = sandboxhandler.NewHandler(fn)
-}
-
 // ── Server lifecycle ─────────────────────────────────────────────────────────
 
 // StartServer initializes and starts the gRPC server based on config.
@@ -186,15 +136,7 @@ func StartServer(cfg config.Config) error {
 	}
 
 	server = grpc.NewServer(opts...)
-	if sandboxH == nil {
-		sandboxH = sandboxhandler.NewHandler(nil)
-	}
-	pb.RegisterYaoServer(server, &yaoServer{sandbox: sandboxH})
-
-	if reg := registry.Global(); reg != nil {
-		tunnelH = tunnel.NewTunnelHandler(reg)
-		taipb.RegisterTaiTunnelServer(server, tunnelH)
-	}
+	pb.RegisterYaoServer(server, &yaoServer{})
 
 	hosts := ExpandHosts(cfg.GRPC.Host)
 	port := strconv.Itoa(cfg.GRPC.Port)
@@ -265,12 +207,6 @@ func GRPCServer() *grpc.Server {
 }
 
 // TunnelHandler returns the gRPC tunnel handler for forward requests.
-func TunnelHandler() *tunnel.TunnelHandler {
-	mu.Lock()
-	defer mu.Unlock()
-	return tunnelH
-}
-
 // Addr returns all addresses the gRPC server is listening on.
 func Addr() []string {
 	mu.Lock()

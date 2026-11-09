@@ -1,9 +1,0 @@
-{
-  "name": "yao-audio",
-  "transport": "process",
-  "description": "Audio tools for speech-to-text transcription",
-  "tools": {
-    "audio_transcribe": "tools.audio_transcribe",
-    "audio_providers": "tools.audio_providers"
-  }
-}

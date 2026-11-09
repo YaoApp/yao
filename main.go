@@ -12,7 +12,6 @@ import (
 	_ "github.com/yaoapp/yao/rss"
 	_ "github.com/yaoapp/yao/seed"
 	_ "github.com/yaoapp/yao/sitemap"
-	_ "github.com/yaoapp/yao/tools"
 
 	"os"
 

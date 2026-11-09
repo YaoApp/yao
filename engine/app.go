@@ -16,8 +16,6 @@ import (
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/yao/agent"
-	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/i18n"
@@ -393,25 +391,6 @@ func processAppXgen(process *process.Process) interface{} {
 		"entry": {"admin": "/x/Welcome"},
 	}
 
-	// The default assistant
-	agentConfig := map[string]interface{}{}
-	ag := agent.GetAgent()
-	if ag != nil {
-		if ag.Uses != nil {
-			agentConfig["uses"] = ag.Uses
-		}
-
-		if ast, ok := ag.Assistant.(*assistant.Assistant); ok {
-			agentConfig["default"] = map[string]interface{}{
-				"assistant_id":         ast.ID,
-				"assistant_name":       ast.Name,
-				"assistant_avatar":     ast.Avatar,
-				"assistant_deleteable": false,
-				"placeholder":          ast.GetPlaceholder(lang),
-			}
-		}
-	}
-
 	// External tools availability (safe subset for frontend)
 	toolsConfig := map[string]interface{}{}
 	if share.Tools != nil {
@@ -487,7 +466,6 @@ func processAppXgen(process *process.Process) interface{} {
 		"token":     share.App.Token,
 		"optional":  share.App.Optional,
 		"login":     xgenLogin,
-		"agent":     agentConfig,
 		"tools":     toolsConfig,
 		"openapi":   openapiConfig,
 		"kb":        kbConfig,

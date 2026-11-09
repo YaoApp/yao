@@ -1,8 +1,0 @@
-{
-  "error": {
-    "message": "The model `invalid-model` does not exist or you do not have access to it.",
-    "type": "invalid_request_error",
-    "param": "model",
-    "code": "model_not_found"
-  }
-}

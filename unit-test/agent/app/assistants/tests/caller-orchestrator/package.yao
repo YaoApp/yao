@@ -1,5 +1,0 @@
-{
-  "name": "Caller Orchestrator",
-  "connector": "openai.mock",
-  "description": "Orchestrator agent that calls other agents via ctx.agent"
-}

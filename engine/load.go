@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -18,8 +17,6 @@ import (
 	gouPlugin "github.com/yaoapp/gou/plugin"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/yao/agent"
-	robotapi "github.com/yaoapp/yao/agent/robot/api"
 	"github.com/yaoapp/yao/api"
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/cert"
@@ -43,15 +40,12 @@ import (
 	"github.com/yaoapp/yao/plugin"
 	"github.com/yaoapp/yao/query"
 	"github.com/yaoapp/yao/runtime"
-	sandbox "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/setting"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/store"
 	sui "github.com/yaoapp/yao/sui/api"
-	"github.com/yaoapp/yao/tai"
-	"github.com/yaoapp/yao/tai/webproxy"
 	"github.com/yaoapp/yao/task"
 )
 
@@ -157,42 +151,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	// declaration. This is fast (exec.LookPath only) and must run before
 	// tai.InitLocal().
 	inspectRunners()
-
-	// Initialize the Tai registry, register local host node, then start the
-	// Sandbox manager (container recovery + cleanup loop).
-	err = loadStep("Registry", func() error {
-		dataDir := filepath.Join(cfg.DataRoot, "workspaces")
-		caps := tai.InitLocal(config.LogOutput, cfg.LogMode, dataDir)
-		if !caps.Docker {
-			log.Println("[Registry] Docker not available")
-		}
-		if caps.HostExec {
-			log.Println("[Registry] Host execution enabled (YAO_HOST_EXEC=true)")
-		}
-		sandbox.Init()
-		return sandbox.M().Start(context.Background())
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Registry", Error: err})
-	}
-
-	// Initialize the WebProxy service for container port forwarding.
-	if cfg.WebProxy.Enabled != "false" && cfg.WebProxy.Enabled != "off" {
-		loadStep("WebProxy", func() error {
-			webproxy.Init(webproxy.Config{
-				PortRangeStart: cfg.WebProxy.PortRangeStart,
-				PortRangeEnd:   cfg.WebProxy.PortRangeEnd,
-				MaxPerTarget:   cfg.WebProxy.MaxPerTarget,
-				IdleTimeout:    webproxy.ParseIdleTimeout(cfg.WebProxy.IdleTimeout),
-				Domain:         cfg.WebProxy.Domain,
-				Prefix:         cfg.WebProxy.Prefix,
-			})
-			sandbox.M().OnRemove(func(sandboxID string) {
-				webproxy.WP().UnbindAll(sandboxID)
-			})
-			return nil
-		}, callback)
-	}
 
 	// Load Commercial License
 	loadStep("License", func() error {
@@ -371,35 +329,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "MCP", Error: err})
 	}
 
-	// Load Agent
-	err = loadStep("Agent", func() error {
-		return agent.Load(cfg)
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Agent", Error: err})
-	}
-
-	// Start Robot Agent System (async, non-blocking)
-	// This starts the robot scheduler for autonomous mode robots
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("[Robot Agent] Warning: recovered panic in robot agent system: %v", r)
-			}
-		}()
-		if err := robotapi.Start(); err != nil {
-			log.Printf("[Robot Agent] Warning: failed to start robot agent system: %v", err)
-		}
-	}()
-
-	// Register cleanup hook so test.Clean() can stop background goroutines
-	// before closing the database, preventing "sql: database is closed" panics.
-	share.OnCleanup = func() {
-		if robotapi.IsRunning() {
-			robotapi.Stop()
-		}
-	}
-
 	// Initialize LLM Provider Registry (legacy, kept for 1.x API routes)
 	err = loadStep("LLM Provider", func() error {
 		return llmprovider.Init()
@@ -424,11 +353,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "Setting Registry", Error: err})
 	}
 
-	// Sync agent.yml system defaults into setting.Global (must run after llmprovider + setting init)
-	if err := agent.SyncLLMDefaults(); err != nil {
-		warnings = append(warnings, Warning{Widget: "LLM Defaults Sync", Error: err})
-	}
-
 	// Initialize new LLM package (DB-backed, replaces KV store).
 	// Runs after setting.Init + SyncLLMDefaults so that MigrateRoles can
 	// read "llm.roles" from setting.Global.
@@ -440,14 +364,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	}, callback)
 	if err != nil {
 		warnings = append(warnings, Warning{Widget: "LLM", Error: err})
-	}
-
-	if err := agent.SyncSearchDefaults(); err != nil {
-		warnings = append(warnings, Warning{Widget: "Search Defaults Sync", Error: err})
-	}
-
-	if err := agent.SyncOCRDefaults(); err != nil {
-		warnings = append(warnings, Warning{Widget: "OCR Defaults Sync", Error: err})
 	}
 
 	for name, hook := range LoadHooks {
@@ -490,13 +406,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 // Unload application engine
 func Unload() (err error) {
 	defer func() { err = exception.Catch(recover()) }()
-
-	// Stop Robot Agent System
-	if robotapi.IsRunning() {
-		if stopErr := robotapi.Stop(); stopErr != nil {
-			log.Printf("[Robot Agent] Warning: failed to stop robot agent system: %v", stopErr)
-		}
-	}
 
 	// Stop Monitor Service (before event, so watchers can still push events)
 	monitor.Stop()
@@ -662,12 +571,6 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 		printErr(cfg.Mode, "MCP", err)
 	}
 
-	// Load Agent
-	err = agent.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Agent", err)
-	}
-
 	// Reload LLM Provider Registry (legacy)
 	if llmprovider.Global != nil {
 		err = llmprovider.Global.Reload()
@@ -707,11 +610,6 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 		}
 	}
 
-	// Sync agent.yml system defaults into setting.Global (must run after llmprovider + setting init)
-	if err := agent.SyncLLMDefaults(); err != nil {
-		printErr(cfg.Mode, "LLM Defaults Sync", err)
-	}
-
 	// Reload new LLM registry (after setting + SyncLLMDefaults)
 	if llm.Global != nil {
 		err = llm.Global.Reload()
@@ -723,14 +621,6 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 		if err != nil {
 			printErr(cfg.Mode, "LLM", err)
 		}
-	}
-
-	if err := agent.SyncSearchDefaults(); err != nil {
-		printErr(cfg.Mode, "Search Defaults Sync", err)
-	}
-
-	if err := agent.SyncOCRDefaults(); err != nil {
-		printErr(cfg.Mode, "OCR Defaults Sync", err)
 	}
 
 	// Load OpenAPI

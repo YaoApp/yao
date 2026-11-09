@@ -17,22 +17,10 @@ WIN_CC  = clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
 WIN_CXX = clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|registry|agent/sandbox/v2' | awk '!/\/tests\// || /openapi\/tests/' | grep -vE 'openapi/tests/(nodes|sandbox|workspace)')
-# Sandbox setting tests (openapi/tests/setting/sandbox_test.go) require Docker + Tai — skipped in CI, run locally only
-# Core tests (exclude AI-related: agent, openai, sandbox, registry, grpc, and integrations which require external services)
-TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|sandbox|integrations|registry|tai|grpc' | awk '!/\/tests\// || /openapi\/tests/' | grep -vE 'openapi/tests/(nodes|sandbox|workspace)')
-# Agent tests - exclude agent/search/handlers/web (requires external API keys), robot packages (tested in robot job), and agent/sandbox/v2 (WIP, has its own job)
-TESTFOLDER_AGENT := $(shell $(GO) list ./agent/... | grep -vE 'agent/search/handlers/web|agent/robot/|agent/sandbox/v2')
-# Robot tests (agent/robot/... packages, excluding events/integrations which require Telegram etc.)
-TESTFOLDER_ROBOT := $(shell $(GO) list ./agent/robot/... | grep -vE 'agent/robot/events')
-# Sandbox tests (requires Docker) — excludes sandbox/v2 (has its own job)
-TESTFOLDER_SANDBOX := $(shell $(GO) list ./sandbox/... | grep -v 'sandbox/v2')
-# Tai SDK tests (requires Tai container with Docker socket)
-TESTFOLDER_TAI := $(shell $(GO) list ./tai/...)
-# Workspace tests (requires Tai for remote mode)
-TESTFOLDER_WORKSPACE := $(shell $(GO) list ./workspace/...)
+TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|registry')
+# Core tests (exclude AI-related and integrations which require external services)
+TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|integrations|registry|grpc')
 # gRPC tests
-TESTFOLDER_GRPC := $(shell $(GO) list ./grpc/...)
 TESTTAGS ?= ""
 
 # Unit Test (all tests)
@@ -108,72 +96,6 @@ unit-test-core-windows: deps
 		-skip='TestMemoryLeak|TestIsolateDisposal|TestLeak_|TestScenario_|TestSandbox' \
 		$(TESTFOLDER_CORE)
 
-# Agent Unit Test - excludes robot packages (tested in unit-test-robot) and TestE2E*
-.PHONY: unit-test-agent
-unit-test-agent: deps
-	echo "mode: count" > coverage.out
-	for d in $(TESTFOLDER_AGENT); do \
-		$(GO) test -tags $(TESTTAGS) -v -timeout=50m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal|TestE2E' $$d > tmp.out; \
-		cat tmp.out; \
-		if grep -q "^--- FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^panic:" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "build failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "setup failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "runtime error" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		fi; \
-		if [ -f profile.out ]; then \
-			cat profile.out | grep -v "mode:" >> coverage.out; \
-			rm profile.out; \
-		fi; \
-	done
-
-# Robot Test (all agent/robot/... packages) - runs ALL tests (unit + E2E) with real LLM calls
-# These tests require: LLM API keys, database, and longer timeout
-.PHONY: unit-test-robot
-unit-test-robot: deps
-	echo "mode: count" > coverage.out
-	for d in $(TESTFOLDER_ROBOT); do \
-		$(GO) test -tags $(TESTTAGS) -v -timeout=50m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal' $$d > tmp.out; \
-		cat tmp.out; \
-		if grep -q "^--- FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^panic:" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "build failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "setup failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "runtime error" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		fi; \
-		if [ -f profile.out ]; then \
-			cat profile.out | grep -v "mode:" >> coverage.out; \
-			rm profile.out; \
-		fi; \
-	done
-
-# Registry Client Test (requires Yao Registry service)
 .PHONY: unit-test-registry
 unit-test-registry: deps
 	echo "mode: count" > coverage.out
@@ -194,197 +116,20 @@ unit-test-registry: deps
 		rm profile.out; \
 	fi
 
-# ---------------------------------------------------------------------------
-# Sandbox V2 CI Test (tai SDK + workspace only)
-# Full sandbox/v2 integration tests (multi-pool, K8s, etc.) are run locally.
-# ---------------------------------------------------------------------------
 
-.PHONY: unit-test-sandbox-v2
-unit-test-sandbox-v2: deps unit-test-tai unit-test-workspace
-	@echo ""
-	@echo "============================================="
-	@echo "All Sandbox V2 CI tests passed (tai + workspace)"
-	@echo "============================================="
-
-# Workspace Unit Test (requires Tai for remote mode)
-.PHONY: unit-test-workspace
-unit-test-workspace: deps
-	@echo ""
-	@echo "============================================="
-	@echo "Running Workspace Tests..."
-	@echo "============================================="
-	echo "mode: count" > coverage.out
-	for d in $(TESTFOLDER_WORKSPACE); do \
-		$(GO) test -tags $(TESTTAGS) -v -timeout=10m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") $$d > tmp.out; \
-		cat tmp.out; \
-		if grep -q "^--- FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^panic:" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "build failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "setup failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "runtime error" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		fi; \
-		if [ -f profile.out ]; then \
-			cat profile.out | grep -v "mode:" >> coverage.out; \
-			rm profile.out; \
-		fi; \
-	done
-	@echo ""
-	@echo "============================================="
-	@echo "All workspace tests passed"
-	@echo "============================================="
-
-# Sandbox Unit Test (requires Docker)
-.PHONY: unit-test-sandbox
-unit-test-sandbox: deps
-	@echo ""
-	@echo "============================================="
-	@echo "Running Sandbox Tests (requires Docker)..."
-	@echo "============================================="
-	@echo "Pulling sandbox test images..."
-	docker pull alpine:latest || true
-	docker pull yaoapp/sandbox-base:latest || true
-	docker pull yaoapp/sandbox-claude:latest || true
-	@echo ""
-	echo "mode: count" > coverage.out
-	for d in $(TESTFOLDER_SANDBOX); do \
-		$(GO) test -tags $(TESTTAGS) -v -timeout=10m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal' $$d > tmp.out; \
-		cat tmp.out; \
-		if grep -q "^--- FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^panic:" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "build failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "setup failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "runtime error" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		fi; \
-		if [ -f profile.out ]; then \
-			cat profile.out | grep -v "mode:" >> coverage.out; \
-			rm profile.out; \
-		fi; \
-	done
-	@echo ""
-	@echo "============================================="
-	@echo "✅ All sandbox tests passed"
-	@echo "============================================="
-
-# Tai SDK Test (requires Tai container with Docker socket)
-.PHONY: unit-test-tai
-unit-test-tai: deps
-	@echo ""
-	@echo "============================================="
-	@echo "Running Tai SDK Tests (requires Tai container)..."
-	@echo "============================================="
-	echo "mode: count" > coverage.out
-	for d in $(TESTFOLDER_TAI); do \
-		$(GO) test -tags $(TESTTAGS) -v -timeout=5m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") $$d > tmp.out; \
-		cat tmp.out; \
-		if grep -q "^--- FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^panic:" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "build failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "setup failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "runtime error" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		fi; \
-		if [ -f profile.out ]; then \
-			cat profile.out | grep -v "mode:" >> coverage.out; \
-			rm profile.out; \
-		fi; \
-	done
-	@echo ""
-	@echo "============================================="
-	@echo "All Tai SDK tests passed"
-	@echo "============================================="
-
-# Proto codegen
 .PHONY: proto
 proto:
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		grpc/pb/yao.proto
-	protoc --go_out=. --go_opt=paths=source_relative \
-		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-		tai/volume/pb/volume.proto
 
-# gRPC Unit Test
-.PHONY: unit-test-grpc
-unit-test-grpc: deps
-	echo "mode: count" > coverage.out
-	for d in $(TESTFOLDER_GRPC); do \
-		$(GO) test -tags $(TESTTAGS) -v -timeout=10m \
-			-covermode=count -coverprofile=profile.out \
-			-coverpkg=$$(echo $$d | sed "s/\/test$$//g") \
-			-skip='TestMemoryLeak|TestIsolateDisposal|TestLeak_|TestScenario_' \
-			$$d > tmp.out; \
-		cat tmp.out; \
-		if grep -q "^--- FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^panic:" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "build failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "setup failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "runtime error" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		fi; \
-		if [ -f profile.out ]; then \
-			cat profile.out | grep -v "mode:" >> coverage.out; \
-			rm profile.out; \
-		fi; \
-	done
-
-# Benchmark Test
 .PHONY: benchmark
 benchmark: deps
 	@echo ""
 	@echo "============================================="
-	@echo "Running Benchmark Tests (agent, trace, event)..."
+	@echo "Running Benchmark Tests (trace, event)..."
 	@echo "============================================="
-	@for d in $$($(GO) list ./agent/... ./trace/... ./event/...); do \
+	@for d in $$($(GO) list ./trace/... ./event/...); do \
 		if $(GO) test -list=Benchmark $$d 2>/dev/null | grep -q "^Benchmark"; then \
 			echo ""; \
 			echo "📊 Benchmarking: $$d"; \
@@ -402,9 +147,9 @@ benchmark: deps
 memory-leak: deps
 	@echo ""
 	@echo "============================================="
-	@echo "Running Memory Leak Detection (agent, trace, event)..."
+	@echo "Running Memory Leak Detection (trace, event)..."
 	@echo "============================================="
-	@for d in $$($(GO) list ./agent/... ./trace/... ./event/...); do \
+	@for d in $$($(GO) list ./trace/... ./event/...); do \
 		if $(GO) test -list='TestMemoryLeak|TestIsolateDisposal|TestGoroutineLeak|TestLeak_|TestScenario_' $$d 2>/dev/null | grep -qE "^Test(MemoryLeak|IsolateDisposal|GoroutineLeak|Leak_|Scenario_)"; then \
 			echo ""; \
 			echo "🔍 Memory Leak Detection: $$d"; \
