@@ -1,21 +1,10 @@
 #!/bin/bash
 cd /app && \
-git clone https://github.com/yaoapp/kun.git /app/kun && \
-git clone https://github.com/yaoapp/xun.git /app/xun && \
-git clone https://github.com/yaoapp/gou.git /app/gou && \
-git clone https://github.com/yaoapp/v8go.git /app/v8go && \
 git clone https://github.com/yaoapp/cui.git /app/cui-v1.0 && \
 git clone https://github.com/yaoapp/yao-init.git /app/yao-init && \
 git clone https://github.com/yaoapp/yao.git /app/yao
 
-
-files=$(find /app/v8go -name "libv8*.zip")
-for file in $files; do
-    dir=$(dirname "$file")  # Get the directory where the ZIP file is located
-    echo "Extracting $file to directory $dir"
-    unzip -o -d $dir $file
-    rm -rf $dir/__MACOSX
-done
+# yao/go.mod 现在直接依赖发布版 gou / v8go；make deps 会准备 v8go 原生库
         
 
 cd /app/yao && \

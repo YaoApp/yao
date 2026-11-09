@@ -11,6 +11,7 @@ on:
       - completed
 
 env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
   VERSION: 0.10.5
 jobs:
   build:

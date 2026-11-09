@@ -1,4 +1,7 @@
 name: Update CDN latest.json
+env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
+
 
 # Assembles yao/latest.json after all platform binaries are on R2.
 #

@@ -1,4 +1,7 @@
 name: Notarize macOS
+env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
+
 
 on:
   workflow_run:

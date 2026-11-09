@@ -16,6 +16,7 @@ FROM ubuntu:24.04
 WORKDIR /app
 ADD build.sh /app/build.sh
 ENV PATH=$PATH:/usr/local/go/bin:/root/go/bin
+ENV CGO_CXXFLAGS="-Wno-template-id-cdtor -Wno-unknown-warning-option"
 
 RUN apt-get update && \
     apt-get install -y libc6-armel-cross libc6-dev-armel-cross binutils-arm-linux-gnueabi libncurses5-dev build-essential bison flex libssl-dev bc && \
@@ -30,10 +31,10 @@ RUN apt-get update && \
     apt-get install -y unzip && \
     apt-get install -y upx 
 
-# Install Go 1.25.0 
-RUN wget https://golang.org/dl/go1.25.0.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz && \
-    rm go1.25.0.linux-amd64.tar.gz
+# Install Go 1.26.10 
+RUN wget https://golang.org/dl/go1.26.10.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.26.10.linux-amd64.tar.gz && \
+    rm go1.26.10.linux-amd64.tar.gz
 
 # Install Node.js 22.x
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \

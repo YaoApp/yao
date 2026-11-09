@@ -7,6 +7,7 @@ on:
         description: "Version tags"
 
 env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
   VERSION: 1.0.0
 
 jobs:
@@ -34,40 +35,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/kun
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/xun
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/gou
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")  # Get the directory where the ZIP file is located
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
       - name: Checkout CUI v1.0
         #  ** XGEN will be renamed to CUI in the feature. and move to the new repository. **
         #  ** new repository: https://github.com/YaoApp/cui.git **
@@ -84,10 +51,6 @@ jobs:
 
       - name: Move Kun, Xun, Gou, UI, V8Go
         run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
           mv cui-v1.0 ../
           mv yao-init ../
           rm -f ../cui-v1.0/packages/setup/vite.config.ts.*

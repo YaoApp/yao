@@ -12,6 +12,7 @@ on:
       - ".github/actions/setup-yao/**"
 
 env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
   REPO_KUN: ${{ github.repository_owner }}/kun
   REPO_XUN: ${{ github.repository_owner }}/xun
   REPO_GOU: ${{ github.repository_owner }}/gou

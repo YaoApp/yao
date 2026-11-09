@@ -6,6 +6,7 @@ on:
     branches: [main]
 
 env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
   YAO_DEV: ${{ github.WORKSPACE }}
   YAO_ENV: development
   YAO_ROOT: ${{ github.WORKSPACE }}/../app
@@ -158,31 +159,6 @@ jobs:
 
     steps:
       # ── 1. Checkout dependency repos ─────────────────────────────────
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_KUN }}
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_XUN }}
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_GOU }}
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          lfs: true
-          path: v8go
-
       - name: Checkout Demo App
         uses: actions/checkout@v4
         with:
@@ -203,26 +179,9 @@ jobs:
           repository: yaoapp/yao-extensions-dev
           path: extension
 
-      # ── 2. Unzip libv8 ──────────────────────────────────────────────
-      - name: Unzip libv8
-        shell: bash
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d "$dir" "$file"
-            rm -rf "$dir/__MACOSX"
-          done
-
-      # ── 3. Move deps to parent directory ────────────────────────────
       - name: Move dependencies
         shell: bash
         run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
           mv app ../
           mv extension ../
           mv yao-startup-webapp ../

@@ -9,6 +9,7 @@ on:
     branches: [main]
 
 env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
   YAO_DEV: ${{ github.WORKSPACE }}
   YAO_ENV: development
   YAO_ROOT: ${{ github.WORKSPACE }}/../app
@@ -206,40 +207,6 @@ jobs:
         go: ["1.25"]
         db: [MySQL8.0, SQLite3, Postgres14.0]
     steps:
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_KUN }}
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_XUN }}
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_GOU }}
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
       - name: Checkout Demo App
         uses: actions/checkout@v4
         with:
@@ -254,10 +221,6 @@ jobs:
 
       - name: Move Dependencies
         run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
           mv app ../
           mv extension ../
 
@@ -352,40 +315,6 @@ jobs:
         redis: [6]
         mongo: ["6.0"]
     steps:
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_KUN }}
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_XUN }}
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_GOU }}
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")  # Get the directory where the ZIP file is located
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
       - name: Checkout Demo App
         uses: actions/checkout@v4
         with:
@@ -408,10 +337,6 @@ jobs:
 
       - name: Move Kun, Xun, Gou, V8Go, Extension
         run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
           mv app ../
           mv extension ../
           mv yao-startup-webapp ../
@@ -563,40 +488,6 @@ jobs:
             sleep 1
           done
 
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_KUN }}
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_XUN }}
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_GOU }}
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
       - name: Checkout Demo App
         uses: actions/checkout@v4
         with:
@@ -611,10 +502,6 @@ jobs:
 
       - name: Move Dependencies
         run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
           mv app ../
           mv extension ../
 
@@ -656,40 +543,6 @@ jobs:
       matrix:
         go: ["1.25"]
     steps:
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_KUN }}
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_XUN }}
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REPO_GOU }}
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
       - name: Checkout Demo App
         uses: actions/checkout@v4
         with:
@@ -704,10 +557,6 @@ jobs:
 
       - name: Move Dependencies
         run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
           mv app ../
           mv extension ../
 

@@ -1,5 +1,5 @@
 name: "Setup Yao Build Environment"
-description: "Checkout dependency repos, setup Go toolchain, and install build tools (v1.0.0)"
+description: "Setup Go toolchain, prepare v8go native libs, and install build tools"
 
 inputs:
   go-version:
@@ -28,40 +28,6 @@ runs:
   using: "composite"
   steps:
     # -- Dependency repositories --
-    - name: Checkout Kun
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ inputs.repo-kun }}
-        path: kun
-
-    - name: Checkout Xun
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ inputs.repo-xun }}
-        path: xun
-
-    - name: Checkout Gou
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ inputs.repo-gou }}
-        path: gou
-
-    - name: Checkout V8Go
-      uses: actions/checkout@v4
-      with:
-        repository: yaoapp/v8go
-        path: v8go
-
-    - name: Unzip libv8
-      shell: bash
-      run: |
-        for file in $(find ./v8go -name "libv8*.zip"); do
-          dir=$(dirname "$file")
-          echo "Extracting $file to $dir"
-          unzip -o -d "$dir" "$file"
-          rm -rf "$dir/__MACOSX"
-        done
-
     - name: Checkout Demo App
       if: ${{ inputs.checkout-app == 'true' }}
       uses: actions/checkout@v4
@@ -86,10 +52,6 @@ runs:
     - name: Move Dependencies
       shell: bash
       run: |
-        mv kun ../
-        mv xun ../
-        mv gou ../
-        mv v8go ../
         [ -d app ] && mv app ../ || true
         mv extension ../
         [ -d yao-init ] && mv yao-init ../ || true
@@ -107,6 +69,10 @@ runs:
       uses: actions/setup-go@v5
       with:
         go-version: ${{ inputs.go-version }}
+
+    - name: Prepare v8go native libs
+      shell: bash
+      run: go run ./scripts/v8godeps
 
     - name: Setup Go Tools
       shell: bash

@@ -1,4 +1,7 @@
 name: Release macOS
+env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
+
 
 on:
   push:
@@ -33,40 +36,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/kun
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/xun
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/gou
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
       - name: Checkout CUI v1.0
         uses: actions/checkout@v4
         with:
@@ -81,10 +50,6 @@ jobs:
 
       - name: Move Dependencies
         run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
           mv cui-v1.0 ../
           mv yao-init ../
           rm -f ../cui-v1.0/packages/setup/vite.config.ts.*

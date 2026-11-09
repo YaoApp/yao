@@ -1,4 +1,7 @@
 GO ?= go
+# v8go 的 C++ 头文件在 C++20 下有 -Wtemplate-id-cdtor 兼容性告警（仅编译期噪声）；
+# 这里定向关闭，保留其它警告。第二个参数用于容忍 clang 不认识 GCC 告警名。
+export CGO_CXXFLAGS ?= -Wno-template-id-cdtor -Wno-unknown-warning-option
 GIT ?= git
 GOFMT ?= gofmt "-s"
 PACKAGES ?= $(shell $(GO) list ./...)
@@ -34,7 +37,7 @@ TESTTAGS ?= ""
 
 # Unit Test (all tests)
 .PHONY: unit-test
-unit-test:
+unit-test: deps
 	echo "mode: count" > coverage.out
 	for d in $(TESTFOLDER); do \
 		$(GO) test -tags $(TESTTAGS) -v -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal|TestLeak_|TestScenario_|TestSandbox' $$d > tmp.out; \
@@ -66,7 +69,7 @@ unit-test:
 
 # Core Unit Test (exclude AI-related tests)
 .PHONY: unit-test-core
-unit-test-core:
+unit-test-core: deps
 	echo "mode: count" > coverage.out
 	for d in $(TESTFOLDER_CORE); do \
 		$(GO) test -tags $(TESTTAGS) -v -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal|TestLeak_|TestScenario_|TestSandbox' $$d > tmp.out; \
@@ -100,14 +103,14 @@ unit-test-core:
 # Uses the same package list as unit-test-core but runs all packages in one go test call.
 # -p 1 prevents parallel package execution (avoids PG DDL races).
 .PHONY: unit-test-core-windows
-unit-test-core-windows:
+unit-test-core-windows: deps
 	$(GO) test -tags $(TESTTAGS) -v -p 1 -timeout 600s \
 		-skip='TestMemoryLeak|TestIsolateDisposal|TestLeak_|TestScenario_|TestSandbox' \
 		$(TESTFOLDER_CORE)
 
 # Agent Unit Test - excludes robot packages (tested in unit-test-robot) and TestE2E*
 .PHONY: unit-test-agent
-unit-test-agent:
+unit-test-agent: deps
 	echo "mode: count" > coverage.out
 	for d in $(TESTFOLDER_AGENT); do \
 		$(GO) test -tags $(TESTTAGS) -v -timeout=50m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal|TestE2E' $$d > tmp.out; \
@@ -140,7 +143,7 @@ unit-test-agent:
 # Robot Test (all agent/robot/... packages) - runs ALL tests (unit + E2E) with real LLM calls
 # These tests require: LLM API keys, database, and longer timeout
 .PHONY: unit-test-robot
-unit-test-robot:
+unit-test-robot: deps
 	echo "mode: count" > coverage.out
 	for d in $(TESTFOLDER_ROBOT); do \
 		$(GO) test -tags $(TESTTAGS) -v -timeout=50m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal' $$d > tmp.out; \
@@ -172,7 +175,7 @@ unit-test-robot:
 
 # Registry Client Test (requires Yao Registry service)
 .PHONY: unit-test-registry
-unit-test-registry:
+unit-test-registry: deps
 	echo "mode: count" > coverage.out
 	$(GO) test -v -p 1 -timeout=5m -covermode=count -coverprofile=profile.out ./registry/... > tmp.out; \
 	cat tmp.out; \
@@ -197,7 +200,7 @@ unit-test-registry:
 # ---------------------------------------------------------------------------
 
 .PHONY: unit-test-sandbox-v2
-unit-test-sandbox-v2: unit-test-tai unit-test-workspace
+unit-test-sandbox-v2: deps unit-test-tai unit-test-workspace
 	@echo ""
 	@echo "============================================="
 	@echo "All Sandbox V2 CI tests passed (tai + workspace)"
@@ -205,7 +208,7 @@ unit-test-sandbox-v2: unit-test-tai unit-test-workspace
 
 # Workspace Unit Test (requires Tai for remote mode)
 .PHONY: unit-test-workspace
-unit-test-workspace:
+unit-test-workspace: deps
 	@echo ""
 	@echo "============================================="
 	@echo "Running Workspace Tests..."
@@ -245,7 +248,7 @@ unit-test-workspace:
 
 # Sandbox Unit Test (requires Docker)
 .PHONY: unit-test-sandbox
-unit-test-sandbox:
+unit-test-sandbox: deps
 	@echo ""
 	@echo "============================================="
 	@echo "Running Sandbox Tests (requires Docker)..."
@@ -290,7 +293,7 @@ unit-test-sandbox:
 
 # Tai SDK Test (requires Tai container with Docker socket)
 .PHONY: unit-test-tai
-unit-test-tai:
+unit-test-tai: deps
 	@echo ""
 	@echo "============================================="
 	@echo "Running Tai SDK Tests (requires Tai container)..."
@@ -340,7 +343,7 @@ proto:
 
 # gRPC Unit Test
 .PHONY: unit-test-grpc
-unit-test-grpc:
+unit-test-grpc: deps
 	echo "mode: count" > coverage.out
 	for d in $(TESTFOLDER_GRPC); do \
 		$(GO) test -tags $(TESTTAGS) -v -timeout=10m \
@@ -376,7 +379,7 @@ unit-test-grpc:
 
 # Benchmark Test
 .PHONY: benchmark
-benchmark:
+benchmark: deps
 	@echo ""
 	@echo "============================================="
 	@echo "Running Benchmark Tests (agent, trace, event)..."
@@ -396,7 +399,7 @@ benchmark:
 
 # Memory Leak Detection Test
 .PHONY: memory-leak
-memory-leak:
+memory-leak: deps
 	@echo ""
 	@echo "============================================="
 	@echo "Running Memory Leak Detection (agent, trace, event)..."
@@ -416,7 +419,7 @@ memory-leak:
 
 # Run all tests (unit + benchmark + memory leak)
 .PHONY: test
-test: unit-test benchmark memory-leak
+test: deps unit-test benchmark memory-leak
 
 .PHONY: fmt
 fmt:
@@ -516,7 +519,7 @@ bindata:
 
 # make artifacts-linux
 .PHONY: artifacts-linux
-artifacts-linux: clean
+artifacts-linux: deps clean
 	mkdir -p dist/release
 
 #	Building CUI v1.0
@@ -584,7 +587,7 @@ artifacts-linux: clean
 
 # make artifacts-macos
 .PHONY: artifacts-macos
-artifacts-macos: clean
+artifacts-macos: deps clean
 
 	mkdir -p dist/release
 
@@ -640,7 +643,7 @@ artifacts-macos: clean
 
 # make artifacts-windows
 .PHONY: artifacts-windows
-artifacts-windows: clean
+artifacts-windows: deps clean
 	mkdir -p dist/release
 
 #	Building CUI v1.0
@@ -953,3 +956,6 @@ clean:
 	rm -rf ./tmp
 	rm -rf .tmp
 	rm -rf dist
+.PHONY: deps
+deps:
+	go run ./scripts/v8godeps

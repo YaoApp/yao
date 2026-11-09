@@ -7,6 +7,7 @@ on:
         description: "Version"
 
 env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
   CI_VERSION: "1.0.0"
   REPO_KUN: ${{ github.repository_owner }}/kun
   REPO_XUN: ${{ github.repository_owner }}/xun

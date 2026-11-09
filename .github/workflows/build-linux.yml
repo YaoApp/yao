@@ -1,4 +1,7 @@
 name: Build Linux Artifacts
+env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
+
 
 on:
   workflow_dispatch:

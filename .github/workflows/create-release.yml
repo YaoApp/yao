@@ -1,4 +1,7 @@
 name: Create Release
+env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
+
 
 on:
   push:

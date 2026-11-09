@@ -1,4 +1,7 @@
 name: Receive PR
+env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
+
 
 # read-only repo token
 # no access to secrets

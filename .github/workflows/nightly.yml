@@ -23,6 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
   NIGHTLY_TAG: nightly
   BASE_VERSION: "2.0.0"
 
@@ -147,40 +148,6 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm@8
 
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/kun
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/xun
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/gou
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
       - name: Checkout CUI v1.0
         uses: actions/checkout@v4
         with:
@@ -195,10 +162,6 @@ jobs:
 
       - name: Move Dependencies
         run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
           mv cui-v1.0 ../
           mv yao-init ../
           rm -f ../cui-v1.0/packages/setup/vite.config.ts.*
@@ -312,42 +275,6 @@ jobs:
       CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
       VERSION: ${{ needs.check.outputs.version }}
     steps:
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/kun
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/xun
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/gou
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          lfs: true
-          path: v8go
-
-      - name: Unzip libv8
-        shell: bash
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d "$dir" "$file"
-            rm -rf "$dir/__MACOSX"
-          done
-
       - name: Checkout CUI v1.0
         uses: actions/checkout@v4
         with:
@@ -363,10 +290,6 @@ jobs:
       - name: Move Dependencies
         shell: bash
         run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
           mv cui-v1.0 ../
           mv yao-init ../
           rm -f ../cui-v1.0/packages/setup/vite.config.ts.*
@@ -437,22 +360,10 @@ jobs:
 
           # Clone dependencies
           cd /app
-          git clone https://github.com/yaoapp/kun.git /app/kun
-          git clone https://github.com/yaoapp/xun.git /app/xun
-          git clone https://github.com/yaoapp/gou.git /app/gou
-          git clone https://github.com/yaoapp/v8go.git /app/v8go
           git clone https://github.com/yaoapp/cui.git /app/cui-v1.0
           git clone https://github.com/yaoapp/yao-init.git /app/yao-init
           git clone https://github.com/yaoapp/yao.git /app/yao
 
-          # Extract libv8
-          files=$(find /app/v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
 
           # Set nightly version
           cd /app/yao
