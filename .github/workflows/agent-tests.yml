@@ -23,6 +23,9 @@ concurrency:
   group: agent-tests-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
+
 jobs:
   agent-e2e:
     name: ${{ matrix.os }} / ${{ matrix.db }}
@@ -154,6 +157,8 @@ jobs:
 
       - name: Run new module E2E tests
         shell: bash
+        env:
+          CGO_CFLAGS: ${{ runner.os == 'Linux' && '-Wno-discarded-qualifiers' || '' }}
         run: |
           go test -tags=e2e -v -count=1 -timeout 15m \
             ./modules/... \
