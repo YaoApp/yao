@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	kunlog "github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/e2e"
@@ -42,6 +43,7 @@ type Environment struct {
 	httpServer *http.Server
 	listener   net.Listener
 	httpLog    *os.File
+	yaoLog     *os.File
 }
 
 // New materializes the test app, creates an isolated DB, loads Yao and starts HTTP.
@@ -207,6 +209,10 @@ func (e *Environment) loadApp(t *testing.T) error {
 	config.Init()
 	test.Prepare(t, config.Conf)
 	e.prepared = true
+	if f, err := os.OpenFile(filepath.Join(e.RunDir, "yao.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+		e.yaoLog = f
+		kunlog.SetOutput(io.MultiWriter(os.Stderr, f))
+	}
 	if _, err := openapi.Load(config.Conf); err != nil {
 		return fmt.Errorf("load openapi: %w", err)
 	}
@@ -361,6 +367,11 @@ func (e *Environment) Close() {
 	if e.httpLog != nil {
 		_ = e.httpLog.Close()
 		e.httpLog = nil
+	}
+	if e.yaoLog != nil {
+		kunlog.SetOutput(os.Stderr)
+		_ = e.yaoLog.Close()
+		e.yaoLog = nil
 	}
 	if e.prepared {
 		test.Clean()
