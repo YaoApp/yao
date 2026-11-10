@@ -131,7 +131,7 @@
       "label": "Request Params",
       "comment": "Request parameters",
       "type": "json",
-      "default": "{}"
+      "nullable": true
     },
     {
       "name": "status",
