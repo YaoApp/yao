@@ -104,7 +104,12 @@ jobs:
       - name: Set PostgreSQL password
         if: matrix.db == 'postgres'
         shell: bash
-        run: psql -U postgres -c "ALTER USER yao_e2e PASSWORD 'YaoE2E2026';"
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo -u postgres psql -c "ALTER USER yao_e2e PASSWORD 'YaoE2E2026';"
+          else
+            psql -U postgres -c "ALTER USER yao_e2e PASSWORD 'YaoE2E2026';"
+          fi
 
       - name: Install LLVM (Windows)
         if: runner.os == 'Windows'
