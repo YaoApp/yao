@@ -166,8 +166,11 @@ func (e *Environment) writeAppEnv(port int) error {
 			return err
 		}
 	}
+	e.appendLog("yao.log", "yao-e2e: preparing app=%s db=%s", e.AppRoot, e.DB.Driver())
+	e.appendLog("tai.log", "yao-e2e: Tai is not started in stage 1; version is resolved during environment setup")
 	values := map[string]string{
 		"YAO_ENV":           "test",
+		"YAO_MODE":          "development",
 		"YAO_ROOT":          e.AppRoot,
 		"YAO_PORT":          fmt.Sprintf("%d", port),
 		"YAO_HOST":          "127.0.0.1",
@@ -193,6 +196,9 @@ func (e *Environment) loadApp(t *testing.T) error {
 	for key, value := range map[string]string{
 		"YAO_ROOT":             e.AppRoot,
 		"YAO_TEST_APPLICATION": e.AppRoot,
+		"YAO_LOG":              filepath.Join(e.RunDir, "yao.log"),
+		"YAO_LOG_MODE":         "TEXT",
+		"YAO_LOG_LOCAL_TIME":   "true",
 	} {
 		if err := os.Setenv(key, value); err != nil {
 			return err
@@ -207,6 +213,7 @@ func (e *Environment) loadApp(t *testing.T) error {
 	if openapi.Server == nil {
 		return fmt.Errorf("openapi server not initialized")
 	}
+	e.appendLog("yao.log", "yao-e2e: application loaded")
 	return nil
 }
 
@@ -238,6 +245,7 @@ func (e *Environment) startHTTP() error {
 	e.httpServer = server
 	e.httpLog, _ = os.OpenFile(filepath.Join(e.RunDir, "http.log"), os.O_APPEND|os.O_WRONLY, 0o644)
 	e.BaseURL = "http://" + listener.Addr().String()
+	e.appendLog("yao.log", "yao-e2e: HTTP listening on %s", e.BaseURL)
 	return nil
 }
 
@@ -302,7 +310,21 @@ func (e *Environment) resolveTai() error {
 	e.TaiVersion = strings.TrimSpace(string(out))
 	_ = os.Setenv("YAO_TAI_BIN", path)
 	_ = os.Setenv("TAI_BIN", path)
+	e.appendLog("tai.log", "yao-e2e: Tai binary=%s version=%s", path, e.TaiVersion)
 	return nil
+}
+
+func (e *Environment) appendLog(name string, format string, args ...interface{}) {
+	if e.RunDir == "" {
+		return
+	}
+	path := filepath.Join(e.RunDir, name)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "%s %s\n", time.Now().UTC().Format(time.RFC3339), fmt.Sprintf(format, args...))
 }
 
 func (e *Environment) writeRunJSON(result string) error {
@@ -325,6 +347,7 @@ func (e *Environment) writeRunJSON(result string) error {
 
 // Close tears down HTTP, Yao, DB and temporary app in reverse order.
 func (e *Environment) Close() {
+	e.appendLog("yao.log", "yao-e2e: closing environment")
 	if e.httpServer != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_ = e.httpServer.Shutdown(ctx)
