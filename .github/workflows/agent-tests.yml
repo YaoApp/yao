@@ -97,7 +97,7 @@ jobs:
         if: matrix.db == 'postgres'
         uses: ankane/setup-postgres@v1
         with:
-          postgres-version: "16"
+          postgres-version: "17"
           database: yao_e2e
           user: yao_e2e
 
@@ -107,6 +107,8 @@ jobs:
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
             sudo -u postgres psql -c "ALTER USER yao_e2e PASSWORD 'YaoE2E2026';"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            psql -h 127.0.0.1 -U yao_e2e -d postgres -c "ALTER USER yao_e2e PASSWORD 'YaoE2E2026';"
           else
             psql -U postgres -c "ALTER USER yao_e2e PASSWORD 'YaoE2E2026';"
           fi
