@@ -8032,7 +8032,7 @@ func yaoModelsSessionsModYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/models/sessions.mod.yao", size: 1794314638, mode: os.FileMode(420), modTime: time.Unix(, 0)}
+	info := bindataFileInfo{name: "yao/models/sessions.mod.yao", size: 6071, mode: os.FileMode(420), modTime: time.Unix(1794232182, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
