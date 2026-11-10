@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: agent-tests-${{ github.ref }}-${{ matrix.os }}-${{ matrix.db }}
+  group: agent-tests-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
