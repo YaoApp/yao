@@ -1,0 +1,27 @@
+# Models - Chat Model Management
+# namespace: chat
+# resource: models
+# actions: read
+# levels: all, own, team
+
+# ============ Read Models ============
+
+chat:models:read:all:
+  description: "Read all chat models"
+  endpoints:
+    - GET /models
+    - GET /models/:model_name
+
+chat:models:read:own:
+  owner: true
+  description: "Read available chat models (owner context)"
+  endpoints:
+    - GET /models
+    - GET /models/:model_name
+
+chat:models:read:team:
+  team: true
+  description: "Read available chat models (team context)"
+  endpoints:
+    - GET /models
+    - GET /models/:model_name

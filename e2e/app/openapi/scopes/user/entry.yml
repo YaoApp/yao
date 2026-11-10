@@ -1,0 +1,30 @@
+# Entry - User Authentication and Registration
+# namespace: user
+# resource: entry (user entry/authentication)
+# actions: read, write
+# levels: public, authenticated, own
+
+user:entry:read:public:
+  description: "Public access to entry endpoints (no authentication required)"
+  endpoints:
+    - GET /user/entry
+    - GET /user/entry/captcha
+
+user:entry:write:public:
+  description: "Public verification endpoint"
+  endpoints:
+    - POST /user/entry/verify
+
+user:entry:write:authenticated:
+  description: "Register and login endpoints (with OAuth guard)"
+  endpoints:
+    - POST /user/entry/register
+    - POST /user/entry/login
+    - POST /user/entry/invite/verify
+    - POST /user/entry/otp
+
+user:entry:write:own:
+  owner: true
+  description: "User logout"
+  endpoints:
+    - POST /user/logout

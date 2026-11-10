@@ -1,0 +1,123 @@
+# DSLs - DSL Management
+# namespace: dsl
+# resource: dsls
+# actions: read, write, delete, control, execute, validate
+# levels: all, own, team
+
+# Read operations - Query DSL information
+dsl:dsls:read:all:
+  description: "Read all DSLs (inspect, source, path, list, exists)"
+  endpoints:
+    - GET /dsl/inspect/:type/:id
+    - GET /dsl/source/:type/:id
+    - GET /dsl/path/:type/:id
+    - GET /dsl/list/:type
+    - GET /dsl/exists/:type/:id
+
+dsl:dsls:read:own:
+  owner: true
+  description: "Read own DSLs"
+  endpoints:
+    - GET /dsl/inspect/:type/:id
+    - GET /dsl/source/:type/:id
+    - GET /dsl/path/:type/:id
+    - GET /dsl/list/:type
+    - GET /dsl/exists/:type/:id
+
+dsl:dsls:read:team:
+  team: true
+  description: "Read team DSLs"
+  endpoints:
+    - GET /dsl/inspect/:type/:id
+    - GET /dsl/source/:type/:id
+    - GET /dsl/path/:type/:id
+    - GET /dsl/list/:type
+    - GET /dsl/exists/:type/:id
+
+# Write operations - Create and update DSLs
+dsl:dsls:write:all:
+  description: "Create and update all DSLs"
+  endpoints:
+    - POST /dsl/create/:type
+    - PUT /dsl/update/:type
+
+dsl:dsls:write:own:
+  owner: true
+  description: "Create and update own DSLs"
+  endpoints:
+    - POST /dsl/create/:type
+    - PUT /dsl/update/:type
+
+dsl:dsls:write:team:
+  team: true
+  description: "Create and update team DSLs"
+  endpoints:
+    - POST /dsl/create/:type
+    - PUT /dsl/update/:type
+
+# Delete operations
+dsl:dsls:delete:all:
+  description: "Delete all DSLs"
+  endpoints:
+    - DELETE /dsl/delete/:type/:id
+
+dsl:dsls:delete:own:
+  owner: true
+  description: "Delete own DSLs"
+  endpoints:
+    - DELETE /dsl/delete/:type/:id
+
+dsl:dsls:delete:team:
+  team: true
+  description: "Delete team DSLs"
+  endpoints:
+    - DELETE /dsl/delete/:type/:id
+
+# Control operations - Load management
+dsl:dsls:control:all:
+  description: "Load, unload, and reload all DSLs"
+  endpoints:
+    - POST /dsl/load/:type
+    - POST /dsl/unload/:type
+    - POST /dsl/reload/:type
+
+dsl:dsls:control:own:
+  owner: true
+  description: "Load, unload, and reload own DSLs"
+  endpoints:
+    - POST /dsl/load/:type
+    - POST /dsl/unload/:type
+    - POST /dsl/reload/:type
+
+dsl:dsls:control:team:
+  team: true
+  description: "Load, unload, and reload team DSLs"
+  endpoints:
+    - POST /dsl/load/:type
+    - POST /dsl/unload/:type
+    - POST /dsl/reload/:type
+
+# Execute operations - Execute DSL methods
+dsl:dsls:execute:all:
+  description: "Execute all DSL methods"
+  endpoints:
+    - POST /dsl/execute/:type/:id/:method
+
+dsl:dsls:execute:own:
+  owner: true
+  description: "Execute own DSL methods"
+  endpoints:
+    - POST /dsl/execute/:type/:id/:method
+
+dsl:dsls:execute:team:
+  team: true
+  description: "Execute team DSL methods"
+  endpoints:
+    - POST /dsl/execute/:type/:id/:method
+
+# Validate operations - Validate DSL source code
+dsl:dsls:validate:all:
+  description: "Validate DSL source code"
+  endpoints:
+    - POST /dsl/validate/:type
+

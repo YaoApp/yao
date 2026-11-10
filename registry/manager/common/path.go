@@ -42,7 +42,7 @@ func PackageDir(pkgType, scope, name, appRoot string) string {
 func PackageDirRel(pkgType, scope, name string) string {
 	dir := TypeToDir(pkgType)
 	namePath := strings.ReplaceAll(name, ".", "/")
-	return filepath.Join(dir, scope, namePath)
+	return filepath.ToSlash(filepath.Join(dir, scope, namePath))
 }
 
 // IDFromYaoID converts a Yao dot-separated ID to (scope, name).

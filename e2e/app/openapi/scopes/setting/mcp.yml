@@ -1,0 +1,48 @@
+# MCP Clients - Setting Management
+# namespace: setting
+# resource: mcp
+# actions: read, write
+# levels: all, own, team
+
+setting:mcp:read:all:
+  description: "Read MCP server configuration"
+  endpoints:
+    - GET /setting/mcp/servers
+
+setting:mcp:read:own:
+  owner: true
+  description: "Read own MCP server configuration"
+  endpoints:
+    - GET /setting/mcp/servers
+
+setting:mcp:read:team:
+  team: true
+  description: "Read team MCP server configuration"
+  endpoints:
+    - GET /setting/mcp/servers
+
+setting:mcp:write:all:
+  description: "Manage MCP server configuration"
+  endpoints:
+    - POST /setting/mcp/servers
+    - PUT /setting/mcp/servers/:id
+    - DELETE /setting/mcp/servers/:id
+    - POST /setting/mcp/test
+
+setting:mcp:write:own:
+  owner: true
+  description: "Manage own MCP server configuration"
+  endpoints:
+    - POST /setting/mcp/servers
+    - PUT /setting/mcp/servers/:id
+    - DELETE /setting/mcp/servers/:id
+    - POST /setting/mcp/test
+
+setting:mcp:write:team:
+  team: true
+  description: "Manage team MCP server configuration"
+  endpoints:
+    - POST /setting/mcp/servers
+    - PUT /setting/mcp/servers/:id
+    - DELETE /setting/mcp/servers/:id
+    - POST /setting/mcp/test

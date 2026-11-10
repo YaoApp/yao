@@ -1,0 +1,6 @@
+{
+  "name": "Yao Agents E2E",
+  "short": "Yao Agents E2E",
+  "description": "E2E test application for Yao Agents 2.0",
+  "version": "2.0.0"
+}

@@ -1,0 +1,5 @@
+logs/
+.env.common
+.env.darwin
+.env.windows
+.env.linux

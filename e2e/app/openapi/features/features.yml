@@ -1,0 +1,57 @@
+# Feature to Role Mapping
+# Maps role IDs to features (can use both aliases and actual feature names)
+
+# ============ System Roles ============
+
+# System Root - Super administrator with all features
+system:root:
+  - "*:*:*"
+
+# System Admin - Platform administrator
+system:admin:
+  - "*:*:*"
+
+# ============ Client Roles (API Third-party) ============
+
+# Client Free - Free tier API client
+client:free:
+  - user:all
+
+# Client Pro - Pro tier API client
+client:pro:
+  - user:all
+
+# Client Enterprise - Enterprise tier API client
+client:ent:
+  - user:all
+
+# ============ User/Team Roles (User/Team Subscription Tiers) ============
+
+# User Free - Free tier user or team
+user:free:
+  - user:all
+
+# User Pro - Pro tier user or team
+user:pro:
+  - user:all
+
+# User Enterprise - Enterprise tier user or team
+user:ent:
+  - user:all
+
+# ============ Team Member Roles ============
+
+# Team Owner - Team owner with full team management
+team:owner:
+  - user:all
+
+# Team Admin - Team administrator with limited member management
+team:admin:
+  - profile:manage
+  - team:member:manage
+  - collections:create
+
+# Team Member - Standard team member with basic features
+team:member:
+  - profile:manage
+  - collections:create

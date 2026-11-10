@@ -1,0 +1,51 @@
+# Tao Service - Setting Management
+# namespace: setting
+# resource: tao
+# actions: read, write
+# levels: all, own, team
+
+setting:tao:read:all:
+  description: "Read Tao Service configuration"
+  endpoints:
+    - GET /setting/tao/config
+    - GET /setting/tao/signup-gift
+
+setting:tao:read:own:
+  owner: true
+  description: "Read own Tao Service configuration"
+  endpoints:
+    - GET /setting/tao/config
+    - GET /setting/tao/signup-gift
+
+setting:tao:read:team:
+  team: true
+  description: "Read team Tao Service configuration"
+  endpoints:
+    - GET /setting/tao/config
+    - GET /setting/tao/signup-gift
+
+setting:tao:write:all:
+  description: "Update Tao Service configuration"
+  endpoints:
+    - POST /setting/tao/verify
+    - POST /setting/tao/setup
+    - PUT /setting/tao/config
+    - POST /setting/tao/balance
+
+setting:tao:write:own:
+  owner: true
+  description: "Update own Tao Service configuration"
+  endpoints:
+    - POST /setting/tao/verify
+    - POST /setting/tao/setup
+    - PUT /setting/tao/config
+    - POST /setting/tao/balance
+
+setting:tao:write:team:
+  team: true
+  description: "Update team Tao Service configuration"
+  endpoints:
+    - POST /setting/tao/verify
+    - POST /setting/tao/setup
+    - PUT /setting/tao/config
+    - POST /setting/tao/balance

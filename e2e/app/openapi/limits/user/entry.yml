@@ -1,0 +1,112 @@
+guest:
+  minutes:
+    GET /user/entry: 30
+    GET /user/entry/captcha: 20
+    POST /user/entry/verify: 10
+    POST /user/entry/register: 5
+    POST /user/entry/login: 10
+    POST /user/entry/invite/verify: 10
+    POST /user/entry/otp: 5
+  hours:
+    GET /user/entry: 300
+    GET /user/entry/captcha: 200
+    POST /user/entry/verify: 100
+    POST /user/entry/register: 50
+    POST /user/entry/login: 100
+    POST /user/entry/invite/verify: 100
+    POST /user/entry/otp: 50
+  days:
+    GET /user/entry: 3000
+    GET /user/entry/captcha: 2000
+    POST /user/entry/verify: 1000
+    POST /user/entry/register: 500
+    POST /user/entry/login: 1000
+    POST /user/entry/invite/verify: 1000
+    POST /user/entry/otp: 500
+
+default:
+  minutes:
+    GET /user/entry: 60
+    GET /user/entry/captcha: 40
+    POST /user/entry/verify: 20
+    POST /user/entry/register: 10
+    POST /user/entry/login: 20
+    POST /user/entry/invite/verify: 20
+    POST /user/entry/otp: 10
+    POST /user/logout: 10
+  hours:
+    GET /user/entry: 600
+    GET /user/entry/captcha: 400
+    POST /user/entry/verify: 200
+    POST /user/entry/register: 100
+    POST /user/entry/login: 200
+    POST /user/entry/invite/verify: 200
+    POST /user/entry/otp: 100
+    POST /user/logout: 100
+  days:
+    GET /user/entry: 6000
+    GET /user/entry/captcha: 4000
+    POST /user/entry/verify: 2000
+    POST /user/entry/register: 1000
+    POST /user/entry/login: 2000
+    POST /user/entry/invite/verify: 2000
+    POST /user/entry/otp: 1000
+    POST /user/logout: 1000
+
+premium:
+  minutes:
+    GET /user/entry: 150
+    GET /user/entry/captcha: 100
+    POST /user/entry/verify: 50
+    POST /user/entry/register: 30
+    POST /user/entry/login: 50
+    POST /user/entry/invite/verify: 50
+    POST /user/entry/otp: 30
+    POST /user/logout: 30
+  hours:
+    GET /user/entry: 1500
+    GET /user/entry/captcha: 1000
+    POST /user/entry/verify: 500
+    POST /user/entry/register: 300
+    POST /user/entry/login: 500
+    POST /user/entry/invite/verify: 500
+    POST /user/entry/otp: 300
+    POST /user/logout: 300
+  days:
+    GET /user/entry: 15000
+    GET /user/entry/captcha: 10000
+    POST /user/entry/verify: 5000
+    POST /user/entry/register: 3000
+    POST /user/entry/login: 5000
+    POST /user/entry/invite/verify: 5000
+    POST /user/entry/otp: 3000
+    POST /user/logout: 3000
+
+enterprise:
+  minutes:
+    GET /user/entry: 500
+    GET /user/entry/captcha: 300
+    POST /user/entry/verify: 150
+    POST /user/entry/register: 100
+    POST /user/entry/login: 150
+    POST /user/entry/invite/verify: 150
+    POST /user/entry/otp: 100
+    POST /user/logout: 100
+  hours:
+    GET /user/entry: 5000
+    GET /user/entry/captcha: 3000
+    POST /user/entry/verify: 1500
+    POST /user/entry/register: 1000
+    POST /user/entry/login: 1500
+    POST /user/entry/invite/verify: 1500
+    POST /user/entry/otp: 1000
+    POST /user/logout: 1000
+  days:
+    GET /user/entry: 50000
+    GET /user/entry/captcha: 30000
+    POST /user/entry/verify: 15000
+    POST /user/entry/register: 10000
+    POST /user/entry/login: 15000
+    POST /user/entry/invite/verify: 15000
+    POST /user/entry/otp: 10000
+    POST /user/logout: 10000

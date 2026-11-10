@@ -1,0 +1,16 @@
+# OTP Codes - One-Time Password Management
+# namespace: otp
+# resource: codes
+# actions: create
+# levels: all, team
+
+otp:codes:create:all:
+  description: "Create OTP codes for any user"
+  endpoints:
+    - POST /otp/create
+
+otp:codes:create:team:
+  team: true
+  description: "Create OTP codes for team members"
+  endpoints:
+    - POST /otp/create

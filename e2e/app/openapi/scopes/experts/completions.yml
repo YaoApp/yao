@@ -1,0 +1,22 @@
+# Experts - Chat Completions
+# namespace: experts
+# resource: completions
+# actions: write
+# levels: all, own, team
+
+experts:completions:write:all:
+  description: "Call expert chat completions"
+  endpoints:
+    - POST /experts/:assistant_id/chat/completions
+
+experts:completions:write:own:
+  owner: true
+  description: "Call own expert chat completions"
+  endpoints:
+    - POST /experts/:assistant_id/chat/completions
+
+experts:completions:write:team:
+  team: true
+  description: "Call team expert chat completions"
+  endpoints:
+    - POST /experts/:assistant_id/chat/completions

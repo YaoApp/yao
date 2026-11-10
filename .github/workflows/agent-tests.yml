@@ -1,0 +1,154 @@
+name: Agent E2E Tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "e2e/**"
+      - "modules/**"
+      - "scripts/build-tai-all.sh"
+      - ".github/workflows/agent-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "e2e/**"
+      - "modules/**"
+      - "scripts/build-tai-all.sh"
+      - ".github/workflows/agent-tests.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-tests-${{ github.ref }}-${{ matrix.os }}-${{ matrix.db }}
+  cancel-in-progress: true
+
+jobs:
+  agent-e2e:
+    name: ${{ matrix.os }} / ${{ matrix.db }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-2025]
+        db: [sqlite3, postgres]
+
+    steps:
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Checkout Tai
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/tai
+          token: ${{ secrets.REPO_GITHUB_TOKEN || github.token }}
+          path: tai-src
+
+      - name: Move Tai
+        shell: bash
+        run: mv tai-src ../tai
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download modules
+        shell: bash
+        run: go mod download
+
+      - name: Build Tai (current platform)
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA=$(git -C ../tai rev-parse --short HEAD)
+          GOOS=$(go env GOOS)
+          GOARCH=$(go env GOARCH)
+          EXE=""
+          if [ "$GOOS" = "windows" ]; then EXE=".exe"; fi
+          OUT="$GITHUB_WORKSPACE/bin/tai/$SHA/$GOOS-$GOARCH/tai$EXE"
+          mkdir -p "$(dirname "$OUT")"
+          (cd ../tai && CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -o "$OUT" .)
+          test -x "$OUT" || test -f "$OUT"
+          printf '%s\n' "$SHA" > "$GITHUB_WORKSPACE/bin/tai/LATEST"
+          echo "YAO_E2E_TAI_BIN=$OUT" >> "$GITHUB_ENV"
+          "$OUT" version
+
+      - name: Verify Tai binary
+        shell: bash
+        run: |
+          test -n "$YAO_E2E_TAI_BIN"
+          test -x "$YAO_E2E_TAI_BIN" || test -f "$YAO_E2E_TAI_BIN"
+          "$YAO_E2E_TAI_BIN" version
+
+      - name: Setup PostgreSQL
+        if: matrix.db == 'postgres'
+        uses: ankane/setup-postgres@v1
+        with:
+          postgres-version: "16"
+          database: yao_e2e
+          user: yao_e2e
+
+      - name: Set PostgreSQL password
+        if: matrix.db == 'postgres'
+        shell: bash
+        run: psql -U postgres -c "ALTER USER yao_e2e PASSWORD 'YaoE2E2026';"
+
+      - name: Install LLVM (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: choco install llvm -y --no-progress
+
+      - name: Setup Windows CGO
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          echo "CGO_ENABLED=1" >> "$GITHUB_ENV"
+          echo 'CC=clang --target=x86_64-pc-windows-msvc -fuse-ld=lld' >> "$GITHUB_ENV"
+          echo 'CXX=clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions' >> "$GITHUB_ENV"
+
+      - name: Setup test env
+        shell: bash
+        run: |
+          echo "YAO_ENV=test" >> "$GITHUB_ENV"
+          echo "YAO_LANG=en" >> "$GITHUB_ENV"
+          echo "YAO_E2E_DB=${{ matrix.db }}" >> "$GITHUB_ENV"
+          echo "YAO_E2E_TAI_DIR=$GITHUB_WORKSPACE/../tai" >> "$GITHUB_ENV"
+          echo "YAO_E2E_ARTIFACTS_DIR=$GITHUB_WORKSPACE/e2e/logs" >> "$GITHUB_ENV"
+          echo "YAO_E2E_KEEP=0" >> "$GITHUB_ENV"
+          if [ "${{ matrix.db }}" = "postgres" ]; then
+            echo "YAO_E2E_POSTGRES_DSN=postgres://yao_e2e:YaoE2E2026@127.0.0.1:5432/yao_e2e?sslmode=disable" >> "$GITHUB_ENV"
+          fi
+
+      - name: Verify services
+        shell: bash
+        run: |
+          go version
+          go env GOOS GOARCH CGO_ENABLED
+          if [ "${{ matrix.db }}" = "postgres" ]; then
+            psql "$YAO_E2E_POSTGRES_DSN" -c "SELECT 1;"
+          fi
+
+      - name: Install v8 native deps
+        shell: bash
+        run: go run ./scripts/v8godeps
+
+      - name: Run new module E2E tests
+        shell: bash
+        run: |
+          go test -tags=e2e -v -count=1 -timeout 15m \
+            ./modules/... \
+            -run '^TestE2E'
+
+      - name: Upload E2E logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-e2e-logs-${{ matrix.os }}-${{ matrix.db }}
+          path: e2e/logs/**
+          if-no-files-found: ignore
+          retention-days: 7
+

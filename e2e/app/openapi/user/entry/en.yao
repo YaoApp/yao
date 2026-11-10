@@ -1,0 +1,25 @@
+{
+  "title": "Yao Agents E2E",
+  "description": "Sign in to continue",
+  "default": true,
+  "form": {
+    "username": { "placeholder": "Email", "fields": ["email"] },
+    "password": { "placeholder": "Password" },
+    "confirm_password": { "placeholder": "Confirm Password" },
+    "remember_me": true
+  },
+  "token": {
+    "expires_in": "2h",
+    "refresh_token_expires_in": "7d"
+  },
+  "verification_code_required": false,
+  "invite_required": false,
+  "auto_login": true,
+  "role": "user:free",
+  "type": "free",
+  "third_party": {
+    "providers": [
+      { "id": "google", "label": "Google", "title": "Continue with Google" }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+# Sessions - Chat Session Management (History)
+# namespace: chat
+# resource: sessions
+# actions: read, write, delete
+# levels: all, own, team
+
+# ============ Read Sessions ============
+
+chat:sessions:read:all:
+  description: "Read all chat sessions"
+  endpoints:
+    - GET /chat/sessions
+    - GET /chat/sessions/:chat_id
+    - GET /chat/sessions/:chat_id/messages
+
+chat:sessions:read:own:
+  owner: true
+  description: "Read own chat sessions"
+  endpoints:
+    - GET /chat/sessions
+    - GET /chat/sessions/:chat_id
+    - GET /chat/sessions/:chat_id/messages
+
+chat:sessions:read:team:
+  team: true
+  description: "Read team chat sessions"
+  endpoints:
+    - GET /chat/sessions
+    - GET /chat/sessions/:chat_id
+    - GET /chat/sessions/:chat_id/messages
+
+# ============ Write Sessions ============
+
+chat:sessions:write:all:
+  description: "Update all chat sessions"
+  endpoints:
+    - PUT /chat/sessions/:chat_id
+
+chat:sessions:write:own:
+  owner: true
+  description: "Update own chat sessions"
+  endpoints:
+    - PUT /chat/sessions/:chat_id
+
+chat:sessions:write:team:
+  team: true
+  description: "Update team chat sessions"
+  endpoints:
+    - PUT /chat/sessions/:chat_id
+
+# ============ Delete Sessions ============
+
+chat:sessions:delete:all:
+  description: "Delete all chat sessions"
+  endpoints:
+    - DELETE /chat/sessions/:chat_id
+
+chat:sessions:delete:own:
+  owner: true
+  description: "Delete own chat sessions"
+  endpoints:
+    - DELETE /chat/sessions/:chat_id
+
+chat:sessions:delete:team:
+  team: true
+  description: "Delete team chat sessions"
+  endpoints:
+    - DELETE /chat/sessions/:chat_id

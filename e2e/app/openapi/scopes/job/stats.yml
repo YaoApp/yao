@@ -1,0 +1,23 @@
+# Stats - Job Statistics
+# namespace: job
+# resource: stats
+# actions: read
+# levels: all, own, team
+
+job:stats:read:all:
+  description: "Read all job statistics"
+  endpoints:
+    - GET /job/stats
+
+job:stats:read:own:
+  owner: true
+  description: "Read own job statistics"
+  endpoints:
+    - GET /job/stats
+
+job:stats:read:team:
+  team: true
+  description: "Read team job statistics"
+  endpoints:
+    - GET /job/stats
+

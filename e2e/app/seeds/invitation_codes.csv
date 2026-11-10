@@ -1,0 +1,11 @@
+code,status,is_published,code_type,description,source,metadata
+888888,active,1,official,Lucky number invitation code,system,{}
+666666,active,1,official,Lucky number invitation code,system,{}
+999999,active,1,official,Lucky number invitation code,system,{}
+123456,active,1,official,Sequential number invitation code,system,{}
+654321,active,1,official,Reverse sequential invitation code,system,{}
+111111,active,1,official,Simple repeat invitation code,system,{}
+202520,active,1,official,Year pattern invitation code,system,{}
+520520,active,1,official,Love pattern invitation code,system,{}
+168168,active,1,official,Prosperity pattern invitation code,system,{}
+789789,active,1,official,Fortune pattern invitation code,system,{}

@@ -1,0 +1,8 @@
+// This is the Yao OpenAPI Client config, it will be used to get the access token
+{
+  "client_id": "$ENV.YAO_CLIENT_ID", // if not set, it will be generated automatically
+  "client_secret": "$ENV.YAO_CLIENT_SECRET", // it will be used to get the access token for the backend service (optional)
+  "scopes": ["openid", "profile", "email"], // default scopes if not set in the provider config
+  "expires_in": 86400, // default expires in for the access token (optional) in seconds, default is 24 hours
+  "refresh_token_expires_in": 604800 // default expires in for the refresh token (optional) in seconds, default is 30 days
+}

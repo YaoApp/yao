@@ -1,0 +1,24 @@
+# Computers - Computer Options (Read-only)
+# namespace: computer
+# resource: computers
+# actions: read
+# levels: all, own, team
+
+# ============ Read Computers ============
+
+computer:computers:read:all:
+  description: "List computer options"
+  endpoints:
+    - GET /computer/options
+
+computer:computers:read:own:
+  owner: true
+  description: "List own computer options"
+  endpoints:
+    - GET /computer/options
+
+computer:computers:read:team:
+  team: true
+  description: "List team computer options"
+  endpoints:
+    - GET /computer/options

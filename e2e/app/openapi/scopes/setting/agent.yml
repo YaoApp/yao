@@ -1,0 +1,54 @@
+# Agent - Setting Management
+# namespace: setting
+# resource: agent
+# actions: read, write
+# levels: all, own, team
+
+setting:agent:read:all:
+  description: "Read agent configuration"
+  endpoints:
+    - GET /setting/agent/:id
+    - GET /setting/agent/:id/secrets
+    - GET /setting/agent/:id/skills
+    - GET /setting/agent/:id/skills/:name
+
+setting:agent:read:own:
+  owner: true
+  description: "Read own agent configuration"
+  endpoints:
+    - GET /setting/agent/:id
+    - GET /setting/agent/:id/secrets
+    - GET /setting/agent/:id/skills
+    - GET /setting/agent/:id/skills/:name
+
+setting:agent:read:team:
+  team: true
+  description: "Read team agent configuration"
+  endpoints:
+    - GET /setting/agent/:id
+    - GET /setting/agent/:id/secrets
+    - GET /setting/agent/:id/skills
+    - GET /setting/agent/:id/skills/:name
+
+setting:agent:write:all:
+  description: "Manage agent configuration"
+  endpoints:
+    - PUT /setting/agent/:id
+    - PUT /setting/agent/:id/secrets
+    - DELETE /setting/agent/:id/secrets/:key
+
+setting:agent:write:own:
+  owner: true
+  description: "Manage own agent configuration"
+  endpoints:
+    - PUT /setting/agent/:id
+    - PUT /setting/agent/:id/secrets
+    - DELETE /setting/agent/:id/secrets/:key
+
+setting:agent:write:team:
+  team: true
+  description: "Manage team agent configuration"
+  endpoints:
+    - PUT /setting/agent/:id
+    - PUT /setting/agent/:id/secrets
+    - DELETE /setting/agent/:id/secrets/:key

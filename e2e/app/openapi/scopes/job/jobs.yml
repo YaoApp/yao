@@ -1,0 +1,45 @@
+# Jobs - Job Management
+# namespace: job
+# resource: jobs
+# actions: read, control
+# levels: all, own, team
+
+job:jobs:read:all:
+  description: "Read all jobs"
+  endpoints:
+    - GET /job/jobs
+    - GET /job/jobs/:jobID
+    - GET /job/jobs/:jobID/progress
+
+job:jobs:read:own:
+  owner: true
+  description: "Read own jobs"
+  endpoints:
+    - GET /job/jobs
+    - GET /job/jobs/:jobID
+    - GET /job/jobs/:jobID/progress
+
+job:jobs:read:team:
+  team: true
+  description: "Read team jobs"
+  endpoints:
+    - GET /job/jobs
+    - GET /job/jobs/:jobID
+    - GET /job/jobs/:jobID/progress
+
+job:jobs:control:all:
+  description: "Control all jobs (stop)"
+  endpoints:
+    - POST /job/jobs/:jobID/stop
+
+job:jobs:control:own:
+  owner: true
+  description: "Control own jobs (stop)"
+  endpoints:
+    - POST /job/jobs/:jobID/stop
+
+job:jobs:control:team:
+  team: true
+  description: "Control team jobs (stop)"
+  endpoints:
+    - POST /job/jobs/:jobID/stop

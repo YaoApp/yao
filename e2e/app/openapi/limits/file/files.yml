@@ -1,0 +1,68 @@
+default:
+  minutes:
+    GET /file/:uploaderID: 30
+    GET /file/:uploaderID/:fileID: 60
+    GET /file/:uploaderID/:fileID/content: 50
+    GET /file/:uploaderID/:fileID/exists: 100
+    POST /file/:uploaderID: 10
+    DELETE /file/:uploaderID/:fileID: 5
+  hours:
+    GET /file/:uploaderID: 300
+    GET /file/:uploaderID/:fileID: 600
+    GET /file/:uploaderID/:fileID/content: 500
+    GET /file/:uploaderID/:fileID/exists: 1000
+    POST /file/:uploaderID: 100
+    DELETE /file/:uploaderID/:fileID: 50
+  days:
+    GET /file/:uploaderID: 3000
+    GET /file/:uploaderID/:fileID: 6000
+    GET /file/:uploaderID/:fileID/content: 5000
+    GET /file/:uploaderID/:fileID/exists: 10000
+    POST /file/:uploaderID: 1000
+    DELETE /file/:uploaderID/:fileID: 500
+
+premium:
+  minutes:
+    GET /file/:uploaderID: 100
+    GET /file/:uploaderID/:fileID: 200
+    GET /file/:uploaderID/:fileID/content: 150
+    GET /file/:uploaderID/:fileID/exists: 300
+    POST /file/:uploaderID: 30
+    DELETE /file/:uploaderID/:fileID: 20
+  hours:
+    GET /file/:uploaderID: 1000
+    GET /file/:uploaderID/:fileID: 2000
+    GET /file/:uploaderID/:fileID/content: 1500
+    GET /file/:uploaderID/:fileID/exists: 3000
+    POST /file/:uploaderID: 300
+    DELETE /file/:uploaderID/:fileID: 200
+  days:
+    GET /file/:uploaderID: 10000
+    GET /file/:uploaderID/:fileID: 20000
+    GET /file/:uploaderID/:fileID/content: 15000
+    GET /file/:uploaderID/:fileID/exists: 30000
+    POST /file/:uploaderID: 3000
+    DELETE /file/:uploaderID/:fileID: 2000
+
+enterprise:
+  minutes:
+    GET /file/:uploaderID: 500
+    GET /file/:uploaderID/:fileID: 1000
+    GET /file/:uploaderID/:fileID/content: 800
+    GET /file/:uploaderID/:fileID/exists: 1500
+    POST /file/:uploaderID: 150
+    DELETE /file/:uploaderID/:fileID: 100
+  hours:
+    GET /file/:uploaderID: 5000
+    GET /file/:uploaderID/:fileID: 10000
+    GET /file/:uploaderID/:fileID/content: 8000
+    GET /file/:uploaderID/:fileID/exists: 15000
+    POST /file/:uploaderID: 1500
+    DELETE /file/:uploaderID/:fileID: 1000
+  days:
+    GET /file/:uploaderID: 50000
+    GET /file/:uploaderID/:fileID: 100000
+    GET /file/:uploaderID/:fileID/content: 80000
+    GET /file/:uploaderID/:fileID/exists: 150000
+    POST /file/:uploaderID: 15000
+    DELETE /file/:uploaderID/:fileID: 10000

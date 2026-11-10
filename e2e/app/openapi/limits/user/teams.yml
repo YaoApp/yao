@@ -1,0 +1,193 @@
+guest:
+  minutes:
+    GET /user/teams/invitations/:invitation_id: 10
+  hours:
+    GET /user/teams/invitations/:invitation_id: 100
+  days:
+    GET /user/teams/invitations/:invitation_id: 1000
+
+default:
+  minutes:
+    GET /user/teams/invitations/:invitation_id: 20
+    POST /user/teams/invitations/:invitation_id/accept: 5
+    GET /user/teams/config: 30
+    POST /user/teams/select: 20
+    GET /user/teams: 50
+    GET /user/teams/:id: 100
+    POST /user/teams: 5
+    PUT /user/teams/:id: 10
+    DELETE /user/teams/:id: 3
+    GET /user/teams/:id/members: 50
+    GET /user/teams/:id/members/:member_id: 100
+    POST /user/teams/:id/members: 10
+    PUT /user/teams/:id/members/:member_id: 10
+    DELETE /user/teams/:id/members/:member_id: 5
+    GET /user/teams/:id/invitations: 30
+    GET /user/teams/:id/invitations/:invitation_id: 50
+    POST /user/teams/:id/invitations: 10
+    PUT /user/teams/:id/invitations/:invitation_id/resend: 5
+    DELETE /user/teams/:id/invitations/:invitation_id: 5
+  hours:
+    GET /user/teams/invitations/:invitation_id: 200
+    POST /user/teams/invitations/:invitation_id/accept: 50
+    GET /user/teams/config: 300
+    POST /user/teams/select: 200
+    GET /user/teams: 500
+    GET /user/teams/:id: 1000
+    POST /user/teams: 50
+    PUT /user/teams/:id: 100
+    DELETE /user/teams/:id: 30
+    GET /user/teams/:id/members: 500
+    GET /user/teams/:id/members/:member_id: 1000
+    POST /user/teams/:id/members: 100
+    PUT /user/teams/:id/members/:member_id: 100
+    DELETE /user/teams/:id/members/:member_id: 50
+    GET /user/teams/:id/invitations: 300
+    GET /user/teams/:id/invitations/:invitation_id: 500
+    POST /user/teams/:id/invitations: 100
+    PUT /user/teams/:id/invitations/:invitation_id/resend: 50
+    DELETE /user/teams/:id/invitations/:invitation_id: 50
+  days:
+    GET /user/teams/invitations/:invitation_id: 2000
+    POST /user/teams/invitations/:invitation_id/accept: 500
+    GET /user/teams/config: 3000
+    POST /user/teams/select: 2000
+    GET /user/teams: 5000
+    GET /user/teams/:id: 10000
+    POST /user/teams: 500
+    PUT /user/teams/:id: 1000
+    DELETE /user/teams/:id: 300
+    GET /user/teams/:id/members: 5000
+    GET /user/teams/:id/members/:member_id: 10000
+    POST /user/teams/:id/members: 1000
+    PUT /user/teams/:id/members/:member_id: 1000
+    DELETE /user/teams/:id/members/:member_id: 500
+    GET /user/teams/:id/invitations: 3000
+    GET /user/teams/:id/invitations/:invitation_id: 5000
+    POST /user/teams/:id/invitations: 1000
+    PUT /user/teams/:id/invitations/:invitation_id/resend: 500
+    DELETE /user/teams/:id/invitations/:invitation_id: 500
+
+premium:
+  minutes:
+    GET /user/teams/invitations/:invitation_id: 60
+    POST /user/teams/invitations/:invitation_id/accept: 20
+    GET /user/teams/config: 100
+    POST /user/teams/select: 60
+    GET /user/teams: 150
+    GET /user/teams/:id: 300
+    POST /user/teams: 20
+    PUT /user/teams/:id: 30
+    DELETE /user/teams/:id: 10
+    GET /user/teams/:id/members: 150
+    GET /user/teams/:id/members/:member_id: 300
+    POST /user/teams/:id/members: 30
+    PUT /user/teams/:id/members/:member_id: 30
+    DELETE /user/teams/:id/members/:member_id: 20
+    GET /user/teams/:id/invitations: 100
+    GET /user/teams/:id/invitations/:invitation_id: 150
+    POST /user/teams/:id/invitations: 30
+    PUT /user/teams/:id/invitations/:invitation_id/resend: 20
+    DELETE /user/teams/:id/invitations/:invitation_id: 20
+  hours:
+    GET /user/teams/invitations/:invitation_id: 600
+    POST /user/teams/invitations/:invitation_id/accept: 200
+    GET /user/teams/config: 1000
+    POST /user/teams/select: 600
+    GET /user/teams: 1500
+    GET /user/teams/:id: 3000
+    POST /user/teams: 200
+    PUT /user/teams/:id: 300
+    DELETE /user/teams/:id: 100
+    GET /user/teams/:id/members: 1500
+    GET /user/teams/:id/members/:member_id: 3000
+    POST /user/teams/:id/members: 300
+    PUT /user/teams/:id/members/:member_id: 300
+    DELETE /user/teams/:id/members/:member_id: 200
+    GET /user/teams/:id/invitations: 1000
+    GET /user/teams/:id/invitations/:invitation_id: 1500
+    POST /user/teams/:id/invitations: 300
+    PUT /user/teams/:id/invitations/:invitation_id/resend: 200
+    DELETE /user/teams/:id/invitations/:invitation_id: 200
+  days:
+    GET /user/teams/invitations/:invitation_id: 6000
+    POST /user/teams/invitations/:invitation_id/accept: 2000
+    GET /user/teams/config: 10000
+    POST /user/teams/select: 6000
+    GET /user/teams: 15000
+    GET /user/teams/:id: 30000
+    POST /user/teams: 2000
+    PUT /user/teams/:id: 3000
+    DELETE /user/teams/:id: 1000
+    GET /user/teams/:id/members: 15000
+    GET /user/teams/:id/members/:member_id: 30000
+    POST /user/teams/:id/members: 3000
+    PUT /user/teams/:id/members/:member_id: 3000
+    DELETE /user/teams/:id/members/:member_id: 2000
+    GET /user/teams/:id/invitations: 10000
+    GET /user/teams/:id/invitations/:invitation_id: 15000
+    POST /user/teams/:id/invitations: 3000
+    PUT /user/teams/:id/invitations/:invitation_id/resend: 2000
+    DELETE /user/teams/:id/invitations/:invitation_id: 2000
+
+enterprise:
+  minutes:
+    GET /user/teams/invitations/:invitation_id: 200
+    POST /user/teams/invitations/:invitation_id/accept: 100
+    GET /user/teams/config: 500
+    POST /user/teams/select: 300
+    GET /user/teams: 500
+    GET /user/teams/:id: 1000
+    POST /user/teams: 100
+    PUT /user/teams/:id: 150
+    DELETE /user/teams/:id: 50
+    GET /user/teams/:id/members: 500
+    GET /user/teams/:id/members/:member_id: 1000
+    POST /user/teams/:id/members: 150
+    PUT /user/teams/:id/members/:member_id: 150
+    DELETE /user/teams/:id/members/:member_id: 100
+    GET /user/teams/:id/invitations: 500
+    GET /user/teams/:id/invitations/:invitation_id: 800
+    POST /user/teams/:id/invitations: 150
+    PUT /user/teams/:id/invitations/:invitation_id/resend: 100
+    DELETE /user/teams/:id/invitations/:invitation_id: 100
+  hours:
+    GET /user/teams/invitations/:invitation_id: 2000
+    POST /user/teams/invitations/:invitation_id/accept: 1000
+    GET /user/teams/config: 5000
+    POST /user/teams/select: 3000
+    GET /user/teams: 5000
+    GET /user/teams/:id: 10000
+    POST /user/teams: 1000
+    PUT /user/teams/:id: 1500
+    DELETE /user/teams/:id: 500
+    GET /user/teams/:id/members: 5000
+    GET /user/teams/:id/members/:member_id: 10000
+    POST /user/teams/:id/members: 1500
+    PUT /user/teams/:id/members/:member_id: 1500
+    DELETE /user/teams/:id/members/:member_id: 1000
+    GET /user/teams/:id/invitations: 5000
+    GET /user/teams/:id/invitations/:invitation_id: 8000
+    POST /user/teams/:id/invitations: 1500
+    PUT /user/teams/:id/invitations/:invitation_id/resend: 1000
+    DELETE /user/teams/:id/invitations/:invitation_id: 1000
+  days:
+    GET /user/teams/invitations/:invitation_id: 20000
+    POST /user/teams/invitations/:invitation_id/accept: 10000
+    GET /user/teams/config: 50000
+    POST /user/teams/select: 30000
+    GET /user/teams: 50000
+    GET /user/teams/:id: 100000
+    POST /user/teams: 10000
+    PUT /user/teams/:id: 15000
+    DELETE /user/teams/:id: 5000
+    GET /user/teams/:id/members: 50000
+    GET /user/teams/:id/members/:member_id: 100000
+    POST /user/teams/:id/members: 15000
+    PUT /user/teams/:id/members/:member_id: 15000
+    DELETE /user/teams/:id/members/:member_id: 10000
+    GET /user/teams/:id/invitations: 50000
+    GET /user/teams/:id/invitations/:invitation_id: 80000
+    POST /user/teams/:id/invitations: 15000
+    PUT /user/teams/:id/invitations/:invitation_id/resend: 10000
+    DELETE /user/teams/:id/invitations/:invitation_id: 10000

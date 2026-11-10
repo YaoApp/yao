@@ -1,0 +1,45 @@
+# API Keys - Setting Management
+# namespace: setting
+# resource: api-keys
+# actions: read, write
+# levels: all, own, team
+
+setting:api-keys:read:all:
+  description: "Read API keys"
+  endpoints:
+    - GET /setting/api-keys
+
+setting:api-keys:read:own:
+  owner: true
+  description: "Read own API keys"
+  endpoints:
+    - GET /setting/api-keys
+
+setting:api-keys:read:team:
+  team: true
+  description: "Read team API keys"
+  endpoints:
+    - GET /setting/api-keys
+
+setting:api-keys:write:all:
+  description: "Manage API keys"
+  endpoints:
+    - POST /setting/api-keys
+    - DELETE /setting/api-keys/:key_id
+    - POST /setting/api-keys/:key_id/regenerate
+
+setting:api-keys:write:own:
+  owner: true
+  description: "Manage own API keys"
+  endpoints:
+    - POST /setting/api-keys
+    - DELETE /setting/api-keys/:key_id
+    - POST /setting/api-keys/:key_id/regenerate
+
+setting:api-keys:write:team:
+  team: true
+  description: "Manage team API keys"
+  endpoints:
+    - POST /setting/api-keys
+    - DELETE /setting/api-keys/:key_id
+    - POST /setting/api-keys/:key_id/regenerate

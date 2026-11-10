@@ -1,0 +1,48 @@
+# Search & Scrape - Setting Management
+# namespace: setting
+# resource: search
+# actions: read, write
+# levels: all, own, team
+
+setting:search:read:all:
+  description: "Read search & scrape configuration"
+  endpoints:
+    - GET /setting/search
+
+setting:search:read:own:
+  owner: true
+  description: "Read own search & scrape configuration"
+  endpoints:
+    - GET /setting/search
+
+setting:search:read:team:
+  team: true
+  description: "Read team search & scrape configuration"
+  endpoints:
+    - GET /setting/search
+
+setting:search:write:all:
+  description: "Update search & scrape configuration"
+  endpoints:
+    - PUT /setting/search/providers/:key
+    - PUT /setting/search/providers/:key/toggle
+    - POST /setting/search/providers/:key/test
+    - PUT /setting/search/tool-assignment
+
+setting:search:write:own:
+  owner: true
+  description: "Update own search & scrape configuration"
+  endpoints:
+    - PUT /setting/search/providers/:key
+    - PUT /setting/search/providers/:key/toggle
+    - POST /setting/search/providers/:key/test
+    - PUT /setting/search/tool-assignment
+
+setting:search:write:team:
+  team: true
+  description: "Update team search & scrape configuration"
+  endpoints:
+    - PUT /setting/search/providers/:key
+    - PUT /setting/search/providers/:key/toggle
+    - POST /setting/search/providers/:key/test
+    - PUT /setting/search/tool-assignment

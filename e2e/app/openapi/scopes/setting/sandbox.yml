@@ -1,0 +1,51 @@
+# Sandbox - Setting Management
+# namespace: setting
+# resource: sandbox
+# actions: read, write
+# levels: all, own, team
+
+setting:sandbox:read:all:
+  description: "Read sandbox configuration"
+  endpoints:
+    - GET /setting/sandbox
+
+setting:sandbox:read:own:
+  owner: true
+  description: "Read own sandbox configuration"
+  endpoints:
+    - GET /setting/sandbox
+
+setting:sandbox:read:team:
+  team: true
+  description: "Read team sandbox configuration"
+  endpoints:
+    - GET /setting/sandbox
+
+setting:sandbox:write:all:
+  description: "Manage sandbox configuration"
+  endpoints:
+    - PUT /setting/sandbox/registry
+    - POST /setting/sandbox/nodes/:nodeId/images/:imageId/pull
+    - POST /setting/sandbox/nodes/:nodeId/images/pull-all
+    - DELETE /setting/sandbox/nodes/:nodeId/images/:imageId
+    - POST /setting/sandbox/nodes/:nodeId/check-docker
+
+setting:sandbox:write:own:
+  owner: true
+  description: "Manage own sandbox configuration"
+  endpoints:
+    - PUT /setting/sandbox/registry
+    - POST /setting/sandbox/nodes/:nodeId/images/:imageId/pull
+    - POST /setting/sandbox/nodes/:nodeId/images/pull-all
+    - DELETE /setting/sandbox/nodes/:nodeId/images/:imageId
+    - POST /setting/sandbox/nodes/:nodeId/check-docker
+
+setting:sandbox:write:team:
+  team: true
+  description: "Manage team sandbox configuration"
+  endpoints:
+    - PUT /setting/sandbox/registry
+    - POST /setting/sandbox/nodes/:nodeId/images/:imageId/pull
+    - POST /setting/sandbox/nodes/:nodeId/images/pull-all
+    - DELETE /setting/sandbox/nodes/:nodeId/images/:imageId
+    - POST /setting/sandbox/nodes/:nodeId/check-docker

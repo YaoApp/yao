@@ -1,0 +1,116 @@
+default:
+  minutes:
+    GET: 100
+    POST: 50
+    PUT: 50
+    DELETE: 30
+    PATCH: 50
+    HEAD: 100
+    OPTIONS: 200
+  hours:
+    GET: 1000
+    POST: 500
+    PUT: 500
+    DELETE: 300
+    PATCH: 500
+    HEAD: 1000
+    OPTIONS: 2000
+  days:
+    GET: 10000
+    POST: 5000
+    PUT: 5000
+    DELETE: 3000
+    PATCH: 5000
+    HEAD: 10000
+    OPTIONS: 20000
+endpoints:
+  # Knowledge Base - Higher limits for read operations
+  GET /kb/*:
+    minutes: 150
+    hours: 1500
+    days: 15000
+
+  GET /kb/search:
+    minutes: 60
+    hours: 600
+    days: 6000
+
+  POST /kb/search:
+    minutes: 30
+    hours: 300
+    days: 3000
+
+  # Knowledge Base - Lower limits for write operations
+  POST /kb/*:
+    minutes: 20
+    hours: 200
+    days: 2000
+
+  PUT /kb/*:
+    minutes: 20
+    hours: 200
+    days: 2000
+
+  DELETE /kb/*:
+    minutes: 10
+    hours: 100
+    days: 1000
+
+  # Job Management - Higher limits for monitoring
+  GET /job/*:
+    minutes: 120
+    hours: 1200
+    days: 12000
+
+  GET /job/*/logs:
+    minutes: 80
+    hours: 800
+    days: 8000
+
+  POST /job/*/stop:
+    minutes: 15
+    hours: 150
+    days: 1500
+
+  # File Management - Moderate limits for uploads
+  GET /file/*:
+    minutes: 100
+    hours: 1000
+    days: 10000
+
+  POST /file/*:
+    minutes: 30
+    hours: 300
+    days: 3000
+
+  DELETE /file/*:
+    minutes: 20
+    hours: 200
+    days: 2000
+
+  # User Management - Standard limits
+  GET /user/*:
+    minutes: 80
+    hours: 800
+    days: 8000
+
+  POST /user/entry/*:
+    minutes: 20
+    hours: 200
+    days: 2000
+
+  POST /user/teams/*:
+    minutes: 15
+    hours: 150
+    days: 1500
+
+  # Very high limits for preflight requests
+  OPTIONS /*:
+    minutes: 500
+    hours: 5000
+    days: 50000
+# Notes:
+# - Specific endpoint limits override default limits
+# - Pattern matching: * matches any path segment
+# - Rules are evaluated in order, first match wins
+# - Individual endpoint limits in subdirectories have highest priority

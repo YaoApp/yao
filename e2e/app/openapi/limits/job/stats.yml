@@ -1,0 +1,31 @@
+guest:
+  minutes:
+    GET /job/stats: 20
+  hours:
+    GET /job/stats: 200
+  days:
+    GET /job/stats: 2000
+
+default:
+  minutes:
+    GET /job/stats: 50
+  hours:
+    GET /job/stats: 500
+  days:
+    GET /job/stats: 5000
+
+premium:
+  minutes:
+    GET /job/stats: 150
+  hours:
+    GET /job/stats: 1500
+  days:
+    GET /job/stats: 15000
+
+enterprise:
+  minutes:
+    GET /job/stats: 500
+  hours:
+    GET /job/stats: 5000
+  days:
+    GET /job/stats: 50000

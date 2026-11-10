@@ -1,0 +1,4 @@
+profile:read:
+  description: "Read own profile"
+profile:edit:
+  description: "Edit own profile"

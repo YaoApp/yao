@@ -1,0 +1,65 @@
+# Files - File Management
+# namespace: file
+# resource: files
+# actions: read, write, delete
+# levels: all, own, team
+
+file:files:read:all:
+  description: "Read all files"
+  endpoints:
+    - GET /file/:uploaderID
+    - GET /file/:uploaderID/:fileID
+    - GET /file/:uploaderID/:fileID/content
+    - GET /file/:uploaderID/:fileID/exists
+
+file:files:read:own:
+  owner: true
+  description: "Read own files"
+  endpoints:
+    - GET /file/:uploaderID
+    - GET /file/:uploaderID/:fileID
+    - GET /file/:uploaderID/:fileID/content
+    - GET /file/:uploaderID/:fileID/exists
+
+file:files:read:team:
+  team: true
+  description: "Read team files"
+  endpoints:
+    - GET /file/:uploaderID
+    - GET /file/:uploaderID/:fileID
+    - GET /file/:uploaderID/:fileID/content
+    - GET /file/:uploaderID/:fileID/exists
+
+file:files:write:all:
+  description: "Upload all files"
+  endpoints:
+    - POST /file/:uploaderID
+
+file:files:write:own:
+  owner: true
+  description: "Upload own files"
+  endpoints:
+    - POST /file/:uploaderID
+
+file:files:write:team:
+  team: true
+  description: "Upload team files"
+  endpoints:
+    - POST /file/:uploaderID
+
+file:files:delete:all:
+  description: "Delete all files"
+  endpoints:
+    - DELETE /file/:uploaderID/:fileID
+
+file:files:delete:own:
+  owner: true
+  description: "Delete own files"
+  endpoints:
+    - DELETE /file/:uploaderID/:fileID
+
+file:files:delete:team:
+  team: true
+  description: "Delete team files"
+  endpoints:
+    - DELETE /file/:uploaderID/:fileID

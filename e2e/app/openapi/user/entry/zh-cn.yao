@@ -1,0 +1,25 @@
+{
+  "title": "Yao Agents E2E",
+  "description": "登录以继续",
+  "default": false,
+  "form": {
+    "username": { "placeholder": "邮箱", "fields": ["email"] },
+    "password": { "placeholder": "密码" },
+    "confirm_password": { "placeholder": "确认密码" },
+    "remember_me": true
+  },
+  "token": {
+    "expires_in": "2h",
+    "refresh_token_expires_in": "7d"
+  },
+  "verification_code_required": false,
+  "invite_required": false,
+  "auto_login": true,
+  "role": "user:free",
+  "type": "free",
+  "third_party": {
+    "providers": [
+      { "id": "google", "label": "Google", "title": "使用 Google 登录" }
+    ]
+  }
+}

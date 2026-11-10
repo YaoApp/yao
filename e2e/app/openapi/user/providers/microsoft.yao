@@ -1,0 +1,12 @@
+{
+  "client_id": "$ENV.MICROSOFT_CLIENT_ID",
+  "client_secret": "$ENV.MICROSOFT_CLIENT_SECRET",
+  "scopes": ["User.Read", "openid", "email", "profile"],
+  "endpoints": {
+    "authorization": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    "token": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    "user_info": "https://graph.microsoft.com/v1.0/me"
+  },
+  "mapping": "microsoft",
+  "register": { "auto": true } // Auto register user if not exists
+}

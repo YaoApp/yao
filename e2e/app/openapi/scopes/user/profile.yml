@@ -1,0 +1,19 @@
+# Profile - User Profile Management
+# namespace: user
+# resource: profile
+# actions: read, write
+# levels: own
+
+user:profile:read:own:
+  owner: true
+  description: "Read own profile"
+  endpoints:
+    - GET /user/profile
+
+user:profile:write:own:
+  owner: true
+  description: "Update own profile"
+  endpoints:
+    - PUT /user/profile
+    - PUT /user/account/password
+

@@ -1,0 +1,43 @@
+guest:
+  minutes:
+    GET /job/categories: 20
+    GET /job/categories/:categoryID: 30
+  hours:
+    GET /job/categories: 200
+    GET /job/categories/:categoryID: 300
+  days:
+    GET /job/categories: 2000
+    GET /job/categories/:categoryID: 3000
+
+default:
+  minutes:
+    GET /job/categories: 50
+    GET /job/categories/:categoryID: 100
+  hours:
+    GET /job/categories: 500
+    GET /job/categories/:categoryID: 1000
+  days:
+    GET /job/categories: 5000
+    GET /job/categories/:categoryID: 10000
+
+premium:
+  minutes:
+    GET /job/categories: 150
+    GET /job/categories/:categoryID: 300
+  hours:
+    GET /job/categories: 1500
+    GET /job/categories/:categoryID: 3000
+  days:
+    GET /job/categories: 15000
+    GET /job/categories/:categoryID: 30000
+
+enterprise:
+  minutes:
+    GET /job/categories: 500
+    GET /job/categories/:categoryID: 1000
+  hours:
+    GET /job/categories: 5000
+    GET /job/categories/:categoryID: 10000
+  days:
+    GET /job/categories: 50000
+    GET /job/categories/:categoryID: 100000

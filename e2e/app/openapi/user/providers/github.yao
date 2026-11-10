@@ -1,0 +1,13 @@
+{
+  "client_id": "$ENV.GITHUBUSER_CLIENT_ID",
+  "client_secret": "$ENV.GITHUBUSER_CLIENT_SECRET",
+  "scopes": ["openid", "email", "profile"],
+  "endpoints": {
+    "authorization": "https://github.com/login/oauth/authorize",
+    "token": "https://github.com/login/oauth/access_token",
+    "user_info": "https://api.github.com/user",
+    "device_authorization": "https://github.com/login/device/code"
+  },
+  "mapping": "github",
+  "register": { "auto": true } // Auto register user if not exists
+}

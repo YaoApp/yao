@@ -1,0 +1,25 @@
+# Setup Status - Setting Management
+# namespace: setting
+# resource: setup-status
+# actions: read
+# levels: all, own, team
+
+setting:setup-status:read:all:
+  description: "Read setup status and configuration completeness"
+  endpoints:
+    - GET /setting/setup-status
+    - GET /setting/setup-status/assistant/:id
+
+setting:setup-status:read:own:
+  owner: true
+  description: "Read own setup status"
+  endpoints:
+    - GET /setting/setup-status
+    - GET /setting/setup-status/assistant/:id
+
+setting:setup-status:read:team:
+  team: true
+  description: "Read team setup status"
+  endpoints:
+    - GET /setting/setup-status
+    - GET /setting/setup-status/assistant/:id

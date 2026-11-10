@@ -1,0 +1,64 @@
+guest:
+  minutes:
+    GET /job/jobs: 10
+    GET /job/jobs/:jobID: 20
+    GET /job/jobs/:jobID/progress: 30
+  hours:
+    GET /job/jobs: 100
+    GET /job/jobs/:jobID: 200
+    GET /job/jobs/:jobID/progress: 300
+  days:
+    GET /job/jobs: 1000
+    GET /job/jobs/:jobID: 2000
+    GET /job/jobs/:jobID/progress: 3000
+
+default:
+  minutes:
+    GET /job/jobs: 30
+    GET /job/jobs/:jobID: 60
+    GET /job/jobs/:jobID/progress: 100
+    POST /job/jobs/:jobID/stop: 5
+  hours:
+    GET /job/jobs: 300
+    GET /job/jobs/:jobID: 600
+    GET /job/jobs/:jobID/progress: 1000
+    POST /job/jobs/:jobID/stop: 50
+  days:
+    GET /job/jobs: 3000
+    GET /job/jobs/:jobID: 6000
+    GET /job/jobs/:jobID/progress: 10000
+    POST /job/jobs/:jobID/stop: 500
+
+premium:
+  minutes:
+    GET /job/jobs: 100
+    GET /job/jobs/:jobID: 200
+    GET /job/jobs/:jobID/progress: 300
+    POST /job/jobs/:jobID/stop: 20
+  hours:
+    GET /job/jobs: 1000
+    GET /job/jobs/:jobID: 2000
+    GET /job/jobs/:jobID/progress: 3000
+    POST /job/jobs/:jobID/stop: 200
+  days:
+    GET /job/jobs: 10000
+    GET /job/jobs/:jobID: 20000
+    GET /job/jobs/:jobID/progress: 30000
+    POST /job/jobs/:jobID/stop: 2000
+
+enterprise:
+  minutes:
+    GET /job/jobs: 500
+    GET /job/jobs/:jobID: 1000
+    GET /job/jobs/:jobID/progress: 1500
+    POST /job/jobs/:jobID/stop: 100
+  hours:
+    GET /job/jobs: 5000
+    GET /job/jobs/:jobID: 10000
+    GET /job/jobs/:jobID/progress: 15000
+    POST /job/jobs/:jobID/stop: 1000
+  days:
+    GET /job/jobs: 50000
+    GET /job/jobs/:jobID: 100000
+    GET /job/jobs/:jobID/progress: 150000
+    POST /job/jobs/:jobID/stop: 10000

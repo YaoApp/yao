@@ -1,0 +1,45 @@
+# Executions - Job Execution Management
+# namespace: job
+# resource: executions
+# actions: read, control
+# levels: all, own, team
+
+job:executions:read:all:
+  description: "Read all job executions"
+  endpoints:
+    - GET /job/jobs/:jobID/executions
+    - GET /job/executions/:executionID
+    - GET /job/executions/:executionID/progress
+
+job:executions:read:own:
+  owner: true
+  description: "Read own job executions"
+  endpoints:
+    - GET /job/jobs/:jobID/executions
+    - GET /job/executions/:executionID
+    - GET /job/executions/:executionID/progress
+
+job:executions:read:team:
+  team: true
+  description: "Read team job executions"
+  endpoints:
+    - GET /job/jobs/:jobID/executions
+    - GET /job/executions/:executionID
+    - GET /job/executions/:executionID/progress
+
+job:executions:control:all:
+  description: "Control all job executions (stop)"
+  endpoints:
+    - POST /job/executions/:executionID/stop
+
+job:executions:control:own:
+  owner: true
+  description: "Control own job executions (stop)"
+  endpoints:
+    - POST /job/executions/:executionID/stop
+
+job:executions:control:team:
+  team: true
+  description: "Control team job executions (stop)"
+  endpoints:
+    - POST /job/executions/:executionID/stop

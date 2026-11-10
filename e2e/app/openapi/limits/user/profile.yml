@@ -1,0 +1,31 @@
+guest:
+  minutes:
+    GET /user/profile: 10
+  hours:
+    GET /user/profile: 100
+  days:
+    GET /user/profile: 1000
+
+default:
+  minutes:
+    GET /user/profile: 50
+  hours:
+    GET /user/profile: 500
+  days:
+    GET /user/profile: 5000
+
+premium:
+  minutes:
+    GET /user/profile: 150
+  hours:
+    GET /user/profile: 1500
+  days:
+    GET /user/profile: 15000
+
+enterprise:
+  minutes:
+    GET /user/profile: 500
+  hours:
+    GET /user/profile: 5000
+  days:
+    GET /user/profile: 50000

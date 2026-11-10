@@ -1,0 +1,22 @@
+# Completions - LLM Chat Completions Proxy
+# namespace: llm
+# resource: completions
+# actions: write
+# levels: all, own, team
+
+llm:completions:write:all:
+  description: "Create LLM chat completions via connector proxy"
+  endpoints:
+    - POST /llm/chat/completions
+
+llm:completions:write:own:
+  owner: true
+  description: "Create LLM chat completions (own connectors)"
+  endpoints:
+    - POST /llm/chat/completions
+
+llm:completions:write:team:
+  team: true
+  description: "Create LLM chat completions (team connectors)"
+  endpoints:
+    - POST /llm/chat/completions

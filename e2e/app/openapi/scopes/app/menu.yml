@@ -1,0 +1,22 @@
+# App Menu - Application Menu Management
+# namespace: app
+# resource: menu
+# actions: read
+# levels: all, own, team
+
+app:menu:read:all:
+  description: "Read all menus (including public and private)"
+  endpoints:
+    - GET /app/menu
+
+app:menu:read:own:
+  owner: true
+  description: "Read own menus (public + user-owned)"
+  endpoints:
+    - GET /app/menu
+
+app:menu:read:team:
+  team: true
+  description: "Read team menus (public + team-shared)"
+  endpoints:
+    - GET /app/menu

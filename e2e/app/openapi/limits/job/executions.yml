@@ -1,0 +1,64 @@
+guest:
+  minutes:
+    GET /job/jobs/:jobID/executions: 10
+    GET /job/executions/:executionID: 20
+    GET /job/executions/:executionID/progress: 30
+  hours:
+    GET /job/jobs/:jobID/executions: 100
+    GET /job/executions/:executionID: 200
+    GET /job/executions/:executionID/progress: 300
+  days:
+    GET /job/jobs/:jobID/executions: 1000
+    GET /job/executions/:executionID: 2000
+    GET /job/executions/:executionID/progress: 3000
+
+default:
+  minutes:
+    GET /job/jobs/:jobID/executions: 30
+    GET /job/executions/:executionID: 60
+    GET /job/executions/:executionID/progress: 100
+    POST /job/executions/:executionID/stop: 5
+  hours:
+    GET /job/jobs/:jobID/executions: 300
+    GET /job/executions/:executionID: 600
+    GET /job/executions/:executionID/progress: 1000
+    POST /job/executions/:executionID/stop: 50
+  days:
+    GET /job/jobs/:jobID/executions: 3000
+    GET /job/executions/:executionID: 6000
+    GET /job/executions/:executionID/progress: 10000
+    POST /job/executions/:executionID/stop: 500
+
+premium:
+  minutes:
+    GET /job/jobs/:jobID/executions: 100
+    GET /job/executions/:executionID: 200
+    GET /job/executions/:executionID/progress: 300
+    POST /job/executions/:executionID/stop: 20
+  hours:
+    GET /job/jobs/:jobID/executions: 1000
+    GET /job/executions/:executionID: 2000
+    GET /job/executions/:executionID/progress: 3000
+    POST /job/executions/:executionID/stop: 200
+  days:
+    GET /job/jobs/:jobID/executions: 10000
+    GET /job/executions/:executionID: 20000
+    GET /job/executions/:executionID/progress: 30000
+    POST /job/executions/:executionID/stop: 2000
+
+enterprise:
+  minutes:
+    GET /job/jobs/:jobID/executions: 500
+    GET /job/executions/:executionID: 1000
+    GET /job/executions/:executionID/progress: 1500
+    POST /job/executions/:executionID/stop: 100
+  hours:
+    GET /job/jobs/:jobID/executions: 5000
+    GET /job/executions/:executionID: 10000
+    GET /job/executions/:executionID/progress: 15000
+    POST /job/executions/:executionID/stop: 1000
+  days:
+    GET /job/jobs/:jobID/executions: 50000
+    GET /job/executions/:executionID: 100000
+    GET /job/executions/:executionID/progress: 150000
+    POST /job/executions/:executionID/stop: 10000

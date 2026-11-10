@@ -1,0 +1,22 @@
+# Chat References Scopes (Citation Support)
+
+chat:references:read:all:
+  description: "Read all search references"
+  endpoints:
+    - GET /chat/references/:request_id
+    - GET /chat/references/:request_id/:index
+
+chat:references:read:own:
+  owner: true
+  description: "Read own search references"
+  endpoints:
+    - GET /chat/references/:request_id
+    - GET /chat/references/:request_id/:index
+
+chat:references:read:team:
+  team: true
+  description: "Read team search references"
+  endpoints:
+    - GET /chat/references/:request_id
+    - GET /chat/references/:request_id/:index
+

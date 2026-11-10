@@ -1,0 +1,39 @@
+# Preference - Setting Management
+# namespace: setting
+# resource: preference
+# actions: read, write
+# levels: all, own, team
+
+setting:preference:read:all:
+  description: "Read user preference"
+  endpoints:
+    - GET /setting/preference
+
+setting:preference:read:own:
+  owner: true
+  description: "Read own preference"
+  endpoints:
+    - GET /setting/preference
+
+setting:preference:read:team:
+  team: true
+  description: "Read team preference"
+  endpoints:
+    - GET /setting/preference
+
+setting:preference:write:all:
+  description: "Update user preference"
+  endpoints:
+    - PUT /setting/preference
+
+setting:preference:write:own:
+  owner: true
+  description: "Update own preference"
+  endpoints:
+    - PUT /setting/preference
+
+setting:preference:write:team:
+  team: true
+  description: "Update team preference"
+  endpoints:
+    - PUT /setting/preference

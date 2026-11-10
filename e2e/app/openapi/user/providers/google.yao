@@ -1,0 +1,15 @@
+{
+  "client_id": "$ENV.GOOGLE_CLIENT_ID",
+  "device_client_id": "$ENV.GOOGLE_DEVICE_CLIENT_ID",
+  "device_client_secret": "$ENV.GOOGLE_DEVICE_CLIENT_SECRET",
+  "client_secret": "$ENV.GOOGLE_CLIENT_SECRET",
+  "scopes": ["openid", "email", "profile"],
+  "endpoints": {
+    "authorization": "https://accounts.google.com/o/oauth2/v2/auth",
+    "token": "https://oauth2.googleapis.com/token",
+    "user_info": "https://www.googleapis.com/oauth2/v3/userinfo",
+    "device_authorization": "https://oauth2.googleapis.com/device/code"
+  },
+  "mapping": "google",
+  "register": { "auto": true } // Auto register user if not exists
+}

@@ -1,0 +1,46 @@
+# Traces - Trace Management
+# namespace: trace
+# resource: traces
+# actions: read
+# levels: all, own, team
+
+trace:traces:read:all:
+  description: "Read all traces"
+  endpoints:
+    - GET /trace/traces/:traceID
+    - GET /trace/traces/:traceID/events
+    - GET /trace/traces/:traceID/info
+    - GET /trace/traces/:traceID/nodes
+    - GET /trace/traces/:traceID/nodes/:nodeID
+    - GET /trace/traces/:traceID/logs
+    - GET /trace/traces/:traceID/logs/:nodeID
+    - GET /trace/traces/:traceID/spaces
+    - GET /trace/traces/:traceID/spaces/:spaceID
+
+trace:traces:read:own:
+  owner: true
+  description: "Read own traces"
+  endpoints:
+    - GET /trace/traces/:traceID
+    - GET /trace/traces/:traceID/events
+    - GET /trace/traces/:traceID/info
+    - GET /trace/traces/:traceID/nodes
+    - GET /trace/traces/:traceID/nodes/:nodeID
+    - GET /trace/traces/:traceID/logs
+    - GET /trace/traces/:traceID/logs/:nodeID
+    - GET /trace/traces/:traceID/spaces
+    - GET /trace/traces/:traceID/spaces/:spaceID
+
+trace:traces:read:team:
+  team: true
+  description: "Read team traces"
+  endpoints:
+    - GET /trace/traces/:traceID
+    - GET /trace/traces/:traceID/events
+    - GET /trace/traces/:traceID/info
+    - GET /trace/traces/:traceID/nodes
+    - GET /trace/traces/:traceID/nodes/:nodeID
+    - GET /trace/traces/:traceID/logs
+    - GET /trace/traces/:traceID/logs/:nodeID
+    - GET /trace/traces/:traceID/spaces
+    - GET /trace/traces/:traceID/spaces/:spaceID

@@ -1,0 +1,86 @@
+{
+  "type": "free", // default subscription type for new teams
+  "role": "team:owner", // default member role for team creator (owner member role)
+  "roles": [
+    {
+      "role_id": "team:owner",
+      "label": "Owner",
+      "description": "Team owner with full control over team resources and settings",
+      "default": false,
+      "hidden": true
+    },
+    {
+      "role_id": "team:admin",
+      "label": "Admin",
+      "description": "Manage team members, assign roles, and configure team settings",
+      "default": false,
+      "hidden": false
+    },
+    {
+      "role_id": "team:member",
+      "label": "Member",
+      "description": "Access team resources and collaborate with other team members",
+      "default": true,
+      "hidden": false
+    }
+  ],
+
+  // AI Member (Robot) Configuration
+  "robot": {
+    "roles": ["team:member", "team:admin"], // Available roles for AI members
+
+    // Agent configuration for AI members
+    "agents": {
+      "executor": "members.robot", // Agent responsible for executing tasks and handling work logic
+      "planner": "members.mind", // Agent responsible for autonomous thinking and planning work
+      "profiler": "members.profile" // Agent responsible for generating and optimizing member identity
+    },
+
+    // Email domain configurations for AI members
+    "email_domains": [
+      {
+        "name": "Robot Email", // Display name for this configuration
+        "messenger": "hello",
+        "domain": "ai.yaoagents.com",
+        "prefix_min_length": 6, // Minimum length for email prefix
+        "prefix_max_length": 20, // Maximum length for email prefix
+        "reserved_words": ["robot", "yaoagents", "/^robot/"], // Reserved/protected words
+        "whitelist": {
+          "domains": ["ai.yaoagents.com"],
+          "senders": ["hello@ai.yaoagents.com"],
+          "ips": ["0.0.0.0/0"]
+        }
+      },
+      {
+        "name": "Staff Email", // Display name for this configuration
+        "messenger": "staff",
+        "domain": "staff.yaoagents.com",
+        "prefix_min_length": 6,
+        "prefix_max_length": 20,
+        "reserved_words": ["admin", "staff", "support", "/^team/"],
+        "whitelist": {
+          "domains": ["staff.yaoagents.com"],
+          "senders": ["staff@yaoagents.com"],
+          "ips": ["0.0.0.0/0"]
+        }
+      }
+    ],
+
+    // Default settings for AI members
+    "defaults": {
+      "llm": "openai.gpt-4o", // Default LLM model (LLM list is provided by system API)
+      "autonomous_mode": true, // Whether autonomous mode is enabled by default
+      "cost_limit": 100 // Default daily cost limit (USD)
+    }
+  },
+
+  "invite": {
+    "channel": "default",
+    "expiry": "1d", // invitation link expiry: 8h, 1d, 20m, etc.
+    "base_url": "https://yaoagents.com/dashboard/team/invite", // base URL for invitation links (empty means use current origin)
+    "templates": {
+      "mail": "en.invite_member", // mail template
+      "sms": "en.invite_member" // sms template
+    }
+  }
+}
