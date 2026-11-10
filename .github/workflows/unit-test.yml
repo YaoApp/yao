@@ -232,6 +232,9 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
+      - name: Prepare v8go native libs
+        run: go run ./scripts/v8godeps
+
       - name: Start Redis
         run: docker run --name redis --publish 6379:6379 --detach redis:6
 
@@ -355,6 +358,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
+
+      - name: Prepare v8go native libs
+        run: go run ./scripts/v8godeps
 
       - name: Install FFmpeg 7.x
         run: |
@@ -512,6 +518,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
+
+      - name: Prepare v8go native libs
+        run: go run ./scripts/v8godeps
 
       - name: Run Registry Client Tests
         env:
