@@ -46,9 +46,18 @@ jobs:
           token: ${{ secrets.REPO_GITHUB_TOKEN || github.token }}
           path: tai-src
 
+      - name: Checkout Tai-Golang
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/tai-golang
+          token: ${{ secrets.REPO_GITHUB_TOKEN || github.token }}
+          path: tai-golang-src
+
       - name: Move Tai
         shell: bash
-        run: mv tai-src ../tai
+        run: |
+          mv tai-src ../tai
+          mv tai-golang-src ../tai-golang
 
       - name: Setup Go
         uses: actions/setup-go@v5
