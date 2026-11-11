@@ -17,14 +17,6 @@
       "cert_rotation_enabled": false, // Optional: Enable automatic certificate rotation (default: false)
       "cert_rotation_interval": "24h", // Optional: Certificate rotation interval (default: 24h)
     },
-    "node_token": {
-      "signing_cert_path": "node-token-cert.pem",
-      "signing_key_path": "node-token-key.pem",
-      "signing_key_password": "",
-      "signing_algorithm": "RS256",
-      "kid": "nt-e2e-2026-01",
-      "ttl": "168h",
-    },
     "token": {
       "access_token_lifetime": "1h", // Optional: Access token validity period (default: 1h)
       "access_token_format": "jwt", // Optional: Access token format - jwt/opaque (default: jwt)

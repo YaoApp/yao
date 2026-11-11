@@ -2,7 +2,6 @@ package oauth
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/yaoapp/gou/store"
@@ -24,9 +23,7 @@ type Service struct {
 	clientProvider types.ClientProvider
 	prefix         string
 	// Signing certificates for JWT token signing and verification
-	signingCerts     *SigningCertificates
-	nodeSigningCerts *SigningCertificates
-	nodeLocks        sync.Map
+	signingCerts *SigningCertificates
 }
 
 // Config OAuth service configuration
@@ -45,9 +42,6 @@ type Config struct {
 
 	// Certificate and key management
 	Signing types.SigningConfig `json:"signing"`
-
-	// Independent node token signing configuration
-	NodeToken types.NodeTokenConfig `json:"node_token"`
 
 	// Token management settings
 	Token types.TokenConfig `json:"token"`
@@ -144,30 +138,19 @@ func NewService(config *Config) (*Service, error) {
 		return nil, fmt.Errorf("failed to load signing certificates: %w", err)
 	}
 
-	nodeSigningCerts, err := LoadSigningCertificates(&types.SigningConfig{
-		SigningCertPath:    config.NodeToken.SigningCertPath,
-		SigningKeyPath:     config.NodeToken.SigningKeyPath,
-		SigningKeyPassword: config.NodeToken.SigningKeyPassword,
-		SigningAlgorithm:   config.NodeToken.SigningAlgorithm,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to load node token signing certificates: %w", err)
-	}
-
 	// Validate the loaded certificates
 	if err := signingCerts.ValidateCertificate(); err != nil {
 		return nil, fmt.Errorf("certificate validation failed: %w", err)
 	}
 
 	service := &Service{
-		config:           config,
-		store:            config.Store,
-		cache:            config.Cache,
-		userProvider:     userProvider,
-		clientProvider:   clientProvider,
-		prefix:           keyPrefix,
-		signingCerts:     signingCerts,
-		nodeSigningCerts: nodeSigningCerts,
+		config:         config,
+		store:          config.Store,
+		cache:          config.Cache,
+		userProvider:   userProvider,
+		clientProvider: clientProvider,
+		prefix:         keyPrefix,
+		signingCerts:   signingCerts,
 	}
 
 	// Set the global OAuth service
@@ -218,15 +201,6 @@ func setConfigDefaults(config *Config) error {
 	// Certificate defaults
 	if config.Signing.SigningAlgorithm == "" {
 		config.Signing.SigningAlgorithm = "RS256"
-	}
-	if config.NodeToken.SigningAlgorithm == "" {
-		config.NodeToken.SigningAlgorithm = "RS256"
-	}
-	if config.NodeToken.KID == "" {
-		config.NodeToken.KID = "node-token"
-	}
-	if config.NodeToken.TTL == 0 {
-		config.NodeToken.TTL = 7 * 24 * time.Hour
 	}
 
 	// Token defaults

@@ -396,33 +396,3 @@ func convertAbsoluteToRelativePath(absolutePath, rootPath string) string {
 
 	return absolutePath
 }
-
-func TestNodeTokenConfigRoundTrip(t *testing.T) {
-	config := &openapi.Config{
-		BaseURL: "/v1",
-		Store:   "__yao.oauth.store",
-		Cache:   "__yao.oauth.cache",
-		OAuth: &openapi.OAuth{
-			IssuerURL: "https://localhost:5099",
-			NodeToken: types.NodeTokenConfig{
-				SigningCertPath:  "node-token-cert.pem",
-				SigningKeyPath:   "node-token-key.pem",
-				SigningAlgorithm: "RS256",
-				KID:              "nt-2026-01",
-				TTL:              7 * 24 * time.Hour,
-			},
-		},
-	}
-	data, err := jsoniter.Marshal(config)
-	assert.NoError(t, err)
-	assert.Contains(t, string(data), `"node_token"`)
-	assert.Contains(t, string(data), `"ttl":"168h0m0s"`)
-
-	var got openapi.Config
-	assert.NoError(t, jsoniter.Unmarshal(data, &got))
-	assert.Equal(t, config.OAuth.NodeToken.SigningCertPath, got.OAuth.NodeToken.SigningCertPath)
-	assert.Equal(t, config.OAuth.NodeToken.SigningKeyPath, got.OAuth.NodeToken.SigningKeyPath)
-	assert.Equal(t, config.OAuth.NodeToken.SigningAlgorithm, got.OAuth.NodeToken.SigningAlgorithm)
-	assert.Equal(t, config.OAuth.NodeToken.KID, got.OAuth.NodeToken.KID)
-	assert.Equal(t, config.OAuth.NodeToken.TTL, got.OAuth.NodeToken.TTL)
-}

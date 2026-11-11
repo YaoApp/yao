@@ -118,6 +118,3 @@ tai/docs/job-event-bridge.md
 openapi/testmode/*.md
 docs/design/llm-provider-refactor.md
 llm/MANUAL-TESTING.md
-
-# Node token coverage artifact
-/agent-tests.cover

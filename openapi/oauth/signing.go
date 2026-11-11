@@ -109,9 +109,7 @@ func loadExistingCertificates(certs *SigningCertificates, config *types.SigningC
 
 	var signingKey interface{}
 	if config.SigningKeyPassword != "" {
-		// Decrypt encrypted key. Legacy RFC 1423 PEM encryption is intentionally
-		// kept for backward-compatible deployments.
-		//lint:ignore SA1019 legacy PEM encryption is required for existing deployments
+		// Decrypt encrypted key
 		keyBytes, err := x509.DecryptPEMBlock(keyBlock, []byte(config.SigningKeyPassword))
 		if err != nil {
 			return fmt.Errorf("failed to decrypt signing key: %w", err)

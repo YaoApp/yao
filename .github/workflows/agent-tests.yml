@@ -1,4 +1,4 @@
-name: Agent Tests
+name: Agent E2E Tests
 
 on:
   workflow_dispatch:
@@ -6,28 +6,14 @@ on:
     paths:
       - "e2e/**"
       - "modules/**"
-      - "openapi/auth/**"
-      - "openapi/oauth/**"
-      - "openapi/config.go"
-      - "openapi/openapi.go"
-      - "openapi/types.go"
-      - "tai/auth/**"
       - "scripts/build-tai-all.sh"
-      - "Makefile"
       - ".github/workflows/agent-tests.yml"
   push:
     branches: [main]
     paths:
       - "e2e/**"
       - "modules/**"
-      - "openapi/auth/**"
-      - "openapi/oauth/**"
-      - "openapi/config.go"
-      - "openapi/openapi.go"
-      - "openapi/types.go"
-      - "tai/auth/**"
       - "scripts/build-tai-all.sh"
-      - "Makefile"
       - ".github/workflows/agent-tests.yml"
 
 permissions:
@@ -41,49 +27,8 @@ env:
   CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
 
 jobs:
-  agent-tests:
-    name: agent-tests / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-2025]
-
-    steps:
-      - name: Checkout Yao
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Install LLVM and make (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: choco install llvm make -y --no-progress
-
-      - name: Install v8 native deps
-        shell: bash
-        run: go run ./scripts/v8godeps
-
-      - name: Setup Windows CGO
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          echo "CGO_ENABLED=1" >> "$GITHUB_ENV"
-          echo 'CC=clang --target=x86_64-pc-windows-msvc -fuse-ld=lld' >> "$GITHUB_ENV"
-          echo 'CXX=clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions' >> "$GITHUB_ENV"
-
-      - name: Run functional tests
-        shell: bash
-        run: make agent-tests
-
-  agent-e2e-tests:
-    name: agent-e2e-tests / ${{ matrix.os }} / ${{ matrix.db }}
+  agent-e2e:
+    name: ${{ matrix.os }} / ${{ matrix.db }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 
@@ -171,10 +116,10 @@ jobs:
             psql -U postgres -c "ALTER USER yao_e2e PASSWORD 'YaoE2E2026';"
           fi
 
-      - name: Install LLVM and make (Windows)
+      - name: Install LLVM (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        run: choco install llvm make -y --no-progress
+        run: choco install llvm -y --no-progress
 
       - name: Setup Windows CGO
         if: runner.os == 'Windows'
@@ -210,11 +155,14 @@ jobs:
         shell: bash
         run: go run ./scripts/v8godeps
 
-      - name: Run E2E tests
+      - name: Run new module E2E tests
         shell: bash
         env:
           CGO_CFLAGS: ${{ runner.os == 'Linux' && '-Wno-discarded-qualifiers' || '' }}
-        run: make agent-e2e-tests
+        run: |
+          go test -tags=e2e -v -count=1 -timeout 15m \
+            ./modules/... \
+            -run '^TestE2E'
 
       - name: Upload E2E logs
         if: always()

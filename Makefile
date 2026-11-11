@@ -4,22 +4,22 @@ GO ?= go
 export CGO_CXXFLAGS ?= -Wno-template-id-cdtor -Wno-unknown-warning-option
 GIT ?= git
 GOFMT ?= gofmt "-s"
-PACKAGES = $(shell $(GO) list ./...)
-VETPACKAGES = $(shell $(GO) list ./... | grep -v /examples/)
-GOFILES = $(shell find . -name "*.go")
-VERSION = $(shell grep 'const VERSION =' share/const.go |awk '{print $$4}' |sed 's/\"//g')
-COMMIT = $(shell git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
-NOW = $(shell date +"%FT%T%z")
-OS = $(shell uname)
+PACKAGES ?= $(shell $(GO) list ./...)
+VETPACKAGES ?= $(shell $(GO) list ./... | grep -v /examples/)
+GOFILES := $(shell find . -name "*.go")
+VERSION := $(shell grep 'const VERSION =' share/const.go |awk '{print $$4}' |sed 's/\"//g')
+COMMIT := $(shell git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
+NOW := $(shell date +"%FT%T%z")
+OS := $(shell uname)
 
 # Windows CGO compiler settings (requires LLVM: choco install llvm -y)
 WIN_CC  = clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
 WIN_CXX = clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-TESTFOLDER = $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|registry')
+TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|registry')
 # Core tests (exclude AI-related and integrations which require external services)
-TESTFOLDER_CORE = $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|integrations|registry|grpc')
+TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|integrations|registry|grpc')
 # gRPC tests
 TESTTAGS ?= ""
 
@@ -95,26 +95,6 @@ unit-test-core-windows: deps
 	$(GO) test -tags $(TESTTAGS) -v -p 1 -timeout 600s \
 		-skip='TestMemoryLeak|TestIsolateDisposal|TestLeak_|TestScenario_|TestSandbox' \
 		$(TESTFOLDER_CORE)
-
-# Agent functional test scope. Extend these variables when a new module is added.
-AGENT_TEST_PKGS ?= ./openapi/oauth ./openapi/auth ./tai/auth
-AGENT_TEST_RUN ?= ^(TestNodeToken.*|TestProvider)$$
-AGENT_TEST_TIMEOUT ?= 60s
-
-
-.PHONY: agent-tests
-agent-tests:
-	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '$(AGENT_TEST_RUN)' $(AGENT_TEST_PKGS)
-
-.PHONY: agent-e2e-tests
-agent-e2e-tests:
-	$(GO) test -tags=e2e -v -count=1 -timeout $(AGENT_TEST_TIMEOUT) -run '^(TestE2E|TestNodeTokenE2E)' ./modules/... ./openapi/auth/...
-
-.PHONY: agent-coverage
-agent-coverage:
-	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '$(AGENT_TEST_RUN)' -covermode=atomic -coverprofile=agent-tests.cover $(AGENT_TEST_PKGS)
-	awk '$$1 !~ /mode:/ && $$1 ~ /:/ {split($$1, p, ":"); f=p[1]; t[f]+=$$2; if ($$3>0) c[f]+=$$2} END {for (f in t) printf "%s %.2f%%\n", f, (t[f] ? 100*c[f]/t[f] : 0)}' agent-tests.cover | sort
-	$(GO) tool cover -func=agent-tests.cover | tail -n 1
 
 .PHONY: unit-test-registry
 unit-test-registry: deps

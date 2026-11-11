@@ -56,7 +56,6 @@ client:free:
   - __yao:all
   - api:all
   - setting:all
-  - auth:all
 
 client:pro:
   - app:all
@@ -83,7 +82,6 @@ client:pro:
   - __yao:all
   - api:all
   - setting:all
-  - auth:all
 
 client:ent:
   - app:all
@@ -110,7 +108,6 @@ client:ent:
   - __yao:all
   - api:all
   - setting:all
-  - auth:all
 
 # ================================================
 # 2. User/Team Roles - User/Team Subscription Tiers
@@ -148,7 +145,6 @@ user:free:
   - __yao:all:own
   - api:all:own
   - setting:all:own
-  - auth:all:own
 
 user:pro:
   - app:all:own
@@ -175,7 +171,6 @@ user:pro:
   - __yao:all:own
   - api:all:own
   - setting:all:own
-  - auth:all:own
 
 user:ent:
   - app:all:own
@@ -202,7 +197,6 @@ user:ent:
   - __yao:all:own
   - api:all:own
   - setting:all:own
-  - auth:all:own
 
 # ================================================
 # 3. Team Member Roles
@@ -237,7 +231,6 @@ team:owner:
   - __yao:all:team
   - api:all:team
   - setting:all:team
-  - auth:all:team
 
 team:admin:
   - app:all:team
@@ -264,7 +257,6 @@ team:admin:
   - __yao:all:team
   - api:all:team
   - setting:all:team
-  - auth:all:team
 
 team:member:
   - app:read:team
@@ -305,7 +297,6 @@ team:member:
   - __yao:all:team
   - api:all:own
   - setting:read:team
-  - auth:all:team
 
 # ================================================
 # Resources Aliases
@@ -1090,32 +1081,6 @@ workspace:write:own:
   - workspace:workspaces:delete:own
   - workspace:workspaces:files:own
   - workspace:workspaces:git:own
-
-# ============ Auth Resources Aliases ============
-
-auth:all:
-  - auth:node_tokens:rotate:all
-  - auth:node_tokens:revoke:all
-
-auth:all:own:
-  - auth:node_tokens:rotate:own
-  - auth:node_tokens:revoke:own
-
-auth:all:team:
-  - auth:node_tokens:rotate:team
-  - auth:node_tokens:revoke:team
-
-auth:manage:team:
-  - auth:node_tokens:rotate:team
-  - auth:node_tokens:revoke:team
-
-auth:read:team:
-  - auth:node_tokens:rotate:team
-  - auth:node_tokens:revoke:team
-
-auth:write:own:
-  - auth:node_tokens:rotate:own
-  - auth:node_tokens:revoke:own
 
 # ============ Nodes Resources Aliases ============
 

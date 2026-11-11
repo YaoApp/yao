@@ -1,7 +1,0 @@
-{
-  "go.buildTags": "e2e",
-  "go.testTags": "e2e",
-  "gopls": {
-    "buildFlags": ["-tags=e2e"]
-  }
-}

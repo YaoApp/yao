@@ -55,14 +55,6 @@ func (config *Config) MarshalJSON() ([]byte, error) {
 				CertRotationEnabled:  config.OAuth.Signing.CertRotationEnabled,
 				CertRotationInterval: formatDuration(config.OAuth.Signing.CertRotationInterval),
 			},
-			NodeToken: TempNodeTokenConfig{
-				SigningCertPath:    convertAbsoluteToRelativePath(config.OAuth.NodeToken.SigningCertPath, config.root),
-				SigningKeyPath:     convertAbsoluteToRelativePath(config.OAuth.NodeToken.SigningKeyPath, config.root),
-				SigningKeyPassword: config.OAuth.NodeToken.SigningKeyPassword,
-				SigningAlgorithm:   config.OAuth.NodeToken.SigningAlgorithm,
-				KID:                config.OAuth.NodeToken.KID,
-				TTL:                formatDuration(config.OAuth.NodeToken.TTL),
-			},
 			Token: TempTokenConfig{
 				AccessTokenLifetime:       formatDuration(config.OAuth.Token.AccessTokenLifetime),
 				AccessTokenFormat:         config.OAuth.Token.AccessTokenFormat,
@@ -163,20 +155,6 @@ func (config *Config) UnmarshalJSON(data []byte) error {
 		if tempConfig.OAuth.Signing.CertRotationInterval != "" {
 			if duration, err := parseDuration(tempConfig.OAuth.Signing.CertRotationInterval); err == nil {
 				config.OAuth.Signing.CertRotationInterval = duration
-			}
-		}
-
-		// Convert node token config with duration parsing
-		config.OAuth.NodeToken = types.NodeTokenConfig{
-			SigningCertPath:    tempConfig.OAuth.NodeToken.SigningCertPath,
-			SigningKeyPath:     tempConfig.OAuth.NodeToken.SigningKeyPath,
-			SigningKeyPassword: tempConfig.OAuth.NodeToken.SigningKeyPassword,
-			SigningAlgorithm:   tempConfig.OAuth.NodeToken.SigningAlgorithm,
-			KID:                tempConfig.OAuth.NodeToken.KID,
-		}
-		if tempConfig.OAuth.NodeToken.TTL != "" {
-			if duration, err := parseDuration(tempConfig.OAuth.NodeToken.TTL); err == nil {
-				config.OAuth.NodeToken.TTL = duration
 			}
 		}
 
@@ -403,10 +381,6 @@ func (config *Config) OAuthConfig(appConfig config.Config) (*oauth.Config, error
 	signingConfig.SigningKeyPath = convertRelativeToAbsolutePath(signingConfig.SigningKeyPath, appConfig.Root)
 	signingConfig.MTLSClientCACertPath = convertRelativeToAbsolutePath(signingConfig.MTLSClientCACertPath, appConfig.Root)
 
-	nodeSigningConfig := config.OAuth.NodeToken
-	nodeSigningConfig.SigningCertPath = convertRelativeToAbsolutePath(nodeSigningConfig.SigningCertPath, appConfig.Root)
-	nodeSigningConfig.SigningKeyPath = convertRelativeToAbsolutePath(nodeSigningConfig.SigningKeyPath, appConfig.Root)
-
 	// Create the OAuth configuration
 	oauthConfig = oauth.Config{
 		UserProvider:   userProvider,
@@ -416,7 +390,6 @@ func (config *Config) OAuthConfig(appConfig config.Config) (*oauth.Config, error
 		IssuerURL:      config.OAuth.IssuerURL,
 		BaseURL:        config.BaseURL,
 		Signing:        signingConfig, // Use the converted signing config
-		NodeToken:      nodeSigningConfig,
 		Token:          config.OAuth.Token,
 		Security:       config.OAuth.Security,
 		Client:         config.OAuth.Client,

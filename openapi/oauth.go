@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	openapiauth "github.com/yaoapp/yao/openapi/auth"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
@@ -69,8 +68,6 @@ func (openapi *OpenAPI) attachOAuth(base *gin.RouterGroup) {
 	// Token Exchange - RFC 8693
 	oauth.POST("/token_exchange", openapi.oauthTokenExchange)
 
-	// Node-token lifecycle endpoints are part of OAuth authentication.
-	openapiauth.Attach(base, openapi.OAuth)
 }
 
 // OAuth Core Endpoints Implementation
