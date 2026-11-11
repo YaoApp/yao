@@ -516,6 +516,16 @@ type SigningConfig struct {
 	CertRotationInterval time.Duration `json:"cert_rotation_interval"` // Optional: Certificate rotation interval (default: 24h)
 }
 
+// NodeTokenConfig controls the independent node-token signing key.
+type NodeTokenConfig struct {
+	SigningCertPath    string        `json:"signing_cert_path"`
+	SigningKeyPath     string        `json:"signing_key_path"`
+	SigningKeyPassword string        `json:"signing_key_password,omitempty"`
+	SigningAlgorithm   string        `json:"signing_algorithm"`
+	KID                string        `json:"kid"`
+	TTL                time.Duration `json:"ttl"`
+}
+
 // TokenConfig represents token-related configuration
 type TokenConfig struct {
 	// Access token settings

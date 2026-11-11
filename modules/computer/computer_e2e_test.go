@@ -1,6 +1,6 @@
 //go:build e2e
 
-package computer
+package computer_test
 
 import (
 	"fmt"

@@ -93,6 +93,10 @@ func NewWithOptions(t *testing.T, opts Options) (*Environment, error) {
 		os.RemoveAll(root)
 		return nil, err
 	}
+	if err := ensureNodeTokenCerts(appRoot); err != nil {
+		os.RemoveAll(root)
+		return nil, err
+	}
 
 	runDir := filepath.Join(opts.ArtifactsDir, opts.RunID)
 	if err := os.MkdirAll(runDir, 0o755); err != nil {

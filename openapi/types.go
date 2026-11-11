@@ -26,12 +26,13 @@ type Providers struct {
 
 // OAuth is the OAuth configuration for the OpenAPI server
 type OAuth struct {
-	IssuerURL string               `json:"issuer_url,omitempty" yaml:"issuer_url,omitempty"`
-	Signing   types.SigningConfig  `json:"signing,omitempty" yaml:"signing,omitempty"`
-	Token     types.TokenConfig    `json:"token,omitempty" yaml:"token,omitempty"`
-	Security  types.SecurityConfig `json:"security,omitempty" yaml:"security,omitempty"`
-	Client    types.ClientConfig   `json:"client,omitempty" yaml:"client,omitempty"`
-	Features  oauth.FeatureFlags   `json:"features,omitempty" yaml:"features,omitempty"`
+	IssuerURL string                `json:"issuer_url,omitempty" yaml:"issuer_url,omitempty"`
+	Signing   types.SigningConfig   `json:"signing,omitempty" yaml:"signing,omitempty"`
+	NodeToken types.NodeTokenConfig `json:"node_token,omitempty" yaml:"node_token,omitempty"`
+	Token     types.TokenConfig     `json:"token,omitempty" yaml:"token,omitempty"`
+	Security  types.SecurityConfig  `json:"security,omitempty" yaml:"security,omitempty"`
+	Client    types.ClientConfig    `json:"client,omitempty" yaml:"client,omitempty"`
+	Features  oauth.FeatureFlags    `json:"features,omitempty" yaml:"features,omitempty"`
 }
 
 // Temporary config structures for JSON unmarshaling (string duration fields)
@@ -49,6 +50,16 @@ type TempSigningConfig struct {
 	MTLSEnabled          bool     `json:"mtls_enabled"`
 	CertRotationEnabled  bool     `json:"cert_rotation_enabled"`
 	CertRotationInterval string   `json:"cert_rotation_interval"`
+}
+
+// TempNodeTokenConfig represents node token configuration with string TTL.
+type TempNodeTokenConfig struct {
+	SigningCertPath    string `json:"signing_cert_path"`
+	SigningKeyPath     string `json:"signing_key_path"`
+	SigningKeyPassword string `json:"signing_key_password,omitempty"`
+	SigningAlgorithm   string `json:"signing_algorithm"`
+	KID                string `json:"kid"`
+	TTL                string `json:"ttl"`
 }
 
 // TempTokenConfig represents token configuration with string duration fields
@@ -114,12 +125,13 @@ type TempClientConfig struct {
 
 // TempOAuth represents OAuth configuration with string duration fields
 type TempOAuth struct {
-	IssuerURL string             `json:"issuer_url,omitempty"`
-	Signing   TempSigningConfig  `json:"signing,omitempty"`
-	Token     TempTokenConfig    `json:"token,omitempty"`
-	Security  TempSecurityConfig `json:"security,omitempty"`
-	Client    TempClientConfig   `json:"client,omitempty"`
-	Features  oauth.FeatureFlags `json:"features,omitempty"`
+	IssuerURL string              `json:"issuer_url,omitempty"`
+	Signing   TempSigningConfig   `json:"signing,omitempty"`
+	NodeToken TempNodeTokenConfig `json:"node_token,omitempty"`
+	Token     TempTokenConfig     `json:"token,omitempty"`
+	Security  TempSecurityConfig  `json:"security,omitempty"`
+	Client    TempClientConfig    `json:"client,omitempty"`
+	Features  oauth.FeatureFlags  `json:"features,omitempty"`
 }
 
 // TempConfig represents the full config structure with string duration fields
