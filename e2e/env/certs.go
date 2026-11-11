@@ -18,8 +18,21 @@ func ensureSigningCerts(appRoot string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	certPath := filepath.Join(dir, "signing-cert.pem")
-	keyPath := filepath.Join(dir, "signing-key.pem")
+	return ensureCertPair(dir, "signing", "Yao E2E Signing")
+}
+
+// ensureNodeTokenCerts creates the independent node token key pair.
+func ensureNodeTokenCerts(appRoot string) error {
+	dir := filepath.Join(appRoot, "openapi", "certs")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return ensureCertPair(dir, "node-token", "Yao E2E Node Token")
+}
+
+func ensureCertPair(dir, prefix, commonName string) error {
+	certPath := filepath.Join(dir, prefix+"-cert.pem")
+	keyPath := filepath.Join(dir, prefix+"-key.pem")
 	if fileExists(certPath) && fileExists(keyPath) {
 		return nil
 	}
@@ -30,7 +43,7 @@ func ensureSigningCerts(appRoot string) error {
 	}
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().UnixNano()),
-		Subject:      pkix.Name{CommonName: "Yao E2E Signing"},
+		Subject:      pkix.Name{CommonName: commonName},
 		NotBefore:    time.Now().Add(-time.Minute),
 		NotAfter:     time.Now().Add(24 * time.Hour),
 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
