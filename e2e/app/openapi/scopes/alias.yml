@@ -1036,18 +1036,27 @@ sandbox:write:own:
 
 computer:all:
   - computer:computers:read:all
+  - computer:computers:write:all
+  - computer:computers:delete:all
 
 computer:all:own:
   - computer:computers:read:own
+  - computer:computers:write:own
+  - computer:computers:delete:own
 
 computer:all:team:
   - computer:computers:read:team
+  - computer:computers:write:team
+  - computer:computers:delete:team
 
 computer:read:team:
   - computer:computers:read:team
 
 computer:read:own:
   - computer:computers:read:own
+
+computer:write:own:
+  - computer:computers:write:own
 
 # ============ Workspace Resources Aliases ============
 

@@ -1,24 +1,86 @@
-# Computers - Computer Options (Read-only)
+# Computers
 # namespace: computer
 # resource: computers
-# actions: read
+# actions: read, write, delete
 # levels: all, own, team
 
-# ============ Read Computers ============
+# ============ Read ============
 
 computer:computers:read:all:
-  description: "List computer options"
+  description: "Read computer options and all computers"
   endpoints:
     - GET /computer/options
+    - GET /computers
+    - GET /computers/:computer_id
+    - GET /computers/:computer_id/workspaces
+    - GET /computers/:computer_id/runtimes
+    - GET /computers/:computer_id/containers
 
 computer:computers:read:own:
   owner: true
-  description: "List own computer options"
+  description: "Read own computers"
   endpoints:
     - GET /computer/options
+    - GET /computers
+    - GET /computers/:computer_id
+    - GET /computers/:computer_id/workspaces
+    - GET /computers/:computer_id/runtimes
+    - GET /computers/:computer_id/containers
 
 computer:computers:read:team:
   team: true
-  description: "List team computer options"
+  description: "Read team computers"
   endpoints:
     - GET /computer/options
+    - GET /computers
+    - GET /computers/:computer_id
+    - GET /computers/:computer_id/workspaces
+    - GET /computers/:computer_id/runtimes
+    - GET /computers/:computer_id/containers
+
+# ============ Write ============
+
+computer:computers:write:own:
+  owner: true
+  description: "Create and manage own computers"
+  endpoints:
+    - POST /computers/connect
+    - PATCH /computers/:computer_id
+    - POST /computers/:computer_id/disconnect
+    - POST /computers/:computer_id/reconnect
+
+computer:computers:write:team:
+  team: true
+  description: "Create and manage team computers"
+  endpoints:
+    - POST /computers/connect
+    - PATCH /computers/:computer_id
+    - POST /computers/:computer_id/disconnect
+    - POST /computers/:computer_id/reconnect
+
+computer:computers:write:all:
+  description: "Create and manage all computers"
+  endpoints:
+    - POST /computers/connect
+    - PATCH /computers/:computer_id
+    - POST /computers/:computer_id/disconnect
+    - POST /computers/:computer_id/reconnect
+
+# ============ Delete ============
+
+computer:computers:delete:own:
+  owner: true
+  description: "Delete own computers"
+  endpoints:
+    - DELETE /computers/:computer_id
+
+computer:computers:delete:team:
+  team: true
+  description: "Delete team computers"
+  endpoints:
+    - DELETE /computers/:computer_id
+
+computer:computers:delete:all:
+  description: "Delete all computers"
+  endpoints:
+    - DELETE /computers/:computer_id

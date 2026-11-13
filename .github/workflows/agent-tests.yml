@@ -6,6 +6,9 @@ on:
     paths:
       - "e2e/**"
       - "modules/**"
+      - "openapi/computers/**"
+      - "yao/models/computers.mod.yao"
+      - "data/bindata.go"
       - "openapi/auth/**"
       - "openapi/oauth/**"
       - "openapi/config.go"
@@ -20,6 +23,9 @@ on:
     paths:
       - "e2e/**"
       - "modules/**"
+      - "openapi/computers/**"
+      - "yao/models/computers.mod.yao"
+      - "data/bindata.go"
       - "openapi/auth/**"
       - "openapi/oauth/**"
       - "openapi/config.go"

@@ -99,22 +99,28 @@ unit-test-core-windows: deps
 # Agent functional test scope. Extend these variables when a new module is added.
 AGENT_TEST_PKGS ?= ./openapi/oauth ./openapi/auth ./tai/auth
 AGENT_TEST_RUN ?= ^(TestNodeToken.*|TestProvider)$$
+AGENT_COMPUTER_PKGS ?= ./modules/computer
+AGENT_COMPUTER_RUN ?= ^Test
 AGENT_TEST_TIMEOUT ?= 60s
 
 
 .PHONY: agent-tests
 agent-tests:
 	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '$(AGENT_TEST_RUN)' $(AGENT_TEST_PKGS)
+	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '$(AGENT_COMPUTER_RUN)' $(AGENT_COMPUTER_PKGS)
 
 .PHONY: agent-e2e-tests
 agent-e2e-tests:
-	$(GO) test -tags=e2e -v -count=1 -timeout $(AGENT_TEST_TIMEOUT) -run '^(TestE2E|TestNodeTokenE2E)' ./modules/... ./openapi/auth/...
+	$(GO) test -tags=e2e -v -p 1 -count=1 -timeout $(AGENT_TEST_TIMEOUT) -run '^(TestE2E|TestNodeTokenE2E|TestComputerHTTPE2E)' ./modules/... ./openapi/auth/... ./openapi/computers/...
 
 .PHONY: agent-coverage
 agent-coverage:
-	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '$(AGENT_TEST_RUN)' -covermode=atomic -coverprofile=agent-tests.cover $(AGENT_TEST_PKGS)
+	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '$(AGENT_TEST_RUN)' -covermode=atomic -coverprofile=agent-core.cover $(AGENT_TEST_PKGS)
+	$(GO) test -tags=e2e -p 1 -timeout $(AGENT_TEST_TIMEOUT) -count=1 -covermode=atomic -coverprofile=agent-computer.cover $(AGENT_COMPUTER_PKGS)
+	{ head -n 1 agent-core.cover; tail -n +2 agent-core.cover; tail -n +2 agent-computer.cover; } > agent-tests.cover
 	awk '$$1 !~ /mode:/ && $$1 ~ /:/ {split($$1, p, ":"); f=p[1]; t[f]+=$$2; if ($$3>0) c[f]+=$$2} END {for (f in t) printf "%s %.2f%%\n", f, (t[f] ? 100*c[f]/t[f] : 0)}' agent-tests.cover | sort
 	$(GO) tool cover -func=agent-tests.cover | tail -n 1
+	rm -f agent-core.cover agent-computer.cover
 
 .PHONY: unit-test-registry
 unit-test-registry: deps

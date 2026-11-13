@@ -439,6 +439,29 @@ func (s *Service) RotateNodeToken(ctx context.Context, computerID string) (*Node
 	return out, nil
 }
 
+// RevokeNodeTokenByComputer revokes the active token for a computer.
+func (s *Service) RevokeNodeTokenByComputer(ctx context.Context, computerID string) error {
+	if computerID == "" {
+		return nil
+	}
+	return s.withNodeTokenLock(ctx, computerID, func() error {
+		value, ok := s.store.Get(s.nodeTokenComputerKey(computerID))
+		if !ok {
+			return nil
+		}
+		jti, _ := value.(string)
+		if jti == "" {
+			_ = s.store.Del(s.nodeTokenComputerKey(computerID))
+			return nil
+		}
+		if meta, err := s.nodeTokenByJTI(jti); err == nil {
+			s.deleteNodeTokenByJTI(meta.JTI)
+		}
+		_ = s.store.Del(s.nodeTokenComputerKey(computerID))
+		return nil
+	})
+}
+
 // GetNodeTokenInfo returns metadata for an active token without changing it.
 func (s *Service) GetNodeTokenInfo(ctx context.Context, jti string) (*NodeInfo, error) {
 	if ctx != nil {

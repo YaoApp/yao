@@ -79,6 +79,19 @@
       ]
     },
     {
+      "name": "visibility",
+      "label": "Visibility",
+      "comment": "Sharing visibility: private, members, team, global",
+      "type": "enum",
+      "option": [
+        "private",
+        "members",
+        "team",
+        "global"
+      ],
+      "default": "private"
+    },
+    {
       "name": "approval_required",
       "label": "Approval Required",
       "comment": "Whether shared access requires approval",
@@ -88,19 +101,21 @@
     {
       "name": "status",
       "label": "Status",
-      "comment": "Current status: provisioning, online, offline, serving, busy, suspended, error, released",
+      "comment": "Current status: pending, provisioning, online, offline, disconnected, serving, busy, suspended, error, released",
       "type": "enum",
       "option": [
+        "pending",
         "provisioning",
         "online",
         "offline",
+        "disconnected",
         "serving",
         "busy",
         "suspended",
         "error",
         "released"
       ],
-      "default": "offline"
+      "default": "pending"
     },
     {
       "name": "position",

@@ -121,3 +121,5 @@ llm/MANUAL-TESTING.md
 
 # Node token coverage artifact
 /agent-tests.cover
+/agent-core.cover
+/agent-computer.cover

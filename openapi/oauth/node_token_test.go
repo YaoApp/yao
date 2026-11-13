@@ -477,3 +477,48 @@ func TestNodeTokenConcurrentRefresh(t *testing.T) {
 	}
 	require.Equal(t, 1, success)
 }
+
+func TestNodeTokenRevokeByComputer(t *testing.T) {
+	svc := newTestNodeService(t)
+	ctx := context.Background()
+
+	// Empty computer ID is a no-op.
+	require.NoError(t, svc.RevokeNodeTokenByComputer(ctx, ""))
+
+	// No index is a no-op.
+	require.NoError(t, svc.RevokeNodeTokenByComputer(ctx, "cmp_missing"))
+
+	// Empty or non-string index is removed without touching token metadata.
+	require.NoError(t, svc.store.Set(svc.nodeTokenComputerKey("cmp_empty"), "", time.Hour))
+	require.NoError(t, svc.RevokeNodeTokenByComputer(ctx, "cmp_empty"))
+	_, ok := svc.store.Get(svc.nodeTokenComputerKey("cmp_empty"))
+	require.False(t, ok)
+
+	require.NoError(t, svc.store.Set(svc.nodeTokenComputerKey("cmp_nonstring"), 42, time.Hour))
+	require.NoError(t, svc.RevokeNodeTokenByComputer(ctx, "cmp_nonstring"))
+	_, ok = svc.store.Get(svc.nodeTokenComputerKey("cmp_nonstring"))
+	require.False(t, ok)
+
+	// A valid token is revoked and the computer index is removed.
+	token := mustIssueForComputer(t, svc, "cmp_revoke")
+	info, err := svc.GetNodeTokenInfo(ctx, token.JTI)
+	require.NoError(t, err)
+	require.Equal(t, "cmp_revoke", info.ComputerID)
+	require.NoError(t, svc.RevokeNodeTokenByComputer(ctx, "cmp_revoke"))
+	_, err = svc.GetNodeTokenInfo(ctx, token.JTI)
+	require.Error(t, err)
+	_, ok = svc.store.Get(svc.nodeTokenComputerKey("cmp_revoke"))
+	require.False(t, ok)
+	require.NoError(t, svc.RevokeNodeTokenByComputer(ctx, "cmp_revoke"))
+
+	// A stale index pointing at missing metadata is cleaned up.
+	require.NoError(t, svc.store.Set(svc.nodeTokenComputerKey("cmp_stale"), "missing-jti", time.Hour))
+	require.NoError(t, svc.RevokeNodeTokenByComputer(ctx, "cmp_stale"))
+	_, ok = svc.store.Get(svc.nodeTokenComputerKey("cmp_stale"))
+	require.False(t, ok)
+
+	// Canceled context is propagated by the computer lock.
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	require.ErrorIs(t, svc.RevokeNodeTokenByComputer(canceled, "cmp_canceled"), context.Canceled)
+}

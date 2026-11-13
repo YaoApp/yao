@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	openapiauth "github.com/yaoapp/yao/openapi/auth"
+	openapicomputers "github.com/yaoapp/yao/openapi/computers"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
@@ -71,6 +72,9 @@ func (openapi *OpenAPI) attachOAuth(base *gin.RouterGroup) {
 
 	// Node-token lifecycle endpoints are part of OAuth authentication.
 	openapiauth.Attach(base, openapi.OAuth)
+
+	// Computer module endpoints.
+	openapicomputers.Attach(base.Group("/computers"), openapi.OAuth)
 }
 
 // OAuth Core Endpoints Implementation
