@@ -1,0 +1,35 @@
+# Tao cloud purchase
+# namespace: tao
+# actions: read, write
+# levels: all, own, team
+
+tao:computers:read:own:
+  owner: true
+  description: "Read own Tao computers"
+  endpoints:
+    - GET /tao/computers
+    - GET /tao/computers/:instance_id
+    - GET /tao/account
+
+tao:computers:read:all:
+  description: "Read all Tao computers"
+  endpoints:
+    - GET /tao/computers
+    - GET /tao/computers/:instance_id
+    - GET /tao/account
+
+tao:computers:write:own:
+  owner: true
+  description: "Purchase Tao computers and manage own Tao key"
+  endpoints:
+    - POST /tao/computers
+    - PUT /tao/account
+    - DELETE /tao/account
+
+tao:computers:write:all:
+  description: "Manage all Tao computers and sync catalog"
+  endpoints:
+    - POST /tao/computers
+    - PUT /tao/account
+    - DELETE /tao/account
+    - POST /tao/catalog/sync

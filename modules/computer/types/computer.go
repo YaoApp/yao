@@ -4,6 +4,10 @@ package types
 import "time"
 
 const (
+	LeaseSourceTao      = "tao"
+	LeaseSourceAdmin    = "admin"
+	LeaseSourceInternal = "internal"
+
 	ScopeSystem = "system"
 	ScopeTeam   = "team"
 	ScopeUser   = "user"
@@ -21,51 +25,61 @@ const (
 	StatusBusy         = "busy"
 	StatusServing      = "serving"
 	StatusSuspended    = "suspended"
+	StatusExpired      = "expired"
 	StatusError        = "error"
 	StatusReleased     = "released"
 )
 
 // Computer is one Tai node registration.
 type Computer struct {
-	ID           string                 `json:"id"`
-	NodeID       string                 `json:"node_id"`
-	Name         string                 `json:"name"`
-	ProviderType string                 `json:"provider_type"`
-	Scope        string                 `json:"scope"`
-	Visibility   string                 `json:"visibility"`
-	Status       string                 `json:"status"`
-	UserID       string                 `json:"user_id,omitempty"`
-	TeamID       string                 `json:"team_id,omitempty"`
-	DataDir      string                 `json:"data_dir,omitempty"`
-	Metadata     map[string]interface{} `json:"metadata,omitempty"`
-	CreatedAt    time.Time              `json:"created_at,omitempty"`
-	UpdatedAt    time.Time              `json:"updated_at,omitempty"`
+	ID             string                 `json:"id"`
+	NodeID         string                 `json:"node_id"`
+	InstanceID     string                 `json:"instance_id,omitempty"`
+	Name           string                 `json:"name"`
+	ProviderType   string                 `json:"provider_type"`
+	Scope          string                 `json:"scope"`
+	Visibility     string                 `json:"visibility"`
+	Status         string                 `json:"status"`
+	UserID         string                 `json:"user_id,omitempty"`
+	TeamID         string                 `json:"team_id,omitempty"`
+	DataDir        string                 `json:"data_dir,omitempty"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	LeaseSource    string                 `json:"lease_source,omitempty"`
+	LeaseExpiresAt *time.Time             `json:"lease_expires_at,omitempty"`
+	RenewedAt      *time.Time             `json:"renewed_at,omitempty"`
+	CreatedAt      time.Time              `json:"created_at,omitempty"`
+	UpdatedAt      time.Time              `json:"updated_at,omitempty"`
 }
 
 // CreateComputerRequest is the internal creation payload.
 type CreateComputerRequest struct {
-	ID           string
-	NodeID       string
-	Name         string
-	ProviderType string
-	Scope        string
-	Visibility   string
-	Status       string
-	UserID       string
-	TeamID       string
-	DataDir      string
-	Metadata     map[string]interface{}
+	ID             string
+	NodeID         string
+	InstanceID     string
+	Name           string
+	ProviderType   string
+	Scope          string
+	Visibility     string
+	Status         string
+	UserID         string
+	TeamID         string
+	DataDir        string
+	Metadata       map[string]interface{}
+	LeaseSource    string
+	LeaseExpiresAt *time.Time
 }
 
 // ConnectRequest starts a local node and returns its token.
 type ConnectRequest struct {
-	Name       string   `json:"name"`
-	DataDir    string   `json:"data_dir"`
-	Visibility string   `json:"visibility"`
-	Members    []string `json:"members,omitempty"`
-	Scope      string   `json:"-"`
-	UserID     string   `json:"-"`
-	TeamID     string   `json:"-"`
+	Name           string     `json:"name"`
+	DataDir        string     `json:"data_dir"`
+	Visibility     string     `json:"visibility"`
+	Members        []string   `json:"members,omitempty"`
+	LeaseSource    string     `json:"lease_source,omitempty"`
+	LeaseExpiresAt *time.Time `json:"lease_expires_at,omitempty"`
+	Scope          string     `json:"-"`
+	UserID         string     `json:"-"`
+	TeamID         string     `json:"-"`
 }
 
 // ConnectResult is returned once by POST /computers/connect.
@@ -95,6 +109,47 @@ type ListFilter struct {
 type UpdateRequest struct {
 	Name       *string `json:"name,omitempty"`
 	Visibility *string `json:"visibility,omitempty"`
+}
+
+// CreateOrUpdateComputerRequest upserts a Computer by computer_id or instance_id.
+type CreateOrUpdateComputerRequest struct {
+	ID             string
+	InstanceID     string
+	NodeID         string
+	Name           string
+	ProviderType   string
+	Scope          string
+	Visibility     string
+	Status         string
+	UserID         string
+	TeamID         string
+	DataDir        string
+	Metadata       map[string]interface{}
+	LeaseSource    string
+	LeaseExpiresAt *time.Time
+	IssueNodeToken bool
+}
+
+// UpsertResult is the result of CreateOrUpdate.
+type UpsertResult struct {
+	Computer  *Computer
+	NodeToken string
+	ExpiresAt time.Time
+}
+
+// RenewLeaseRequest extends or restores a computer lease.
+type RenewLeaseRequest struct {
+	ExpiresAt      *time.Time    `json:"expires_at,omitempty"`
+	Duration       time.Duration `json:"-"`
+	LeaseSource    string        `json:"lease_source,omitempty"`
+	IssueNodeToken bool          `json:"issue_node_token,omitempty"`
+}
+
+// RenewLeaseResult is returned by Renew.
+type RenewLeaseResult struct {
+	Computer  *Computer
+	NodeToken string
+	ExpiresAt time.Time
 }
 
 // Runtime describes a runnable container runtime.

@@ -21,6 +21,10 @@ system:admin:
   - "*:*:*:*"
   - "*:*:*:*:*"
   - "*:*:*:*:*:*"
+  - tao:computers:read:own
+  - tao:computers:read:all
+  - tao:computers:write:own
+  - tao:computers:write:all
 
 # ================================================
 # Roles Aliases
@@ -50,6 +54,7 @@ client:free:
   - trace:all
   - sandbox:all
   - computer:all
+  - tao:all
   - workspace:all
   - nodes:all
   - tai:all
@@ -77,6 +82,7 @@ client:pro:
   - trace:all
   - sandbox:all
   - computer:all
+  - tao:all
   - workspace:all
   - nodes:all
   - tai:all
@@ -104,6 +110,7 @@ client:ent:
   - trace:all
   - sandbox:all
   - computer:all
+  - tao:all
   - workspace:all
   - nodes:all
   - tai:all
@@ -142,6 +149,7 @@ user:free:
   - trace:all:own
   - sandbox:all:own
   - computer:all:own
+  - tao:all:own
   - workspace:all:own
   - nodes:all:own
   - tai:all:own
@@ -169,6 +177,7 @@ user:pro:
   - trace:all:own
   - sandbox:all:own
   - computer:all:own
+  - tao:all:own
   - workspace:all:own
   - nodes:all:own
   - tai:all:own
@@ -196,6 +205,7 @@ user:ent:
   - trace:all:own
   - sandbox:all:own
   - computer:all:own
+  - tao:all:own
   - workspace:all:own
   - nodes:all:own
   - tai:all:own
@@ -335,6 +345,12 @@ user:all:
   - user:invitations:write:own
   - user:invitations:delete:own
   - user:features:read:own
+  - user:credits:read:own
+  - user:credits:write:own
+  - user:billing:read:own
+  - user:credits:read:own
+  - user:credits:write:own
+  - user:billing:read:own
 
 # Full user API access with "own" data scope
 user:all:own:
@@ -356,6 +372,9 @@ user:all:own:
   - user:invitations:write:own
   - user:invitations:delete:own
   - user:features:read:own
+  - user:credits:read:own
+  - user:credits:write:own
+  - user:billing:read:own
 
 # Full user API access with "team" data scope
 user:all:team:
@@ -377,6 +396,9 @@ user:all:team:
   - user:invitations:write:team
   - user:invitations:delete:team
   - user:features:read:own
+  - user:credits:read:own
+  - user:credits:write:own
+  - user:billing:read:own
 
 # User management permissions for team admins (no delete team)
 user:manage:team:
@@ -397,6 +419,9 @@ user:manage:team:
   - user:invitations:write:team
   - user:invitations:delete:team
   - user:features:read:own
+  - user:credits:read:own
+  - user:credits:write:own
+  - user:billing:read:own
 
 # User read-only access for team members
 user:read:team:
@@ -407,6 +432,9 @@ user:read:team:
   - user:teams:read:team
   - user:members:read:team
   - user:features:read:own
+  - user:credits:read:own
+  - user:credits:write:own
+  - user:billing:read:own
 
 # User write access for own data (in team context)
 user:write:own:
@@ -1031,6 +1059,16 @@ sandbox:write:own:
   - sandbox:sandboxes:write:own
   - sandbox:sandboxes:exec:own
   - sandbox:sandboxes:delete:own
+
+# ============ Tao Resources Aliases ============
+
+tao:all:
+  - tao:computers:read:all
+  - tao:computers:write:all
+
+tao:all:own:
+  - tao:computers:read:own
+  - tao:computers:write:own
 
 # ============ Computer Resources Aliases ============
 

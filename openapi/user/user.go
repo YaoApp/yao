@@ -195,6 +195,7 @@ func attachPreferences(group *gin.RouterGroup, oauth types.OAuth) {
 }
 
 // User Billing Management
+// Placeholder: future implementation reads billing/invoices directly from Tao.
 func attachBilling(group *gin.RouterGroup, oauth types.OAuth) {
 	billing := group.Group("/billing")
 	billing.Use(oauth.Guard)
@@ -214,6 +215,7 @@ func attachReferral(group *gin.RouterGroup, oauth types.OAuth) {
 }
 
 // User Credits Management
+// Placeholder: future implementation reads credits directly from Tao.
 func attachCredits(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/credits", oauth.Guard, placeholder)         // Get user credits info
 	group.GET("/credits/history", oauth.Guard, placeholder) // Get credits change history

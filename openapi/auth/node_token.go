@@ -5,8 +5,10 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -22,6 +24,11 @@ type NodeTokenService interface {
 }
 
 // NodeTokenHandler owns the HTTP-facing node-token lifecycle.
+// nodeTokenValidator is an optional capability used to mark a node online.
+type nodeTokenValidator interface {
+	ValidateNodeToken(context.Context, string) (*oauth.NodeInfo, error)
+}
+
 type NodeTokenHandler struct {
 	Service    NodeTokenService
 	Authorizer ComputerAuthorizer
@@ -54,6 +61,11 @@ func (h *NodeTokenHandler) Refresh(c *gin.Context) {
 	if raw == "" {
 		respondNodeError(c, http.StatusUnauthorized, "invalid_token", "node_token is required")
 		return
+	}
+	if validator, ok := h.Service.(nodeTokenValidator); ok {
+		if info, err := validator.ValidateNodeToken(c.Request.Context(), raw); err == nil && info.ComputerID != "" {
+			markComputerOnline(c.Request.Context(), info.ComputerID)
+		}
 	}
 	token, err := h.Service.RefreshNodeToken(c.Request.Context(), raw)
 	if err != nil {
@@ -148,4 +160,15 @@ func nodeErrorStatus(err error) int {
 
 func respondNodeError(c *gin.Context, status int, code, description string) {
 	response.RespondWithError(c, status, &response.ErrorResponse{Code: code, ErrorDescription: description})
+}
+
+// markComputerOnline records a successful node authentication.
+func markComputerOnline(ctx context.Context, computerID string) {
+	m := model.Select("__yao.computers")
+	if m == nil {
+		return
+	}
+	_ = m.Update(computerID, map[string]interface{}{
+		"status": "online", "last_seen_at": time.Now().UTC(),
+	})
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/modules/computer"
@@ -32,6 +33,7 @@ func Attach(group *gin.RouterGroup, oauthSvc oauthtypes.OAuth) {
 	group.DELETE("/:computer_id", oauthSvc.Guard, h.Delete)
 	group.POST("/:computer_id/disconnect", oauthSvc.Guard, h.Disconnect)
 	group.POST("/:computer_id/reconnect", oauthSvc.Guard, h.Reconnect)
+	group.POST("/:computer_id/renew", oauthSvc.Guard, h.Renew)
 	group.GET("/:computer_id/workspaces", oauthSvc.Guard, h.Workspaces)
 	group.GET("/:computer_id/runtimes", oauthSvc.Guard, h.Runtimes)
 	group.GET("/:computer_id/containers", oauthSvc.Guard, h.Containers)
@@ -68,6 +70,10 @@ func (h *Handler) Connect(c *gin.Context) {
 		return
 	}
 	if req.Visibility == types.VisibilityGlobal && !isAdmin(c.Request.Context(), info.UserID) {
+		forbidden(c)
+		return
+	}
+	if (req.LeaseSource != "" || req.LeaseExpiresAt != nil) && !isAdmin(c.Request.Context(), info.UserID) {
 		forbidden(c)
 		return
 	}
@@ -163,6 +169,52 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	c.AbortWithStatus(http.StatusNoContent)
+}
+
+func (h *Handler) Renew(c *gin.Context) {
+	info := authorized.GetInfo(c)
+	if info == nil || info.UserID == "" {
+		forbidden(c)
+		return
+	}
+	item, err := h.Service.Get(c.Request.Context(), c.Param("computer_id"))
+	if err != nil {
+		notFoundOrError(c, err)
+		return
+	}
+	if !canManage(c.Request.Context(), info, item) {
+		forbidden(c)
+		return
+	}
+	var req struct {
+		ExpiresAt      *time.Time `json:"expires_at"`
+		Duration       string     `json:"duration"`
+		LeaseSource    string     `json:"lease_source"`
+		IssueNodeToken bool       `json:"issue_node_token"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		badRequest(c, err)
+		return
+	}
+	renew := types.RenewLeaseRequest{ExpiresAt: req.ExpiresAt, LeaseSource: req.LeaseSource, IssueNodeToken: req.IssueNodeToken}
+	if req.Duration != "" {
+		d, err := time.ParseDuration(req.Duration)
+		if err != nil {
+			badRequest(c, err)
+			return
+		}
+		renew.Duration = d
+	}
+	result, err := h.Service.Renew(c.Request.Context(), item.ID, renew)
+	if err != nil {
+		if errors.Is(err, computer.ErrInvalid) {
+			badRequest(c, err)
+			return
+		}
+		serverError(c, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
 func (h *Handler) Disconnect(c *gin.Context) {

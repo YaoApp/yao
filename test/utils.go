@@ -236,8 +236,6 @@ var testSystemModels = map[string]string{
 	"__yao.vault_groups":               "yao/models/vault_groups.mod.yao",
 	"__yao.vault_items":                "yao/models/vault_items.mod.yao",
 	"__yao.access_grants":              "yao/models/access_grants.mod.yao",
-	"__yao.orders":                     "yao/models/orders.mod.yao",
-	"__yao.credit_transactions":        "yao/models/credit_transactions.mod.yao",
 	"__yao.usage_records":              "yao/models/usage_records.mod.yao",
 	"__yao.search_documents":           "yao/models/search_documents.mod.yao",
 	"__yao.approval_requests":          "yao/models/approval_requests.mod.yao",

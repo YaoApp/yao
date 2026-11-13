@@ -1,6 +1,9 @@
 package types
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // SSHTarget identifies a cloud host controlled over SSH.
 type SSHTarget struct {
@@ -27,9 +30,22 @@ type TaiStatus struct {
 }
 
 // TaiController controls Tai on a remote host.
+// StartTaiRequest mirrors the Tai v2 `tai start` config.
+type StartTaiRequest struct {
+	NodeID          string
+	DataDir         string
+	LogLevel        string
+	LogFile         string
+	LogFormat       string
+	ShutdownTimeout time.Duration
+	ServerURL       string
+	NodeToken       string
+	SandboxImage    string
+}
+
 type TaiController interface {
 	Bootstrap(ctx context.Context, target SSHTarget, req BootstrapRequest) error
-	Start(ctx context.Context, target SSHTarget) error
+	Start(ctx context.Context, target SSHTarget, req StartTaiRequest) error
 	Stop(ctx context.Context, target SSHTarget) error
 	Status(ctx context.Context, target SSHTarget) (*TaiStatus, error)
 	Logs(ctx context.Context, target SSHTarget, lines int) (string, error)

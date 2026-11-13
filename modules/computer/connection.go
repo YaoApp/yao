@@ -65,14 +65,16 @@ func (s *Service) Connect(ctx context.Context, req types.ConnectRequest) (*types
 		return nil, fmt.Errorf("%w: cannot allocate node_id", ErrConflict)
 	}
 	computer, err := s.Create(ctx, types.CreateComputerRequest{
-		NodeID:     nodeID,
-		Name:       req.Name,
-		Scope:      req.Scope,
-		Visibility: req.Visibility,
-		Status:     types.StatusPending,
-		UserID:     req.UserID,
-		TeamID:     req.TeamID,
-		DataDir:    req.DataDir,
+		NodeID:         nodeID,
+		Name:           req.Name,
+		Scope:          req.Scope,
+		Visibility:     req.Visibility,
+		Status:         types.StatusPending,
+		UserID:         req.UserID,
+		TeamID:         req.TeamID,
+		DataDir:        req.DataDir,
+		LeaseSource:    req.LeaseSource,
+		LeaseExpiresAt: req.LeaseExpiresAt,
 	})
 	if err != nil {
 		return nil, err

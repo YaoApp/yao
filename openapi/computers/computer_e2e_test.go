@@ -88,6 +88,11 @@ func TestComputerHTTPE2E(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = service.RevokeNodeTokenByComputer(context.Background(), created.ComputerID) })
 
+	resp, body, err = httpClient.Do(mustRequest(http.MethodPost, environment.BaseURL+"/v1/computers/"+created.ComputerID+"/renew", `{"duration":"1h"}`))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("renew status=%v err=%v body=%s", resp, err, body)
+	}
+
 	resp, body, err = httpClient.Get("/v1/computers")
 	if err != nil || resp.StatusCode != http.StatusOK {
 		t.Fatalf("list computers status=%v err=%v body=%s", resp, err, body)

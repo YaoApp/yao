@@ -9,8 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	openapiauth "github.com/yaoapp/yao/openapi/auth"
-	openapicomputers "github.com/yaoapp/yao/openapi/computers"
-	"github.com/yaoapp/yao/openapi/oauth"
+	oauthpkg "github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 )
@@ -73,8 +72,6 @@ func (openapi *OpenAPI) attachOAuth(base *gin.RouterGroup) {
 	// Node-token lifecycle endpoints are part of OAuth authentication.
 	openapiauth.Attach(base, openapi.OAuth)
 
-	// Computer module endpoints.
-	openapicomputers.Attach(base.Group("/computers"), openapi.OAuth)
 }
 
 // OAuth Core Endpoints Implementation
@@ -170,7 +167,7 @@ func (openapi *OpenAPI) handleStandardTokenGrant(c *gin.Context, grantType strin
 	}
 
 	// Validate client credentials using OAuth service
-	oauthService, ok := openapi.OAuth.(*oauth.Service)
+	oauthService, ok := openapi.OAuth.(*oauthpkg.Service)
 	if !ok {
 		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidClient)
 		return
@@ -260,7 +257,7 @@ func (openapi *OpenAPI) handleRefreshTokenGrant(c *gin.Context) {
 	}
 
 	// Validate client credentials using OAuth service
-	oauthService, ok := openapi.OAuth.(*oauth.Service)
+	oauthService, ok := openapi.OAuth.(*oauthpkg.Service)
 	if !ok {
 		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidClient)
 		return
@@ -342,7 +339,7 @@ func (openapi *OpenAPI) handleTokenExchangeGrant(c *gin.Context) {
 // This reuses the same verification and issuance logic as Guard.TryRefreshToken
 // but operates as an explicit token endpoint grant without cookies or refresh tokens.
 func (openapi *OpenAPI) handleJWTBearerGrant(c *gin.Context) {
-	oauthService, ok := openapi.OAuth.(*oauth.Service)
+	oauthService, ok := openapi.OAuth.(*oauthpkg.Service)
 	if !ok {
 		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidClient)
 		return
@@ -684,7 +681,7 @@ func (openapi *OpenAPI) oauthDeviceAuthorize(c *gin.Context) {
 		})
 		return
 	}
-	svc, ok := openapi.OAuth.(*oauth.Service)
+	svc, ok := openapi.OAuth.(*oauthpkg.Service)
 	if !ok {
 		response.RespondWithSecureError(c, response.StatusInternalServerError, &response.ErrorResponse{
 			Code:             types.ErrorServerError,

@@ -116,6 +116,10 @@ func TestNodeTokenE2E(t *testing.T) {
 	if refreshed.Token == "" {
 		t.Fatal("HTTP refresh returned empty token")
 	}
+	row, err := computerModel.Find(computerID, model.QueryParam{})
+	if err != nil || fmt.Sprint(row["status"]) != "online" {
+		t.Fatalf("computer status=%v err=%v", row["status"], err)
+	}
 	if _, err := service.ValidateNodeToken(ctx, token.Token); err == nil {
 		t.Fatal("old token remained valid after HTTP refresh")
 	}

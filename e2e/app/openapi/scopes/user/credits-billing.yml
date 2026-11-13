@@ -1,0 +1,26 @@
+# User Credits & Billing - served directly from Tao after integration
+# namespace: user
+# resources: credits, billing
+
+user:credits:read:own:
+  owner: true
+  description: "Read own Tao credits and top-up records"
+  endpoints:
+    - GET /user/credits
+    - GET /user/credits/history
+    - GET /user/credits/topup
+    - GET /user/credits/topup/:order_id
+
+user:credits:write:own:
+  owner: true
+  description: "Create own top-up order or redeem card code"
+  endpoints:
+    - POST /user/credits/topup
+    - POST /user/credits/topup/card-code
+
+user:billing:read:own:
+  owner: true
+  description: "Read own Tao billing history and invoices"
+  endpoints:
+    - GET /user/billing/history
+    - GET /user/billing/invoices

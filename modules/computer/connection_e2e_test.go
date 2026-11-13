@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/modules/computer"
@@ -312,5 +313,25 @@ func TestE2EComputerNoModel(t *testing.T) {
 	}
 	if _, err := svc.ListRuntimes(ctx, "id"); !errors.Is(err, computer.ErrInvalid) {
 		t.Fatalf("runtimes no model: %v", err)
+	}
+}
+
+func TestE2EConnectWithLease(t *testing.T) {
+	_ = testEnvironment(t)
+	ctx := context.Background()
+	expiry := time.Now().UTC().Add(time.Hour)
+	svc := computer.New().WithTokens(oauth.OAuth)
+	result, err := svc.Connect(ctx, types.ConnectRequest{
+		Name: "Lease Computer", Visibility: types.VisibilityPrivate,
+		Scope: types.ScopeUser, UserID: "user_connect_lease",
+		LeaseSource: types.LeaseSourceAdmin, LeaseExpiresAt: &expiry,
+	})
+	if err != nil {
+		t.Fatalf("connect lease: %v", err)
+	}
+	t.Cleanup(func() { _ = svc.Delete(context.Background(), result.ComputerID) })
+	got, err := svc.Get(ctx, result.ComputerID)
+	if err != nil || got.LeaseSource != types.LeaseSourceAdmin || got.LeaseExpiresAt == nil {
+		t.Fatalf("lease result=%+v err=%v", got, err)
 	}
 }

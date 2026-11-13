@@ -101,13 +101,19 @@ AGENT_TEST_PKGS ?= ./openapi/oauth ./openapi/auth ./tai/auth
 AGENT_TEST_RUN ?= ^(TestNodeToken.*|TestProvider)$$
 AGENT_COMPUTER_PKGS ?= ./modules/computer
 AGENT_COMPUTER_RUN ?= ^Test
+TAO_MOCK_PKGS ?= ./e2e/taocloud
 AGENT_TEST_TIMEOUT ?= 60s
 
 
 .PHONY: agent-tests
+# Tao mock server used by cloud computer tests.
+tao-mock-tests:
+	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 $(TAO_MOCK_PKGS)
+
 agent-tests:
 	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '$(AGENT_TEST_RUN)' $(AGENT_TEST_PKGS)
 	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '$(AGENT_COMPUTER_RUN)' $(AGENT_COMPUTER_PKGS)
+	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '^Test' $(TAO_MOCK_PKGS)
 
 .PHONY: agent-e2e-tests
 agent-e2e-tests:

@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/app"
 	"github.com/yaoapp/yao/openapi/captcha"
+	openapicomputers "github.com/yaoapp/yao/openapi/computers"
 	"github.com/yaoapp/yao/openapi/dsl"
 	openapiEvent "github.com/yaoapp/yao/openapi/event"
 	"github.com/yaoapp/yao/openapi/file"
@@ -21,6 +22,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/otp"
 	"github.com/yaoapp/yao/openapi/response"
+	openapitao "github.com/yaoapp/yao/openapi/tao"
 	"github.com/yaoapp/yao/openapi/team"
 	"github.com/yaoapp/yao/openapi/testmode"
 	"github.com/yaoapp/yao/openapi/user"
@@ -110,6 +112,12 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// OAuth handlers
 	openapi.attachOAuth(group)
+
+	// Computer handlers
+	openapicomputers.Attach(group.Group("/computers"), openapi.OAuth)
+
+	// Tao cloud purchase handlers
+	openapitao.Attach(group.Group("/tao"), openapi.OAuth)
 
 	// Hello World handlers
 	hello.Attach(group.Group("/helloworld"), openapi.OAuth)

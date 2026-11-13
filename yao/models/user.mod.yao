@@ -204,6 +204,16 @@
       "nullable": true
     },
 
+    {
+      "name": "tao_api_key",
+      "type": "string",
+      "label": "Tao API Key",
+      "comment": "User-bound Tao sk-tao key (AES encrypted)",
+      "length": 512,
+      "nullable": true,
+      "crypt": "AES"
+    },
+
     // ============================================================================
     // Authentication Fields
     // ============================================================================

@@ -48,6 +48,7 @@ computer:computers:write:own:
     - PATCH /computers/:computer_id
     - POST /computers/:computer_id/disconnect
     - POST /computers/:computer_id/reconnect
+    - POST /computers/:computer_id/renew
 
 computer:computers:write:team:
   team: true
@@ -57,6 +58,7 @@ computer:computers:write:team:
     - PATCH /computers/:computer_id
     - POST /computers/:computer_id/disconnect
     - POST /computers/:computer_id/reconnect
+    - POST /computers/:computer_id/renew
 
 computer:computers:write:all:
   description: "Create and manage all computers"
@@ -65,6 +67,7 @@ computer:computers:write:all:
     - PATCH /computers/:computer_id
     - POST /computers/:computer_id/disconnect
     - POST /computers/:computer_id/reconnect
+    - POST /computers/:computer_id/renew
 
 # ============ Delete ============
 

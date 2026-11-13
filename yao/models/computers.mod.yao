@@ -32,6 +32,15 @@
       "unique": true
     },
     {
+      "name": "instance_id",
+      "label": "Instance Id",
+      "comment": "Tao cloud host instance ID; NULL for local computers",
+      "type": "string",
+      "length": 128,
+      "nullable": true,
+      "unique": true
+    },
+    {
       "name": "name",
       "label": "Name",
       "comment": "Display name",
@@ -53,15 +62,6 @@
       "name": "product_id",
       "label": "Product Id",
       "comment": "Product identifier",
-      "type": "string",
-      "length": 64,
-      "nullable": true,
-      "index": true
-    },
-    {
-      "name": "order_id",
-      "label": "Order Id",
-      "comment": "Order identifier",
       "type": "string",
       "length": 64,
       "nullable": true,
@@ -101,7 +101,7 @@
     {
       "name": "status",
       "label": "Status",
-      "comment": "Current status: pending, provisioning, online, offline, disconnected, serving, busy, suspended, error, released",
+      "comment": "Current status: pending, provisioning, online, offline, disconnected, serving, busy, suspended, expired, error, released",
       "type": "enum",
       "option": [
         "pending",
@@ -112,6 +112,7 @@
         "serving",
         "busy",
         "suspended",
+        "expired",
         "error",
         "released"
       ],
@@ -225,6 +226,29 @@
       "name": "last_seen_at",
       "label": "Last Seen At",
       "comment": "Last seen time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "lease_source",
+      "label": "Lease Source",
+      "comment": "tao, admin, internal",
+      "type": "enum",
+      "option": ["tao", "admin", "internal"],
+      "nullable": true
+    },
+    {
+      "name": "lease_expires_at",
+      "label": "Lease Expires At",
+      "comment": "Lease expiry; NULL means no expiry",
+      "type": "timestamp",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "renewed_at",
+      "label": "Renewed At",
+      "comment": "Last lease renewal",
       "type": "timestamp",
       "nullable": true
     },
