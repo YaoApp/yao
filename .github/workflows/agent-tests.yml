@@ -195,6 +195,7 @@ jobs:
         run: |
           echo "YAO_ENV=test" >> "$GITHUB_ENV"
           echo "YAO_LANG=en" >> "$GITHUB_ENV"
+          echo "YAO_DB_AESKEY=yao-e2e-aes-key-0123456789abcdef" >> "$GITHUB_ENV"
           echo "YAO_E2E_DB=${{ matrix.db }}" >> "$GITHUB_ENV"
           echo "YAO_E2E_TAI_DIR=$GITHUB_WORKSPACE/../tai" >> "$GITHUB_ENV"
           echo "YAO_E2E_ARTIFACTS_DIR=$GITHUB_WORKSPACE/e2e/logs" >> "$GITHUB_ENV"

@@ -58,8 +58,8 @@ func BindKey(ctx context.Context, userID, key string) error {
 	if len(rows) == 0 {
 		return fmt.Errorf("user not found")
 	}
-	id := fmt.Sprint(rows[0]["id"])
-	if id == "" || id == "<nil>" {
+	id := rows[0]["id"]
+	if id == nil || fmt.Sprint(id) == "" {
 		return fmt.Errorf("user id is empty")
 	}
 	return m.Update(id, map[string]interface{}{"tao_api_key": key})
@@ -79,8 +79,8 @@ func DeleteKey(ctx context.Context, userID string) error {
 		return err
 	}
 	for _, row := range rows {
-		id := fmt.Sprint(row["id"])
-		if id == "" || id == "<nil>" {
+		id := row["id"]
+		if id == nil || fmt.Sprint(id) == "" {
 			continue
 		}
 		if err := m.Update(id, map[string]interface{}{"tao_api_key": ""}); err != nil {

@@ -188,6 +188,7 @@ func (e *Environment) writeAppEnv(port int) error {
 		"YAO_LANG":          "en",
 		"YAO_CLIENT_ID":     "yao_e2e_client_0123456789abcdefg",
 		"YAO_CLIENT_SECRET": "",
+		"YAO_DB_AESKEY":     "yao-e2e-aes-key-0123456789abcdef",
 		"YAO_TAI_BIN":       "",
 	}
 	var b strings.Builder
