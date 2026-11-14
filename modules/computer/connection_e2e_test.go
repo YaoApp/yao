@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/modules/computer"
 	"github.com/yaoapp/yao/modules/computer/types"
 	"github.com/yaoapp/yao/openapi/oauth"
@@ -67,13 +68,13 @@ func TestE2EComputerLifecycle(t *testing.T) {
 	if got.Status != types.StatusPending {
 		t.Fatalf("status=%s, want pending", got.Status)
 	}
-	if _, err := svc.ListRuntimes(ctx, result.ComputerID); err != nil {
+	if _, err := svc.ListRuntimes(ctx, result.ComputerID); !errors.Is(err, computer.ErrNotSupported) {
 		t.Fatalf("list runtimes: %v", err)
 	}
-	if _, err := svc.ListContainers(ctx, result.ComputerID); err != nil {
+	if _, err := svc.ListContainers(ctx, result.ComputerID); !errors.Is(err, computer.ErrNotSupported) {
 		t.Fatalf("list containers: %v", err)
 	}
-	if _, err := svc.ListWorkspaces(ctx, result.ComputerID); err != nil {
+	if _, err := svc.ListWorkspaces(ctx, result.ComputerID); !errors.Is(err, computer.ErrNotSupported) {
 		t.Fatalf("list workspaces: %v", err)
 	}
 	if err := svc.Delete(ctx, result.ComputerID); err != nil {
@@ -122,13 +123,13 @@ func TestE2EComputerServiceCRUD(t *testing.T) {
 	if err := svc.Reconnect(ctx, created.ID); err != nil {
 		t.Fatalf("reconnect service computer: %v", err)
 	}
-	if _, err := svc.ListRuntimes(ctx, created.ID); err != nil {
+	if _, err := svc.ListRuntimes(ctx, created.ID); !errors.Is(err, computer.ErrNotSupported) {
 		t.Fatalf("service runtimes: %v", err)
 	}
-	if _, err := svc.ListContainers(ctx, created.ID); err != nil {
+	if _, err := svc.ListContainers(ctx, created.ID); !errors.Is(err, computer.ErrNotSupported) {
 		t.Fatalf("service containers: %v", err)
 	}
-	if _, err := svc.ListWorkspaces(ctx, created.ID); err != nil {
+	if _, err := svc.ListWorkspaces(ctx, created.ID); !errors.Is(err, computer.ErrNotSupported) {
 		t.Fatalf("service workspaces: %v", err)
 	}
 	if err := svc.Delete(ctx, created.ID); err != nil {
@@ -333,5 +334,153 @@ func TestE2EConnectWithLease(t *testing.T) {
 	got, err := svc.Get(ctx, result.ComputerID)
 	if err != nil || got.LeaseSource != types.LeaseSourceAdmin || got.LeaseExpiresAt == nil {
 		t.Fatalf("lease result=%+v err=%v", got, err)
+	}
+}
+
+type fakeTaiNodeProvider struct{}
+
+func (fakeTaiNodeProvider) Node(nodeID string) (types.TaiNode, bool) {
+	return types.TaiNode{ID: nodeID, ContainerRuntimes: []types.Runtime{{Name: "docker", Version: "27", Ready: true}}}, true
+}
+func (fakeTaiNodeProvider) ListWorkspaces(context.Context, string) ([]types.TaiWorkspace, error) {
+	return []types.TaiWorkspace{{ID: "ws-1", Name: "Workspace"}}, nil
+}
+
+func TestE2ETaiNodeProviderRuntimeAndWorkspace(t *testing.T) {
+	_ = testEnvironment(t)
+	ctx := context.Background()
+	svc := computer.New().WithTokens(oauth.OAuth).WithTaiNodeProvider(fakeTaiNodeProvider{})
+	result, err := svc.Connect(ctx, types.ConnectRequest{Name: "Tai Provider", Visibility: types.VisibilityPrivate, Scope: types.ScopeUser, UserID: "user_tai_provider"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = svc.Delete(context.Background(), result.ComputerID) })
+	runtimes, err := svc.ListRuntimes(ctx, result.ComputerID)
+	if err != nil || len(runtimes) != 1 || runtimes[0].Name != "docker" {
+		t.Fatalf("runtimes=%+v err=%v", runtimes, err)
+	}
+	workspaces, err := svc.ListWorkspaces(ctx, result.ComputerID)
+	if err != nil || len(workspaces) != 1 || workspaces[0].ID != "ws-1" {
+		t.Fatalf("workspaces=%+v err=%v", workspaces, err)
+	}
+	if _, err := svc.ListContainers(ctx, result.ComputerID); !errors.Is(err, computer.ErrNotSupported) {
+		t.Fatalf("containers err=%v", err)
+	}
+}
+
+func TestE2EGetByNodeID(t *testing.T) {
+	_ = testEnvironment(t)
+	ctx := context.Background()
+	svc := computer.New().WithTokens(oauth.OAuth)
+	created, err := svc.Connect(ctx, types.ConnectRequest{Name: "By Node", Visibility: types.VisibilityPrivate, Scope: types.ScopeUser, UserID: "user_by_node"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = svc.Delete(context.Background(), created.ComputerID) })
+	got, err := svc.GetByNodeID(ctx, created.NodeID)
+	if err != nil || got.ID != created.ComputerID {
+		t.Fatalf("got=%+v err=%v", got, err)
+	}
+	if _, err := svc.GetByNodeID(ctx, ""); !errors.Is(err, computer.ErrInvalid) {
+		t.Fatalf("empty err=%v", err)
+	}
+	if _, err := svc.GetByNodeID(ctx, "missing-node"); !errors.Is(err, computer.ErrNotFound) {
+		t.Fatalf("missing err=%v", err)
+	}
+}
+
+type missingTaiProvider struct{}
+
+func (missingTaiProvider) Node(string) (types.TaiNode, bool) { return types.TaiNode{}, false }
+func (missingTaiProvider) ListWorkspaces(context.Context, string) ([]types.TaiWorkspace, error) {
+	return nil, errors.New("tai unavailable")
+}
+
+func TestE2ETaiNodeProviderErrors(t *testing.T) {
+	_ = testEnvironment(t)
+	ctx := context.Background()
+	svc := computer.New().WithTokens(oauth.OAuth).WithTaiNodeProvider(missingTaiProvider{})
+	created, err := svc.Connect(ctx, types.ConnectRequest{Name: "Missing Tai", Visibility: types.VisibilityPrivate, Scope: types.ScopeUser, UserID: "user_missing_tai"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = svc.Delete(context.Background(), created.ComputerID) })
+	if _, err := svc.ListRuntimes(ctx, created.ComputerID); !errors.Is(err, computer.ErrNotSupported) {
+		t.Fatalf("runtimes err=%v", err)
+	}
+	if _, err := svc.ListWorkspaces(ctx, created.ComputerID); err == nil {
+		t.Fatal("expected workspace error")
+	}
+	canceled, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := svc.ListRuntimes(canceled, created.ComputerID); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled err=%v", err)
+	}
+	if _, err := svc.ListWorkspaces(canceled, created.ComputerID); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled ws err=%v", err)
+	}
+	if _, err := svc.ListContainers(canceled, created.ComputerID); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled containers err=%v", err)
+	}
+}
+
+type fakeDisconnectProvider struct {
+	fakeTaiNodeProvider
+	called bool
+	err    error
+}
+
+func (p *fakeDisconnectProvider) GoAway(context.Context, string, string) error {
+	p.called = true
+	return p.err
+}
+
+func TestE2EDisconnectTaiNode(t *testing.T) {
+	_ = testEnvironment(t)
+	ctx := context.Background()
+	provider := &fakeDisconnectProvider{}
+	svc := computer.New().WithTokens(oauth.OAuth).WithTaiNodeProvider(provider)
+	created, err := svc.Connect(ctx, types.ConnectRequest{Name: "Disconnect Tai", Visibility: types.VisibilityPrivate, Scope: types.ScopeUser, UserID: "user_disconnect_tai"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = svc.Delete(context.Background(), created.ComputerID) })
+	if err := svc.Disconnect(ctx, created.ComputerID); err != nil {
+		t.Fatal(err)
+	}
+	if !provider.called {
+		t.Fatal("GoAway was not called")
+	}
+	got, _ := svc.Get(ctx, created.ComputerID)
+	if got.Status != types.StatusDisconnected {
+		t.Fatalf("status=%s", got.Status)
+	}
+	provider.err = errors.New("goaway failed")
+	if err := svc.Disconnect(ctx, created.ComputerID); err == nil {
+		t.Fatal("expected goaway error")
+	}
+	provider.err = nil
+	if err := svc.Reconnect(ctx, created.ComputerID); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = svc.Get(ctx, created.ComputerID)
+	if got.Status != types.StatusPending {
+		t.Fatalf("reconnect status=%s", got.Status)
+	}
+}
+
+func TestE2EConnectTransportPort(t *testing.T) {
+	_ = testEnvironment(t)
+	old := config.Conf.Tai.Server.TransportPort
+	config.Conf.Tai.Server.TransportPort = 6123
+	t.Cleanup(func() { config.Conf.Tai.Server.TransportPort = old })
+	svc := computer.New().WithTokens(oauth.OAuth)
+	created, err := svc.Connect(context.Background(), types.ConnectRequest{Name: "Port", Visibility: types.VisibilityPrivate, Scope: types.ScopeUser, UserID: "user_port"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = svc.Delete(context.Background(), created.ComputerID) })
+	if created.TransportPort != 6123 {
+		t.Fatalf("port=%d", created.TransportPort)
 	}
 }

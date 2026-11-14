@@ -2,17 +2,48 @@ package computer_test
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/ssh"
+
 	"github.com/yaoapp/yao/e2e/taocloud"
 	computertypes "github.com/yaoapp/yao/modules/computer/types"
 	taocomputer "github.com/yaoapp/yao/modules/tao/computer"
 )
+
+func testControlKey() *taocomputer.ControlKey {
+	_, privateKey, _ := ed25519.GenerateKey(rand.Reader)
+	signer, _ := ssh.NewSignerFromKey(privateKey)
+	return &taocomputer.ControlKey{
+		KeyID:      "test-control",
+		PublicKey:  string(ssh.MarshalAuthorizedKey(signer.PublicKey())),
+		PrivateKey: string(mustMarshalPrivateKey(privateKey)),
+	}
+}
+
+func mustMarshalPrivateKey(key any) []byte {
+	block, err := ssh.MarshalPrivateKey(key, "")
+	if err != nil {
+		panic(err)
+	}
+	return pemEncode(block)
+}
+
+func pemEncode(block *pem.Block) []byte {
+	return pem.EncodeToMemory(block)
+}
+
+func newTestService(client taocomputer.TaoComputersClient, computers taocomputer.ComputerService) *taocomputer.Service {
+	return taocomputer.NewService(client, computers).WithControlKey(testControlKey())
+}
 
 type fakeComputerService struct {
 	computer *computertypes.Computer
@@ -34,13 +65,14 @@ func (f *fakeComputerService) Get(_ context.Context, _ string) (*computertypes.C
 }
 
 type fakeTai struct {
-	started bool
-	req     computertypes.StartTaiRequest
-	target  computertypes.SSHTarget
+	started      bool
+	bootstrapErr error
+	req          computertypes.StartTaiRequest
+	target       computertypes.SSHTarget
 }
 
 func (f *fakeTai) Bootstrap(context.Context, computertypes.SSHTarget, computertypes.BootstrapRequest) error {
-	return nil
+	return f.bootstrapErr
 }
 func (f *fakeTai) Start(_ context.Context, target computertypes.SSHTarget, req computertypes.StartTaiRequest) error {
 	f.started = true
@@ -58,11 +90,10 @@ func TestPurchaseCreatesProvisioningComputer(t *testing.T) {
 	srv := taocloud.New()
 	t.Cleanup(srv.Close)
 	computers := &fakeComputerService{}
-	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL()), computers)
+	svc := newTestService(taocomputer.NewClient(srv.URL()), computers)
 	result, err := svc.Purchase(context.Background(), testTAOKey, taocomputer.PurchaseRequest{
 		Resource: "flex-2c2g", Region: "bj-cn", Name: "host", BillingUnit: "HOUR",
 		RequestParams: map[string]any{"image": "tao-base-1.0"},
-		SSH:           &taocomputer.SSHRequest{PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI user@host"},
 		Computer:      taocomputer.ComputerSpec{Name: "my-cloud", Visibility: "private", LeaseSource: "tao"},
 		UserID:        "user-1",
 	})
@@ -87,7 +118,7 @@ func TestGetAdvancesRunningAndStartsTai(t *testing.T) {
 	}
 	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_test", NodeID: "node_test", InstanceID: created.InstanceID, Status: computertypes.StatusProvisioning, Metadata: map[string]interface{}{"data_dir": "/data"}}}
 	tai := &fakeTai{}
-	svc := taocomputer.NewService(client, computers).WithTai(tai).WithServerURL("https://yao.example.com")
+	svc := newTestService(client, computers).WithTai(tai).WithServerURL("https://yao.example.com")
 
 	result, err := svc.Get(context.Background(), testTAOKey, created.InstanceID)
 	if err != nil {
@@ -119,7 +150,7 @@ func TestSSHTargetAndStartRequest(t *testing.T) {
 func TestPurchaseInvalidResource(t *testing.T) {
 	srv := taocloud.New()
 	t.Cleanup(srv.Close)
-	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL()), &fakeComputerService{})
+	svc := newTestService(taocomputer.NewClient(srv.URL()), &fakeComputerService{})
 	if _, err := svc.Purchase(context.Background(), testTAOKey, taocomputer.PurchaseRequest{}); err == nil {
 		t.Fatal("expected resource error")
 	}
@@ -128,14 +159,14 @@ func TestPurchaseInvalidResource(t *testing.T) {
 func TestListAndServiceErrors(t *testing.T) {
 	srv := taocloud.New()
 	t.Cleanup(srv.Close)
-	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL()), &fakeComputerService{})
+	svc := newTestService(taocomputer.NewClient(srv.URL()), &fakeComputerService{})
 	if _, err := svc.List(context.Background(), testTAOKey, taocomputer.ListOptions{}); err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if _, err := taocomputer.NewService(nil, nil).List(context.Background(), testTAOKey, taocomputer.ListOptions{}); err == nil {
+	if _, err := newTestService(nil, nil).List(context.Background(), testTAOKey, taocomputer.ListOptions{}); err == nil {
 		t.Fatal("expected config error")
 	}
-	if _, err := taocomputer.NewService(nil, nil).Get(context.Background(), testTAOKey, "x"); err == nil {
+	if _, err := newTestService(nil, nil).Get(context.Background(), testTAOKey, "x"); err == nil {
 		t.Fatal("expected config error")
 	}
 }
@@ -144,11 +175,10 @@ func TestPurchaseTeamScope(t *testing.T) {
 	srv := taocloud.New()
 	t.Cleanup(srv.Close)
 	computers := &fakeComputerService{}
-	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL()), computers)
+	svc := newTestService(taocomputer.NewClient(srv.URL()), computers)
 	_, err := svc.Purchase(context.Background(), testTAOKey, taocomputer.PurchaseRequest{
 		Resource: "flex-2c2g", Region: "bj-cn", Name: "host", BillingUnit: "HOUR",
 		RequestParams: map[string]any{"image": "tao-base-1.0"},
-		SSH:           &taocomputer.SSHRequest{PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI user@host"},
 		TeamID:        "team-1",
 	})
 	if err != nil {
@@ -174,7 +204,7 @@ func TestGetTaiFailureMarksError(t *testing.T) {
 		t.Fatal(err)
 	}
 	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_test", NodeID: "node_test", InstanceID: created.InstanceID, Status: computertypes.StatusProvisioning}}
-	svc := taocomputer.NewService(client, computers).WithTai(&errorTai{})
+	svc := newTestService(client, computers).WithTai(&errorTai{})
 	if _, err := svc.Get(context.Background(), testTAOKey, created.InstanceID); err == nil {
 		t.Fatal("expected tai error")
 	}
@@ -186,11 +216,11 @@ func TestGetTaiFailureMarksError(t *testing.T) {
 func TestPurchaseClientError(t *testing.T) {
 	srv := taocloud.New()
 	t.Cleanup(srv.Close)
-	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL()), &fakeComputerService{})
+	svc := newTestService(taocomputer.NewClient(srv.URL()), &fakeComputerService{})
 	if _, err := svc.Purchase(context.Background(), testTAOKey, taocomputer.PurchaseRequest{Resource: "missing"}); err == nil {
 		t.Fatal("expected Tao error")
 	}
-	if _, err := taocomputer.NewService(nil, nil).Purchase(context.Background(), testTAOKey, taocomputer.PurchaseRequest{Resource: "x"}); err == nil {
+	if _, err := newTestService(nil, nil).Purchase(context.Background(), testTAOKey, taocomputer.PurchaseRequest{Resource: "x"}); err == nil {
 		t.Fatal("expected config error")
 	}
 }
@@ -204,7 +234,7 @@ func TestGetErrorBranches(t *testing.T) {
 		t.Fatal(err)
 	}
 	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_test", NodeID: "node_test", InstanceID: created.InstanceID, Status: computertypes.StatusProvisioning}}
-	svc := taocomputer.NewService(client, computers)
+	svc := newTestService(client, computers)
 	if _, err := svc.Get(context.Background(), testTAOKey, "missing"); err == nil {
 		t.Fatal("expected Tao not found")
 	}
@@ -222,8 +252,8 @@ func (failingComputerService) Get(context.Context, string) (*computertypes.Compu
 func TestPurchaseComputerFailure(t *testing.T) {
 	srv := taocloud.New()
 	t.Cleanup(srv.Close)
-	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL()), failingComputerService{})
-	if _, err := svc.Purchase(context.Background(), testTAOKey, taocomputer.PurchaseRequest{Resource: "flex-2c2g", Region: "bj-cn", Name: "host", BillingUnit: "HOUR", RequestParams: map[string]any{"image": "tao-base-1.0"}, SSH: &taocomputer.SSHRequest{PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI user@host"}}); err == nil {
+	svc := newTestService(taocomputer.NewClient(srv.URL()), failingComputerService{})
+	if _, err := svc.Purchase(context.Background(), testTAOKey, taocomputer.PurchaseRequest{Resource: "flex-2c2g", Region: "bj-cn", Name: "host", BillingUnit: "HOUR", RequestParams: map[string]any{"image": "tao-base-1.0"}}); err == nil {
 		t.Fatal("expected computer failure")
 	}
 }
@@ -236,14 +266,7 @@ func TestSSHTargetNilAndNames(t *testing.T) {
 	_ = req
 }
 
-type fakeSSHKeys struct {
-	key string
-	err error
-}
-
-func (f fakeSSHKeys) ResolveSSHKey(context.Context, string) (string, error) { return f.key, f.err }
-
-func TestGetResolvesSSHKey(t *testing.T) {
+func TestGetUsesControlKey(t *testing.T) {
 	srv := taocloud.New()
 	t.Cleanup(srv.Close)
 	client := taocomputer.NewClient(srv.URL())
@@ -251,14 +274,15 @@ func TestGetResolvesSSHKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_test", NodeID: "node_test", InstanceID: created.InstanceID, Status: computertypes.StatusProvisioning, Metadata: map[string]interface{}{"ssh_key_ref": "vault://key"}}}
+	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_test", NodeID: "node_test", InstanceID: created.InstanceID, Status: computertypes.StatusProvisioning}}
 	tai := &fakeTai{}
-	svc := taocomputer.NewService(client, computers).WithTai(tai).WithSSHKeys(fakeSSHKeys{key: "private"})
+	key := testControlKey()
+	svc := taocomputer.NewService(client, computers).WithTai(tai).WithControlKey(key)
 	if _, err := svc.Get(context.Background(), testTAOKey, created.InstanceID); err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	if tai.target.PrivateKey != "private" {
-		t.Fatalf("target=%+v", tai.target)
+	if tai.target.PrivateKey != key.PrivateKey {
+		t.Fatal("target did not use Tai control key")
 	}
 }
 
@@ -281,7 +305,7 @@ func TestGetStatusMapping(t *testing.T) {
 			defer srv.Close()
 			computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_x", NodeID: "node_x", InstanceID: "inst-x", Status: computertypes.StatusProvisioning}}
 			tai := &fakeTai{}
-			svc := taocomputer.NewService(taocomputer.NewClient(srv.URL), computers).WithTai(tai)
+			svc := newTestService(taocomputer.NewClient(srv.URL), computers).WithTai(tai)
 			result, err := svc.Get(context.Background(), testTAOKey, "inst-x")
 			if err != nil {
 				t.Fatalf("Get: %v", err)
@@ -298,7 +322,7 @@ func TestListServerError(t *testing.T) {
 		http.Error(w, "down", http.StatusServiceUnavailable)
 	}))
 	defer srv.Close()
-	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL), &fakeComputerService{})
+	svc := newTestService(taocomputer.NewClient(srv.URL), &fakeComputerService{})
 	if _, err := svc.List(context.Background(), testTAOKey, taocomputer.ListOptions{}); err == nil {
 		t.Fatal("expected list error")
 	}
@@ -310,7 +334,7 @@ func TestGetUnknownStatusDefault(t *testing.T) {
 	}))
 	defer srv.Close()
 	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_x", InstanceID: "inst-x", Status: computertypes.StatusProvisioning}}
-	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL), computers)
+	svc := newTestService(taocomputer.NewClient(srv.URL), computers)
 	result, err := svc.Get(context.Background(), testTAOKey, "inst-x")
 	if err != nil || result.Computer.Status != computertypes.StatusProvisioning {
 		t.Fatalf("status=%v err=%v", result, err)
@@ -326,7 +350,7 @@ func TestOrchestrateDelegatesToGet(t *testing.T) {
 		t.Fatal(err)
 	}
 	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_test", NodeID: "node_test", InstanceID: created.InstanceID, Status: computertypes.StatusProvisioning}}
-	svc := taocomputer.NewService(client, computers).WithTai(&fakeTai{})
+	svc := newTestService(client, computers).WithTai(&fakeTai{})
 	result, err := svc.Orchestrate(context.Background(), testTAOKey, created.InstanceID)
 	if err != nil || result.Computer.Status != computertypes.StatusPending {
 		t.Fatalf("result=%+v err=%v", result, err)
@@ -349,7 +373,7 @@ func TestGetDeletedMarksComputerReleased(t *testing.T) {
 	}
 	resp.Body.Close()
 	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_test", NodeID: "node_test", InstanceID: created.InstanceID, Status: computertypes.StatusPending}}
-	svc := taocomputer.NewService(client, computers)
+	svc := newTestService(client, computers)
 	if _, err := svc.Get(context.Background(), testTAOKey, created.InstanceID); !errors.Is(err, taocomputer.ErrInstanceDeleted) {
 		t.Fatalf("err=%v", err)
 	}
@@ -362,11 +386,10 @@ func TestPurchaseMonthRequest(t *testing.T) {
 	srv := taocloud.New()
 	t.Cleanup(srv.Close)
 	computers := &fakeComputerService{}
-	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL()), computers)
+	svc := newTestService(taocomputer.NewClient(srv.URL()), computers)
 	result, err := svc.Purchase(context.Background(), testTAOKey, taocomputer.PurchaseRequest{
 		Resource: "starter-2c2g", Region: "bj-cn", Name: "month", BillingUnit: "MONTH", PeriodMonths: 3,
 		RequestParams:  map[string]any{"image": "tao-base-1.0"},
-		SSH:            &taocomputer.SSHRequest{PublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI user@host"},
 		IdempotencyKey: "purchase-test-1",
 	})
 	if err != nil {
@@ -380,7 +403,7 @@ func TestPurchaseMonthRequest(t *testing.T) {
 func TestServiceContextCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	svc := taocomputer.NewService(nil, nil)
+	svc := newTestService(nil, nil)
 	if _, err := svc.List(ctx, testTAOKey, taocomputer.ListOptions{}); err == nil {
 		t.Fatal("list should fail")
 	}
@@ -389,5 +412,197 @@ func TestServiceContextCanceled(t *testing.T) {
 	}
 	if _, err := svc.Purchase(ctx, testTAOKey, taocomputer.PurchaseRequest{}); err == nil {
 		t.Fatal("purchase should fail")
+	}
+}
+
+func TestServiceActionAndDelete(t *testing.T) {
+	srv := taocloud.New()
+	t.Cleanup(srv.Close)
+	client := taocomputer.NewClient(srv.URL())
+	created, err := client.Create(context.Background(), testTAOKey, validCreate("flex-2c2g"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_test", NodeID: "node_test", InstanceID: created.InstanceID, Status: computertypes.StatusProvisioning}}
+	svc := taocomputer.NewService(client, computers).WithControlKey(testControlKey())
+	srv.SetInstanceStatus(created.InstanceID, "running", "")
+	if _, err := svc.Action(context.Background(), testTAOKey, created.InstanceID, "start"); err != nil {
+		t.Fatal(err)
+	}
+	if computers.calls[len(computers.calls)-1].Status != computertypes.StatusPending {
+		t.Fatalf("start status=%+v", computers.calls[len(computers.calls)-1])
+	}
+	if _, err := svc.Action(context.Background(), testTAOKey, created.InstanceID, "stop"); err != nil {
+		t.Fatal(err)
+	}
+	if computers.calls[len(computers.calls)-1].Status != computertypes.StatusSuspended {
+		t.Fatalf("stop status=%+v", computers.calls[len(computers.calls)-1])
+	}
+	if _, err := svc.Action(context.Background(), testTAOKey, created.InstanceID, "bad"); err == nil {
+		t.Fatal("expected invalid action")
+	}
+	if _, err := svc.Delete(context.Background(), testTAOKey, created.InstanceID); err != nil {
+		t.Fatal(err)
+	}
+	if computers.calls[len(computers.calls)-1].Status != computertypes.StatusReleased {
+		t.Fatalf("delete status=%+v", computers.calls[len(computers.calls)-1])
+	}
+}
+
+type errorComputerService struct{ err error }
+
+func (e *errorComputerService) CreateOrUpdate(context.Context, computertypes.CreateOrUpdateComputerRequest) (*computertypes.UpsertResult, error) {
+	return nil, e.err
+}
+func (e *errorComputerService) Get(context.Context, string) (*computertypes.Computer, error) {
+	return nil, e.err
+}
+
+func TestActionDeleteErrorBranches(t *testing.T) {
+	ctx := context.Background()
+	svc := taocomputer.NewService(nil, nil)
+	if _, err := svc.Action(ctx, testTAOKey, "x", "start"); err == nil {
+		t.Fatal("expected config error")
+	}
+	if _, err := svc.Delete(ctx, testTAOKey, "x"); err == nil {
+		t.Fatal("expected config error")
+	}
+	if _, err := svc.Action(ctx, testTAOKey, "x", "bad"); err == nil {
+		t.Fatal("expected action error")
+	}
+
+	srv := taocloud.New()
+	t.Cleanup(srv.Close)
+	client := taocomputer.NewClient(srv.URL())
+	created, err := client.Create(ctx, testTAOKey, validCreate("flex-2c2g"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp", NodeID: "node", InstanceID: created.InstanceID}}
+	svc = taocomputer.NewService(client, computers).WithControlKey(testControlKey())
+	if _, err := svc.Action(ctx, testTAOKey, created.InstanceID, "bad"); !errors.Is(err, taocomputer.ErrInvalidAction) {
+		t.Fatalf("bad action err=%v", err)
+	}
+	srv.FailNext(http.MethodPost, "/start", http.StatusInternalServerError, "boom")
+	if _, err := svc.Action(ctx, testTAOKey, created.InstanceID, "start"); err == nil {
+		t.Fatal("expected client error")
+	}
+	srv.FailNext(http.MethodDelete, "/computers/", http.StatusInternalServerError, "boom")
+	if _, err := svc.Delete(ctx, testTAOKey, created.InstanceID); err == nil {
+		t.Fatal("expected delete error")
+	}
+
+	badSvc := taocomputer.NewService(client, &errorComputerService{err: errors.New("db")}).WithControlKey(testControlKey())
+	srv.SetInstanceStatus(created.InstanceID, "running", "")
+	if _, err := badSvc.Action(ctx, testTAOKey, created.InstanceID, "stop"); err == nil {
+		t.Fatal("expected computer error")
+	}
+	if _, err := badSvc.Delete(ctx, testTAOKey, created.InstanceID); err == nil {
+		t.Fatal("expected computer delete error")
+	}
+}
+
+func TestPurchaseRequiresControlKey(t *testing.T) {
+	srv := taocloud.New()
+	t.Cleanup(srv.Close)
+	computers := &fakeComputerService{}
+	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL()), computers)
+	if _, err := svc.Purchase(context.Background(), testTAOKey, taocomputer.PurchaseRequest{Resource: "flex-2c2g"}); !errors.Is(err, taocomputer.ErrTaiControlKey) {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestGetRequiresControlKey(t *testing.T) {
+	srv := taocloud.New()
+	t.Cleanup(srv.Close)
+	client := taocomputer.NewClient(srv.URL())
+	created, err := client.Create(context.Background(), testTAOKey, validCreate("flex-2c2g"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp", NodeID: "node", InstanceID: created.InstanceID}}
+	svc := taocomputer.NewService(client, computers).WithTai(&fakeTai{})
+	if _, err := svc.Get(context.Background(), testTAOKey, created.InstanceID); !errors.Is(err, taocomputer.ErrTaiStart) {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestPurchaseInjectsControlPublicKey(t *testing.T) {
+	srv := taocloud.New()
+	t.Cleanup(srv.Close)
+	computers := &fakeComputerService{}
+	key := testControlKey()
+	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL()), computers).WithControlKey(key)
+	if _, err := svc.Purchase(context.Background(), testTAOKey, taocomputer.PurchaseRequest{
+		Resource: "flex-2c2g", Region: "bj-cn", Name: "host", BillingUnit: "HOUR",
+		RequestParams: map[string]any{"image": "tao-base-1.0"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	requests := srv.Requests()
+	if len(requests) == 0 {
+		t.Fatal("no requests")
+	}
+	var body struct {
+		SSH struct {
+			PublicKey string `json:"public_key"`
+		} `json:"ssh"`
+	}
+	if err := json.Unmarshal(requests[0].Body, &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.SSH.PublicKey != key.PublicKey {
+		t.Fatalf("public key not injected")
+	}
+	if computers.calls[0].Metadata["tai_control_key_id"] != key.KeyID {
+		t.Fatalf("metadata=%v", computers.calls[0].Metadata)
+	}
+}
+
+func TestGetBootstrapFailureMarksError(t *testing.T) {
+	srv := taocloud.New()
+	t.Cleanup(srv.Close)
+	client := taocomputer.NewClient(srv.URL())
+	created, err := client.Create(context.Background(), testTAOKey, validCreate("flex-2c2g"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_boot", NodeID: "node_boot", InstanceID: created.InstanceID, Status: computertypes.StatusProvisioning}}
+	tai := &fakeTai{bootstrapErr: errors.New("tai missing")}
+	svc := taocomputer.NewService(client, computers).WithTai(tai).WithControlKey(testControlKey())
+	if _, err := svc.Get(context.Background(), testTAOKey, created.InstanceID); !errors.Is(err, taocomputer.ErrTaiStart) {
+		t.Fatalf("err=%v", err)
+	}
+	if computers.calls[len(computers.calls)-1].Status != computertypes.StatusError {
+		t.Fatalf("last=%+v", computers.calls[len(computers.calls)-1])
+	}
+}
+
+func TestControlKeyRingSelectsComputerKey(t *testing.T) {
+	srv := taocloud.New()
+	t.Cleanup(srv.Close)
+	client := taocomputer.NewClient(srv.URL())
+	created, err := client.Create(context.Background(), testTAOKey, validCreate("flex-2c2g"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldKey := testControlKey()
+	oldKey.KeyID = "old-control"
+	newKey := testControlKey()
+	newKey.KeyID = "new-control"
+	computers := &fakeComputerService{computer: &computertypes.Computer{
+		ID: "cmp_ring", NodeID: "node_ring", InstanceID: created.InstanceID,
+		Status: computertypes.StatusProvisioning, Metadata: map[string]interface{}{"tai_control_key_id": "old-control"},
+	}}
+	tai := &fakeTai{}
+	svc := taocomputer.NewService(client, computers).WithTai(tai).WithControlKeys("new-control", oldKey, newKey)
+	if _, err := svc.Get(context.Background(), testTAOKey, created.InstanceID); err != nil {
+		t.Fatal(err)
+	}
+	if tai.target.PrivateKey != oldKey.PrivateKey {
+		t.Fatal("existing computer did not keep old control key")
+	}
+	if svc == nil {
+		t.Fatal("service nil")
 	}
 }

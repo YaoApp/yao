@@ -84,6 +84,24 @@ func (c *Client) List(ctx context.Context, taoKey string, opts ListOptions) ([]I
 	return out.Items, nil
 }
 
+// Action sends a lifecycle action to a Tao host.
+func (c *Client) Action(ctx context.Context, taoKey, instanceID, action string) (*Instance, error) {
+	if action != "start" && action != "stop" && action != "reboot" {
+		return nil, fmt.Errorf("unsupported Tao action %q", action)
+	}
+	var out Instance
+	path := PathComputers + "/" + url.PathEscape(instanceID) + "/" + action
+	if err := c.do(ctx, http.MethodPost, path, taoKey, map[string]any{}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// Delete deletes a Tao host. Tao returns 202/204 asynchronously.
+func (c *Client) Delete(ctx context.Context, taoKey, instanceID string) error {
+	return c.do(ctx, http.MethodDelete, PathComputers+"/"+url.PathEscape(instanceID), taoKey, nil, nil)
+}
+
 // GetCatalog returns Tao catalog services.
 func (c *Client) GetCatalog(ctx context.Context, taoKey string) (*Catalog, error) {
 	var out Catalog

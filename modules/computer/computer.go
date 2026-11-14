@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/yaoapp/gou/model"
@@ -59,8 +60,15 @@ func (s *modelStore) Delete(id interface{}) error {
 
 // Service owns computer persistence and local connection lifecycle.
 type Service struct {
-	store  computerStore
-	tokens NodeTokenService
+	store    computerStore
+	tokens   NodeTokenService
+	taiNodes types.TaiNodeProvider
+}
+
+// WithTaiNodeProvider attaches the Tai node registry provider.
+func (s *Service) WithTaiNodeProvider(provider types.TaiNodeProvider) *Service {
+	s.taiNodes = provider
+	return s
 }
 
 // New creates a computer service using the loaded application model.
@@ -193,6 +201,30 @@ func (s *Service) List(ctx context.Context, filter types.ListFilter) ([]types.Co
 }
 
 // Get returns one computer.
+// GetByNodeID returns the Computer for a node ID.
+func (s *Service) GetByNodeID(ctx context.Context, nodeID string) (*types.Computer, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(nodeID) == "" {
+		return nil, fmt.Errorf("%w: node_id is required", ErrInvalid)
+	}
+	m, err := s.modelOrErr()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := m.Get(modelQueryBy("node_id", nodeID))
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, ErrNotFound
+	}
+	computer := computerFromRow(rows[0])
+	return &computer, nil
+}
+
+// Get returns one Computer by ID.
 func (s *Service) Get(ctx context.Context, computerID string) (*types.Computer, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

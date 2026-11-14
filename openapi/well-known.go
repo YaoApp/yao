@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/yao/commercial"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
+	taipkg "github.com/yaoapp/yao/tai"
 )
 
 // attachWellKnown attaches the well-known handlers to the router
@@ -21,6 +22,9 @@ func (openapi *OpenAPI) attachWellKnown(router *gin.Engine) {
 
 	// Yao Configuration Metadata - for client discovery
 	wellKnown.GET("/yao", openapi.yaoMetadata)
+
+	// Tai transport discovery - Tai nodes use the Yao HTTP port.
+	wellKnown.GET("/yao-transport", openapi.yaoTransport)
 
 	// OAuth Authorization Server Metadata - RFC 8414 (Required by MCP)
 	wellKnown.GET("/oauth-authorization-server", openapi.oauthServerMetadata)
@@ -145,6 +149,16 @@ func (openapi *OpenAPI) yaoMetadata(c *gin.Context) {
 	metadata.Tao = resolveTaoEndpoints()
 
 	c.JSON(200, metadata)
+}
+
+// yaoTransport exposes the active Tai transport port on Yao's HTTP server.
+func (openapi *OpenAPI) yaoTransport(c *gin.Context) {
+	info := taipkg.WellKnownInfo()
+	if info == nil {
+		c.JSON(503, gin.H{"error": "tai transport is not running"})
+		return
+	}
+	c.JSON(200, info)
 }
 
 // resolveServerURL returns the public server URL for this instance.

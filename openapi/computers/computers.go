@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/modules/computer"
 	"github.com/yaoapp/yao/modules/computer/types"
 	oauth "github.com/yaoapp/yao/openapi/oauth"
@@ -16,6 +17,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	taipkg "github.com/yaoapp/yao/tai"
 )
 
 // Handler implements /v1/computers.
@@ -25,7 +27,11 @@ type Handler struct {
 
 // Attach registers Computer routes.
 func Attach(group *gin.RouterGroup, oauthSvc oauthtypes.OAuth) {
-	h := &Handler{Service: computer.New().WithTokens(oauth.OAuth)}
+	service := computer.New().WithTokens(oauth.OAuth)
+	if config.Conf.Tai.Server.Enabled == "true" {
+		service.WithTaiNodeProvider(taipkg.ComputerProvider{})
+	}
+	h := &Handler{Service: service}
 	group.GET("", oauthSvc.Guard, h.List)
 	group.POST("/connect", oauthSvc.Guard, h.Connect)
 	group.GET("/:computer_id", oauthSvc.Guard, h.Get)
@@ -283,6 +289,10 @@ func (h *Handler) queryList(c *gin.Context, load func(string) (interface{}, erro
 	}
 	value, err := load(item.ID)
 	if err != nil {
+		if errors.Is(err, computer.ErrNotSupported) {
+			response.RespondWithError(c, http.StatusNotImplemented, &response.ErrorResponse{Code: "not_supported", ErrorDescription: err.Error()})
+			return
+		}
 		serverError(c, err)
 		return
 	}

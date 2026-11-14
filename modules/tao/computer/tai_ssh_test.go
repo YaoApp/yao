@@ -98,13 +98,19 @@ func TestGetStartsTaiThroughRealSSHController(t *testing.T) {
 	client = taocomputer.NewClient(local.URL)
 
 	computers := &fakeComputerService{computer: &computertypes.Computer{ID: "cmp_ssh", NodeID: "node_ssh", InstanceID: created.InstanceID, Status: computertypes.StatusProvisioning, Metadata: map[string]interface{}{"ssh_key_ref": "vault://test/key"}}}
-	svc := taocomputer.NewService(client, computers).
-		WithTai(modulecomputer.NewSSHTaiController()).
-		WithSSHKeys(taocomputer.VaultSSHKeyResolver{Get: func(context.Context, string) (string, error) { return key, nil }})
+	svc := taocomputer.NewService(client, computers).WithControlKey(&taocomputer.ControlKey{KeyID: "test", PrivateKey: key}).
+		WithTai(modulecomputer.NewSSHTaiController())
 	if _, err := svc.Get(context.Background(), testTAOKey, created.InstanceID); err != nil {
 		t.Fatalf("Get real SSH start: %v", err)
 	}
-	if len(*commands) == 0 || !strings.Contains((*commands)[0], "'tai' 'start'") {
+	found := false
+	for _, command := range *commands {
+		if strings.Contains(command, "'tai' 'start'") {
+			found = true
+			break
+		}
+	}
+	if !found {
 		t.Fatalf("tai start not executed: %v", *commands)
 	}
 }

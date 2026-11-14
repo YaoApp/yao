@@ -26,6 +26,7 @@ import (
 	"github.com/yaoapp/yao/openapi/team"
 	"github.com/yaoapp/yao/openapi/testmode"
 	"github.com/yaoapp/yao/openapi/user"
+	taipkg "github.com/yaoapp/yao/tai"
 )
 
 // Server is the OpenAPI server
@@ -109,6 +110,10 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// Well-known handlers
 	openapi.attachWellKnown(router)
+
+	// Tai transport HTTP handlers use Yao's existing HTTP port. The SDK does
+	// not start a separate HTTP listener in Yao.
+	router.Any("/v1/tai/*path", gin.WrapH(taipkg.HTTPHandler()))
 
 	// OAuth handlers
 	openapi.attachOAuth(group)

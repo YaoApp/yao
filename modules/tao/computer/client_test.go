@@ -132,3 +132,39 @@ func TestClientBadJSON(t *testing.T) {
 		t.Fatal("expected decode error")
 	}
 }
+
+func TestClientActionsAndDelete(t *testing.T) {
+	srv := taocloud.New()
+	t.Cleanup(srv.Close)
+	client := taocomputer.NewClient(srv.URL())
+	created, err := client.Create(context.Background(), testTAOKey, validCreate("flex-2c2g"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.SetInstanceStatus(created.InstanceID, "running", "")
+	started, err := client.Action(context.Background(), testTAOKey, created.InstanceID, "start")
+	if err != nil || started.Status != "running" {
+		t.Fatalf("start=%+v err=%v", started, err)
+	}
+	stopped, err := client.Action(context.Background(), testTAOKey, created.InstanceID, "stop")
+	if err != nil || stopped.Status != "stopped" {
+		t.Fatalf("stop=%+v err=%v", stopped, err)
+	}
+	started, err = client.Action(context.Background(), testTAOKey, created.InstanceID, "start")
+	if err != nil || started.Status != "running" {
+		t.Fatalf("start2=%+v err=%v", started, err)
+	}
+	rebooted, err := client.Action(context.Background(), testTAOKey, created.InstanceID, "reboot")
+	if err != nil || rebooted.Status != "pending" {
+		t.Fatalf("reboot=%+v err=%v", rebooted, err)
+	}
+	if _, err := client.Action(context.Background(), testTAOKey, created.InstanceID, "bad"); err == nil {
+		t.Fatal("expected invalid action")
+	}
+	if err := client.Delete(context.Background(), testTAOKey, created.InstanceID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Get(context.Background(), testTAOKey, created.InstanceID); err == nil {
+		t.Fatal("expected deleted 404")
+	}
+}

@@ -50,3 +50,30 @@ type TaiController interface {
 	Status(ctx context.Context, target SSHTarget) (*TaiStatus, error)
 	Logs(ctx context.Context, target SSHTarget, lines int) (string, error)
 }
+
+// TaiNodeProvider exposes runtime data from registered Tai nodes.
+type TaiNodeProvider interface {
+	Node(nodeID string) (TaiNode, bool)
+	ListWorkspaces(ctx context.Context, nodeID string) ([]TaiWorkspace, error)
+}
+
+// TaiNodeController is an optional capability for node control.
+type TaiNodeController interface {
+	GoAway(ctx context.Context, nodeID, reason string) error
+}
+
+// TaiNode is the neutral runtime snapshot used by Computer APIs.
+type TaiNode struct {
+	ID                string
+	Version           string
+	OS                string
+	Arch              string
+	Capabilities      []string
+	ContainerRuntimes []Runtime
+}
+
+// TaiWorkspace is a workspace reference returned by Tai.
+type TaiWorkspace struct {
+	ID   string
+	Name string
+}

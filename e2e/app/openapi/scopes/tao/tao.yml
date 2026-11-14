@@ -23,6 +23,10 @@ tao:computers:write:own:
   description: "Purchase Tao computers and manage own Tao key"
   endpoints:
     - POST /tao/computers
+    - POST /tao/computers/:instance_id/start
+    - POST /tao/computers/:instance_id/stop
+    - POST /tao/computers/:instance_id/reboot
+    - DELETE /tao/computers/:instance_id
     - PUT /tao/account
     - DELETE /tao/account
 
@@ -30,6 +34,10 @@ tao:computers:write:all:
   description: "Manage all Tao computers and sync catalog"
   endpoints:
     - POST /tao/computers
+    - POST /tao/computers/:instance_id/start
+    - POST /tao/computers/:instance_id/stop
+    - POST /tao/computers/:instance_id/reboot
+    - DELETE /tao/computers/:instance_id
     - PUT /tao/account
     - DELETE /tao/account
     - POST /tao/catalog/sync

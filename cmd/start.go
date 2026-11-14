@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -26,11 +27,14 @@ import (
 	"github.com/yaoapp/yao/engine"
 	yaogrpc "github.com/yaoapp/yao/grpc"
 	_ "github.com/yaoapp/yao/grpc/auth"
+	modulecomputer "github.com/yaoapp/yao/modules/computer"
 	"github.com/yaoapp/yao/openapi"
+	oauthpkg "github.com/yaoapp/yao/openapi/oauth"
 	ischedule "github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/service"
 	"github.com/yaoapp/yao/setup"
 	"github.com/yaoapp/yao/share"
+	taipkg "github.com/yaoapp/yao/tai"
 
 	itask "github.com/yaoapp/yao/task"
 )
@@ -102,6 +106,16 @@ var startCmd = &cobra.Command{
 		if err != nil {
 			fmt.Println(color.RedString(L("Load: %s"), err.Error()))
 			os.Exit(1)
+		}
+
+		// Start the embedded Tai transport before serving API traffic.
+		taiServer, err := startTaiTransport()
+		if err != nil {
+			fmt.Println(color.RedString(L("Tai: %s"), err.Error()))
+			return
+		}
+		if taiServer != nil {
+			defer taiServer.Close()
 		}
 
 		port := fmt.Sprintf(":%d", config.Conf.Port)
@@ -312,6 +326,45 @@ var startCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+// startTaiTransport starts only the Tai transport TCP listener. Yao's existing
+// HTTP server (config.Conf.Port) serves /.well-known/yao-transport and
+// /v1/tai/*; the SDK does not bind a separate HTTP port.
+func startTaiTransport() (*taipkg.Server, error) {
+	if config.Conf.Tai.Server.Enabled != "true" {
+		return nil, nil
+	}
+	if openapi.Server == nil {
+		return nil, fmt.Errorf("openapi server is not loaded")
+	}
+	oauthSvc, ok := openapi.Server.OAuth.(*oauthpkg.Service)
+	if !ok || oauthSvc == nil {
+		return nil, fmt.Errorf("oauth service is not available")
+	}
+	computers := modulecomputer.New().WithTokens(oauthSvc)
+	server, err := taipkg.NewServer(taipkg.Config{
+		TransportPort: config.Conf.Tai.Server.TransportPort,
+		OAuth:         oauthSvc,
+		IssueNode: func(ctx context.Context, nodeID string) (*oauthpkg.NodeToken, error) {
+			computer, err := computers.GetByNodeID(ctx, nodeID)
+			if err != nil {
+				return nil, err
+			}
+			return oauthSvc.IssueNodeToken(ctx, oauthpkg.IssueRequest{
+				ComputerID: computer.ID, NodeID: computer.NodeID, Scope: computer.Scope,
+				Visibility: computer.Visibility, UserID: computer.UserID, TeamID: computer.TeamID,
+			})
+		},
+		Observer: &taipkg.ComputerObserver{Computers: computers},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := server.Start(context.Background()); err != nil {
+		return nil, err
+	}
+	return server, nil
 }
 
 func install() error {

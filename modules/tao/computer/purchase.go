@@ -13,13 +13,14 @@ import (
 
 // Service orchestrates Tao purchase and Yao Computer lifecycle.
 type Service struct {
-	client    TaoComputersClient
-	computers ComputerService
-	tai       TaiController
-	sshKeys   SSHKeyResolver
-	products  ProductWriter
-	serverURL string
-	locks     sync.Map // instance_id -> *sync.Mutex
+	client      TaoComputersClient
+	computers   ComputerService
+	tai         TaiController
+	controlKey  *ControlKey
+	controlKeys map[string]*ControlKey
+	products    ProductWriter
+	serverURL   string
+	locks       sync.Map // instance_id -> *sync.Mutex
 }
 
 // NewService creates a Tao computer purchase service.
@@ -33,10 +34,58 @@ func (s *Service) WithTai(tai TaiController) *Service {
 	return s
 }
 
-// WithSSHKeys sets the Vault SSH key resolver.
-func (s *Service) WithSSHKeys(resolver SSHKeyResolver) *Service {
-	s.sshKeys = resolver
+// WithControlKey sets the active Yao system-level Tai control key.
+func (s *Service) WithControlKey(key *ControlKey) *Service {
+	s.controlKey = key
+	if key != nil {
+		if s.controlKeys == nil {
+			s.controlKeys = map[string]*ControlKey{}
+		}
+		if key.KeyID != "" {
+			s.controlKeys[key.KeyID] = key
+		}
+	}
 	return s
+}
+
+// WithControlKeys sets a control-key ring and its active key ID. Existing
+// Computers keep using the key ID recorded in their metadata.
+func (s *Service) WithControlKeys(activeID string, keys ...*ControlKey) *Service {
+	s.controlKeys = map[string]*ControlKey{}
+	for _, key := range keys {
+		if key == nil {
+			continue
+		}
+		if key.KeyID == "" {
+			continue
+		}
+		s.controlKeys[key.KeyID] = key
+	}
+	if key := s.controlKeys[activeID]; key != nil {
+		s.controlKey = key
+	}
+	return s
+}
+
+func (s *Service) activeControlKey() *ControlKey {
+	if s.controlKey != nil {
+		return s.controlKey
+	}
+	for _, key := range s.controlKeys {
+		return key
+	}
+	return nil
+}
+
+func (s *Service) controlKeyFor(computer *computertypes.Computer) *ControlKey {
+	if computer != nil && computer.Metadata != nil {
+		if id, ok := computer.Metadata["tai_control_key_id"].(string); ok && id != "" {
+			if key := s.controlKeys[id]; key != nil {
+				return key
+			}
+		}
+	}
+	return s.activeControlKey()
 }
 
 // WithServerURL sets the Yao server URL passed to tai start.
@@ -56,14 +105,21 @@ func (s *Service) Purchase(ctx context.Context, taoKey string, req PurchaseReque
 	if s.client == nil || s.computers == nil {
 		return nil, fmt.Errorf("tao computer service is not configured")
 	}
-	metadata := map[string]string{"computer_name": req.Computer.Name}
+	controlKey := s.activeControlKey()
+	if controlKey == nil {
+		return nil, ErrTaiControlKey
+	}
+	metadata := map[string]string{
+		"computer_name":      req.Computer.Name,
+		"tai_control_key_id": controlKey.KeyID,
+	}
 	for key, value := range req.Metadata {
 		metadata[key] = value
 	}
 	instance, err := s.client.Create(ctx, taoKey, CreateInstanceRequest{
 		Resource: req.Resource, Region: req.Region, Name: req.Name,
 		BillingUnit: req.BillingUnit, PeriodMonths: req.PeriodMonths,
-		RequestParams: req.RequestParams, SSH: req.SSH, Metadata: metadata, IdempotencyKey: req.IdempotencyKey,
+		RequestParams: req.RequestParams, SSH: &SSHRequest{PublicKey: controlKey.PublicKey}, Metadata: metadata, IdempotencyKey: req.IdempotencyKey,
 	})
 	if err != nil {
 		return nil, err
@@ -81,9 +137,10 @@ func (s *Service) Purchase(ctx context.Context, taoKey string, req PurchaseReque
 		LeaseSource:    req.Computer.LeaseSource,
 		LeaseExpiresAt: req.Computer.LeaseExpiresAt,
 		Metadata: map[string]interface{}{
-			"resource": req.Resource, "region": req.Region,
-			"sandbox_image": req.Computer.SandboxImage,
-			"ssh_key_ref":   req.Computer.SSHKeyRef,
+			"resource":           req.Resource,
+			"region":             req.Region,
+			"sandbox_image":      req.Computer.SandboxImage,
+			"tai_control_key_id": controlKey.KeyID,
 		},
 	})
 	if err != nil {
@@ -156,19 +213,20 @@ func (s *Service) Get(ctx context.Context, taoKey, instanceID string) (*Purchase
 	if issueToken && s.tai != nil {
 		computer := result.Computer
 		target := SSHTargetFrom(instance)
-		keyRef := ""
-		if computer != nil && computer.Metadata != nil {
-			keyRef, _ = computer.Metadata["ssh_key_ref"].(string)
+		controlKey := s.controlKeyFor(computer)
+		if controlKey == nil {
+			return nil, fmt.Errorf("%w: %v", ErrTaiStart, ErrTaiControlKey)
 		}
-		if keyRef != "" {
-			if s.sshKeys == nil {
-				return nil, fmt.Errorf("%w: ssh key resolver is not configured", ErrTaiStart)
-			}
-			key, err := s.sshKeys.ResolveSSHKey(ctx, keyRef)
-			if err != nil {
-				return nil, fmt.Errorf("%w: resolve ssh key: %v", ErrTaiStart, err)
-			}
-			target.PrivateKey = key
+		target.PrivateKey = controlKey.PrivateKey
+		dataDir := ""
+		if computer.Metadata != nil {
+			dataDir, _ = computer.Metadata["data_dir"].(string)
+		}
+		if err := s.tai.Bootstrap(ctx, target, computertypes.BootstrapRequest{
+			NodeID: computer.NodeID, NodeToken: result.NodeToken, Server: s.serverURL, DataDir: dataDir,
+		}); err != nil {
+			_, _ = s.computers.CreateOrUpdate(ctx, computertypes.CreateOrUpdateComputerRequest{InstanceID: instanceID, Status: computertypes.StatusError})
+			return nil, fmt.Errorf("%w: %v", ErrTaiStart, err)
 		}
 		if err := s.tai.Start(ctx, target, StartTaiRequestFor(computer, result.NodeToken, s.serverURL)); err != nil {
 			_, _ = s.computers.CreateOrUpdate(ctx, computertypes.CreateOrUpdateComputerRequest{
@@ -178,6 +236,54 @@ func (s *Service) Get(ctx context.Context, taoKey, instanceID string) (*Purchase
 		}
 	}
 	return &PurchaseResult{Instance: instance, Computer: result.Computer}, nil
+}
+
+// Action sends start/stop/reboot to Tao and advances Computer state.
+func (s *Service) Action(ctx context.Context, taoKey, instanceID, action string) (*PurchaseResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if s.client == nil || s.computers == nil {
+		return nil, fmt.Errorf("tao computer service is not configured")
+	}
+	if action != "start" && action != "stop" && action != "reboot" {
+		return nil, fmt.Errorf("%w: unsupported action", ErrInvalidAction)
+	}
+	instance, err := s.client.Action(ctx, taoKey, instanceID, action)
+	if err != nil {
+		return nil, err
+	}
+	status := computertypes.StatusPending
+	if action == "stop" {
+		status = computertypes.StatusSuspended
+	}
+	result, err := s.computers.CreateOrUpdate(ctx, computertypes.CreateOrUpdateComputerRequest{
+		InstanceID: instanceID, Status: status,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &PurchaseResult{Instance: instance, Computer: result.Computer}, nil
+}
+
+// Delete deletes a Tao host and releases the Computer record.
+func (s *Service) Delete(ctx context.Context, taoKey, instanceID string) (*PurchaseResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if s.client == nil || s.computers == nil {
+		return nil, fmt.Errorf("tao computer service is not configured")
+	}
+	if err := s.client.Delete(ctx, taoKey, instanceID); err != nil {
+		return nil, err
+	}
+	result, err := s.computers.CreateOrUpdate(ctx, computertypes.CreateOrUpdateComputerRequest{
+		InstanceID: instanceID, Status: computertypes.StatusReleased,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &PurchaseResult{Computer: result.Computer}, nil
 }
 
 // SSHTargetFrom builds an SSH target from a Tao instance.

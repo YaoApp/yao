@@ -145,7 +145,7 @@ func TestComputerHTTPE2E(t *testing.T) {
 	}
 	for _, path := range []string{"workspaces", "runtimes", "containers"} {
 		resp, body, err = httpClient.Get("/v1/computers/" + created.ComputerID + "/" + path)
-		if err != nil || resp.StatusCode != http.StatusOK {
+		if err != nil || resp.StatusCode != http.StatusNotImplemented {
 			t.Fatalf("%s status=%v err=%v body=%s", path, resp, err, body)
 		}
 	}

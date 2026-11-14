@@ -19,7 +19,7 @@ import (
 	userpkg "github.com/yaoapp/yao/openapi/user"
 )
 
-func TestTaoPurchaseHTTPE2E(t *testing.T) {
+func TestE2ETaoPurchaseHTTP(t *testing.T) {
 	taoServer := taocloud.New()
 	t.Cleanup(taoServer.Close)
 	t.Setenv("TAO_ENDPOINT", taoServer.URL())
@@ -54,7 +54,6 @@ func TestTaoPurchaseHTTPE2E(t *testing.T) {
 	resp, body, err = httpClient.PostJSON("/v1/tao/computers", map[string]any{
 		"resource": "flex-2c2g", "region": "bj-cn", "name": "http-host", "billing_unit": "HOUR",
 		"request_params": map[string]any{"image": "tao-base-1.0"},
-		"ssh":            map[string]any{"public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI user@host"},
 		"computer":       map[string]any{"name": "http-cloud", "visibility": "private"},
 	})
 	if err != nil || resp.StatusCode != http.StatusAccepted {
@@ -68,9 +67,20 @@ func TestTaoPurchaseHTTPE2E(t *testing.T) {
 	if instanceID == "" || purchased["computer_status"] != "provisioning" || purchased["computer_id"] == nil {
 		t.Fatalf("purchase=%v", purchased)
 	}
+	taoServer.SetInstanceStatus(instanceID, "running", "")
+	for _, action := range []string{"stop", "start"} {
+		resp, body, err = doJSON(httpClient, http.MethodPost, "/v1/tao/computers/"+instanceID+"/"+action, nil)
+		if err != nil || resp.StatusCode != http.StatusAccepted {
+			t.Fatalf("%s status=%v err=%v body=%s", action, resp, err, body)
+		}
+	}
 	resp, body, err = httpClient.Get("/v1/tao/computers")
 	if err != nil || resp.StatusCode != http.StatusOK {
 		t.Fatalf("list status=%v err=%v body=%s", resp, err, body)
+	}
+	resp, body, err = doJSON(httpClient, http.MethodDelete, "/v1/tao/computers/"+instanceID, nil)
+	if err != nil || resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("delete status=%v err=%v body=%s", resp, err, body)
 	}
 	resp, body, err = doJSON(httpClient, http.MethodDelete, "/v1/tao/account", nil)
 	if err != nil || resp.StatusCode != http.StatusNoContent {

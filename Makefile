@@ -99,9 +99,11 @@ unit-test-core-windows: deps
 # Agent functional test scope. Extend these variables when a new module is added.
 AGENT_TEST_PKGS ?= ./openapi/oauth ./openapi/auth ./tai/auth
 AGENT_TEST_RUN ?= ^(TestNodeToken.*|TestProvider)$$
-AGENT_COMPUTER_PKGS ?= ./modules/computer
+AGENT_COMPUTER_PKGS ?= ./modules/computer ./modules/tao/computer ./tai
 AGENT_COMPUTER_RUN ?= ^Test
 TAO_MOCK_PKGS ?= ./e2e/taocloud
+AGENT_E2E_PKGS ?= ./modules/... ./openapi/auth/... ./openapi/computers/... ./openapi/tao/computers/... ./tai
+AGENT_E2E_RUN ?= ^(TestE2E|TestNodeTokenE2E|TestComputerHTTPE2E)
 AGENT_TEST_TIMEOUT ?= 60s
 
 
@@ -117,7 +119,7 @@ agent-tests:
 
 .PHONY: agent-e2e-tests
 agent-e2e-tests:
-	$(GO) test -tags=e2e -v -p 1 -count=1 -timeout $(AGENT_TEST_TIMEOUT) -run '^(TestE2E|TestNodeTokenE2E|TestComputerHTTPE2E)' ./modules/... ./openapi/auth/... ./openapi/computers/...
+	$(GO) test -tags=e2e -v -p 1 -count=1 -timeout $(AGENT_TEST_TIMEOUT) -run '$(AGENT_E2E_RUN)' $(AGENT_E2E_PKGS)
 
 .PHONY: agent-coverage
 agent-coverage:

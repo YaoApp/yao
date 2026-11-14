@@ -104,17 +104,29 @@ func (s *Service) Connect(ctx context.Context, req types.ConnectRequest) (*types
 		NodeID:        computer.NodeID,
 		NodeToken:     token.Token,
 		ExpiresAt:     token.ExpiresAt,
-		TransportPort: 6099,
-		Protocols:     []string{"HTTP/2"},
+		TransportPort: transportPort(),
+		Protocols:     []string{"HTTP/2", "HTTP/3"},
 	}
-	if config.Conf.Host != "" {
-		result.Server = fmt.Sprintf("%s:%d", config.Conf.Host, config.Conf.Port)
+	host := config.Conf.Host
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
 	}
+	result.Server = fmt.Sprintf("http://%s:%d", host, config.Conf.Port)
 	return result, nil
 }
 
 // Disconnect marks an active computer disconnected while retaining its token.
+// For a registered Tai node it also sends GoAway before updating local state.
 func (s *Service) Disconnect(ctx context.Context, computerID string) error {
+	if controller, ok := s.taiNodes.(types.TaiNodeController); ok {
+		computer, err := s.Get(ctx, computerID)
+		if err != nil {
+			return err
+		}
+		if err := controller.GoAway(ctx, computer.NodeID, "disconnect requested"); err != nil {
+			return err
+		}
+	}
 	return s.setStatus(ctx, computerID, types.StatusDisconnected)
 }
 
@@ -142,4 +154,11 @@ func (s *Service) setStatus(ctx context.Context, computerID, status string) erro
 
 func modelQueryBy(column string, value interface{}) model.QueryParam {
 	return model.QueryParam{Wheres: []model.QueryWhere{{Column: column, Value: value}}}
+}
+
+func transportPort() int {
+	if config.Conf.Tai.Server.TransportPort > 0 {
+		return config.Conf.Tai.Server.TransportPort
+	}
+	return 6099
 }

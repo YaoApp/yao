@@ -11,6 +11,12 @@ import (
 
 var ErrTaiStart = errors.New("tai start failed")
 
+// ErrTaiControlKey is returned when the Yao system-level control key is missing.
+var ErrTaiControlKey = errors.New("tai control key is not configured")
+
+// ErrInvalidAction is returned for an unsupported Tao lifecycle action.
+var ErrInvalidAction = errors.New("invalid Tao action")
+
 // ErrInstanceDeleted is returned when Tao reports the instance as gone.
 var ErrInstanceDeleted = errors.New("tao instance deleted")
 
@@ -120,7 +126,7 @@ type ComputerSpec struct {
 	Name           string     `json:"name"`
 	DataDir        string     `json:"data_dir,omitempty"`
 	Visibility     string     `json:"visibility,omitempty"`
-	SSHKeyRef      string     `json:"ssh_key_ref,omitempty"`
+	SSHKeyRef      string     `json:"ssh_key_ref,omitempty"` // deprecated: user values are rejected; control key is server-side
 	SandboxImage   string     `json:"sandbox_image,omitempty"`
 	LeaseSource    string     `json:"lease_source,omitempty"`
 	LeaseExpiresAt *time.Time `json:"lease_expires_at,omitempty"`
@@ -134,7 +140,6 @@ type PurchaseRequest struct {
 	BillingUnit    string
 	PeriodMonths   int
 	RequestParams  map[string]any
-	SSH            *SSHRequest
 	Metadata       map[string]string
 	IdempotencyKey string
 	Computer       ComputerSpec
@@ -154,11 +159,6 @@ type ComputerService interface {
 	Get(context.Context, string) (*computertypes.Computer, error)
 }
 
-// SSHKeyResolver resolves a Vault SSH key reference to private key material.
-type SSHKeyResolver interface {
-	ResolveSSHKey(context.Context, string) (string, error)
-}
-
 // TaiController is the SSH/Tai wrapper used after Tao reports running.
 type TaiController interface {
 	Bootstrap(context.Context, computertypes.SSHTarget, computertypes.BootstrapRequest) error
@@ -173,5 +173,7 @@ type TaoComputersClient interface {
 	Create(context.Context, string, CreateInstanceRequest) (*Instance, error)
 	Get(context.Context, string, string) (*Instance, error)
 	List(context.Context, string, ListOptions) ([]Instance, error)
+	Action(context.Context, string, string, string) (*Instance, error)
+	Delete(context.Context, string, string) error
 	GetCatalog(context.Context, string) (*Catalog, error)
 }

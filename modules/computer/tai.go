@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -23,9 +24,13 @@ func NewSSHTaiController() *SSHTaiController {
 	return &SSHTaiController{Timeout: 20 * time.Second}
 }
 
-// Bootstrap creates the data directory and verifies the node credentials.
+// Bootstrap creates the data directory and verifies that Tai is installed.
 func (c *SSHTaiController) Bootstrap(ctx context.Context, target types.SSHTarget, req types.BootstrapRequest) error {
-	cmd := "mkdir -p " + shellQuote(req.DataDir)
+	dir := req.DataDir
+	if dir == "" {
+		dir = "/data/volumes"
+	}
+	cmd := "mkdir -p " + shellQuote(dir) + " && command -v tai >/dev/null"
 	_, err := c.run(ctx, target, cmd)
 	return err
 }
@@ -61,7 +66,7 @@ func (c *SSHTaiController) Start(ctx context.Context, target types.SSHTarget, re
 	if logFile == "" {
 		logFile = "logs/tai.log"
 	}
-	cmd := "mkdir -p " + shellQuote(req.DataDir) + " && " + strings.Join(quoteArgs(args), " ") + " > " + shellQuote(logFile) + " 2>&1 &"
+	cmd := "mkdir -p " + shellQuote(req.DataDir) + " " + shellQuote(filepath.Dir(logFile)) + " && " + strings.Join(quoteArgs(args), " ") + " > " + shellQuote(logFile) + " 2>&1 &"
 	_, err := c.run(ctx, target, cmd)
 	return err
 }

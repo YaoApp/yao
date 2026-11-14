@@ -4,6 +4,7 @@ package computers
 import (
 	"errors"
 	"net/http"
+	"path"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,10 @@ func Attach(group *gin.RouterGroup, oauthSvc oauthtypes.OAuth, service *taocompu
 	group.POST("", oauthSvc.Guard, h.Purchase)
 	group.GET("", oauthSvc.Guard, h.List)
 	group.GET("/:instance_id", oauthSvc.Guard, h.Get)
+	group.POST("/:instance_id/start", oauthSvc.Guard, h.Action)
+	group.POST("/:instance_id/stop", oauthSvc.Guard, h.Action)
+	group.POST("/:instance_id/reboot", oauthSvc.Guard, h.Action)
+	group.DELETE("/:instance_id", oauthSvc.Guard, h.Delete)
 }
 
 type purchaseRequest struct {
@@ -50,6 +55,10 @@ func (h *Handler) Purchase(c *gin.Context) {
 		badRequest(c, err)
 		return
 	}
+	if req.SSH != nil || req.Computer.SSHKeyRef != "" {
+		badRequest(c, errors.New("ssh key is managed by the server"))
+		return
+	}
 	key, err := h.resolveKey(c, info)
 	if err != nil {
 		forbidden(c)
@@ -58,10 +67,58 @@ func (h *Handler) Purchase(c *gin.Context) {
 	result, err := h.Service.Purchase(c.Request.Context(), key, taocomputer.PurchaseRequest{
 		Resource: req.Resource, Region: req.Region, Name: req.Name,
 		BillingUnit: req.BillingUnit, PeriodMonths: req.PeriodMonths,
-		RequestParams: req.RequestParams, SSH: req.SSH, Metadata: req.Metadata,
+		RequestParams: req.RequestParams, Metadata: req.Metadata,
 		IdempotencyKey: c.GetHeader("Idempotency-Key"),
 		Computer:       req.Computer, UserID: info.UserID, TeamID: info.TeamID,
 	})
+	if err != nil {
+		apiError(c, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusAccepted, purchaseResponse(result, false))
+}
+
+// Action sends a lifecycle action to a Tao host.
+func (h *Handler) Action(c *gin.Context) {
+	info := authorized.GetInfo(c)
+	if info == nil || info.UserID == "" {
+		forbidden(c)
+		return
+	}
+	key, err := h.resolveKey(c, info)
+	if err != nil {
+		forbidden(c)
+		return
+	}
+	action := path.Base(c.FullPath())
+	if action == "." || action == "/" {
+		action = path.Base(c.Request.URL.Path)
+	}
+	if action == "" {
+		badRequest(c, errors.New("action is required"))
+		return
+	}
+	result, err := h.Service.Action(c.Request.Context(), key, c.Param("instance_id"), action)
+	if err != nil {
+		apiError(c, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusAccepted, purchaseResponse(result, false))
+}
+
+// Delete deletes a Tao host and releases the Computer.
+func (h *Handler) Delete(c *gin.Context) {
+	info := authorized.GetInfo(c)
+	if info == nil || info.UserID == "" {
+		forbidden(c)
+		return
+	}
+	key, err := h.resolveKey(c, info)
+	if err != nil {
+		forbidden(c)
+		return
+	}
+	result, err := h.Service.Delete(c.Request.Context(), key, c.Param("instance_id"))
 	if err != nil {
 		apiError(c, err)
 		return
@@ -163,6 +220,10 @@ func forbidden(c *gin.Context) {
 func apiError(c *gin.Context, err error) {
 	if errors.Is(err, taocomputer.ErrInstanceDeleted) {
 		response.RespondWithError(c, http.StatusNotFound, &response.ErrorResponse{Code: "not_found", ErrorDescription: "Tao instance deleted"})
+		return
+	}
+	if errors.Is(err, taocomputer.ErrInvalidAction) {
+		response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{Code: "invalid_action", ErrorDescription: err.Error()})
 		return
 	}
 	if errors.Is(err, taocomputer.ErrTaiStart) {
