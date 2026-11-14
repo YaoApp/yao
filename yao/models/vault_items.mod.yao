@@ -1,7 +1,7 @@
 {
   "name": "VaultItems",
   "label": "VaultItems",
-  "description": "Credential item stored under a vault group.",
+  "description": "Credential item under a vault group or vault.",
   "tags": [
     "system",
     "2.0"
@@ -11,7 +11,7 @@
   "sort": 100,
   "table": {
     "name": "vault_items",
-    "comment": "Credential item stored under a vault group."
+    "comment": "Credential item under a vault group or vault."
   },
   "columns": [
     {
@@ -24,12 +24,21 @@
       "nullable": false
     },
     {
-      "name": "group_id",
-      "label": "Group Id",
-      "comment": "Vault group identifier",
+      "name": "vault_id",
+      "label": "Vault Id",
+      "comment": "Owner vault ID",
       "type": "string",
       "length": 64,
       "index": true
+    },
+    {
+      "name": "group_id",
+      "label": "Group Id",
+      "comment": "Vault group identifier; NULL means ungrouped",
+      "type": "string",
+      "length": 64,
+      "index": true,
+      "nullable": true
     },
     {
       "name": "name",
@@ -55,7 +64,7 @@
     {
       "name": "secret_ref",
       "label": "Secret Ref",
-      "comment": "Secret storage reference",
+      "comment": "Opaque reference to the SecretStore entry",
       "type": "string",
       "length": 255
     },
@@ -80,6 +89,21 @@
       "nullable": true
     },
     {
+      "name": "expires_at",
+      "label": "Expires At",
+      "comment": "Credential expiry; NULL means no expiry",
+      "type": "timestamp",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "last_used_at",
+      "label": "Last Used At",
+      "comment": "Last resolve/use time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
       "name": "metadata",
       "label": "Metadata",
       "comment": "Additional metadata",
@@ -98,11 +122,21 @@
     {
       "name": "uk_vi_name",
       "columns": [
+        "vault_id",
         "group_id",
         "name"
       ],
       "type": "unique",
-      "comment": "Unique index"
+      "comment": "Unique item name per group"
+    },
+    {
+      "name": "idx_vi_vault",
+      "columns": [
+        "vault_id",
+        "status"
+      ],
+      "type": "index",
+      "comment": "Vault items"
     }
   ],
   "option": {

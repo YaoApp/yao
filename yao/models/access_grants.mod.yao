@@ -26,7 +26,7 @@
     {
       "name": "resource_type",
       "label": "Resource Type",
-      "comment": "Resource type: app, bot, session, board, computer, workspace, resource, vault_group, vault_item",
+      "comment": "Resource type: app, bot, session, board, computer, workspace, resource, vault, vault_group, vault_item",
       "type": "enum",
       "option": [
         "app",
@@ -36,6 +36,7 @@
         "computer",
         "workspace",
         "resource",
+        "vault",
         "vault_group",
         "vault_item"
       ]
@@ -50,14 +51,15 @@
     {
       "name": "subject_type",
       "label": "Subject Type",
-      "comment": "Grant subject type: user, team, role, session, bot",
+      "comment": "Grant subject type: user, team, role, session, bot, app",
       "type": "enum",
       "option": [
         "user",
         "team",
         "role",
         "session",
-        "bot"
+        "bot",
+        "app"
       ]
     },
     {

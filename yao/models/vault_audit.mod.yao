@@ -1,0 +1,203 @@
+{
+  "name": "Vault Audit",
+  "label": "Vault Audit",
+  "description": "Vault resolve/grant/revoke/rotate audit; never stores secret values.",
+  "tags": [
+    "system",
+    "2.0",
+    "vault",
+    "audit"
+  ],
+  "builtin": true,
+  "readonly": true,
+  "sort": 100,
+  "table": {
+    "name": "vault_audit",
+    "comment": "Vault access and management audit."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Primary key",
+      "primary": true
+    },
+    {
+      "name": "vault_id",
+      "type": "string",
+      "length": 64,
+      "label": "Vault Id",
+      "comment": "Vault ID",
+      "index": true
+    },
+    {
+      "name": "item_id",
+      "type": "string",
+      "length": 64,
+      "label": "Item Id",
+      "comment": "Vault item ID",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "group_id",
+      "type": "string",
+      "length": 64,
+      "label": "Group Id",
+      "comment": "Vault group ID",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "subject_type",
+      "type": "enum",
+      "option": [
+        "user",
+        "team",
+        "role",
+        "session",
+        "bot",
+        "app"
+      ],
+      "label": "Subject Type",
+      "comment": "Actor type"
+    },
+    {
+      "name": "subject_id",
+      "type": "string",
+      "length": 64,
+      "label": "Subject Id",
+      "comment": "Actor ID"
+    },
+    {
+      "name": "session_id",
+      "type": "string",
+      "length": 64,
+      "label": "Session Id",
+      "comment": "Session context",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "app_id",
+      "type": "string",
+      "length": 64,
+      "label": "App Id",
+      "comment": "App context",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "action",
+      "type": "enum",
+      "option": [
+        "resolve",
+        "grant",
+        "revoke",
+        "rotate",
+        "create",
+        "update",
+        "delete"
+      ],
+      "label": "Action",
+      "comment": "Operation"
+    },
+    {
+      "name": "result",
+      "type": "enum",
+      "option": [
+        "success",
+        "denied",
+        "error"
+      ],
+      "label": "Result",
+      "comment": "Operation result"
+    },
+    {
+      "name": "purpose",
+      "type": "string",
+      "length": 128,
+      "label": "Purpose",
+      "comment": "Caller purpose",
+      "nullable": true
+    },
+    {
+      "name": "ip",
+      "type": "string",
+      "length": 64,
+      "label": "IP",
+      "comment": "Source IP",
+      "nullable": true
+    },
+    {
+      "name": "user_agent",
+      "type": "string",
+      "length": 255,
+      "label": "User Agent",
+      "comment": "User agent",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Non-sensitive details",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_va_vault_time",
+      "columns": [
+        "vault_id",
+        "created_at"
+      ],
+      "type": "index",
+      "comment": "Vault audit"
+    },
+    {
+      "name": "idx_va_item_time",
+      "columns": [
+        "item_id",
+        "created_at"
+      ],
+      "type": "index",
+      "comment": "Item history"
+    },
+    {
+      "name": "idx_va_subject_time",
+      "columns": [
+        "subject_type",
+        "subject_id",
+        "created_at"
+      ],
+      "type": "index",
+      "comment": "Subject audit"
+    },
+    {
+      "name": "idx_va_session_time",
+      "columns": [
+        "session_id",
+        "created_at"
+      ],
+      "type": "index",
+      "comment": "Session audit"
+    },
+    {
+      "name": "idx_va_action_time",
+      "columns": [
+        "action",
+        "result",
+        "created_at"
+      ],
+      "type": "index",
+      "comment": "Security audit"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": true,
+    "permission": true
+  }
+}

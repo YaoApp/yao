@@ -1,7 +1,7 @@
 {
   "name": "VaultGroups",
   "label": "VaultGroups",
-  "description": "Credential group with scope and permission label.",
+  "description": "Credential group under a vault.",
   "tags": [
     "system",
     "2.0"
@@ -11,7 +11,7 @@
   "sort": 100,
   "table": {
     "name": "vault_groups",
-    "comment": "Credential group with scope and permission label."
+    "comment": "Credential group under a vault."
   },
   "columns": [
     {
@@ -22,6 +22,14 @@
       "length": 32,
       "primary": true,
       "nullable": false
+    },
+    {
+      "name": "vault_id",
+      "label": "Vault Id",
+      "comment": "Owner vault ID",
+      "type": "string",
+      "length": 64,
+      "index": true
     },
     {
       "name": "name",
@@ -37,18 +45,6 @@
       "comment": "Description",
       "type": "text",
       "nullable": true
-    },
-    {
-      "name": "scope",
-      "label": "Scope",
-      "comment": "Ownership scope: system, team, user",
-      "type": "enum",
-      "option": [
-        "system",
-        "team",
-        "user"
-      ],
-      "default": "user"
     },
     {
       "name": "permission_label",
@@ -108,24 +104,24 @@
   ],
   "indexes": [
     {
-      "name": "idx_vg_scope",
+      "name": "uk_vg_vault_name",
       "columns": [
-        "scope",
-        "__yao_team_id"
+        "vault_id",
+        "name"
       ],
-      "type": "index",
-      "comment": "Index index"
+      "type": "unique",
+      "comment": "Unique group name per vault"
     },
     {
-      "name": "idx_vg_list",
+      "name": "idx_vg_vault",
       "columns": [
-        "scope",
+        "vault_id",
         "listed",
         "pinned",
         "position"
       ],
       "type": "index",
-      "comment": "Index index"
+      "comment": "Vault groups"
     }
   ],
   "option": {
