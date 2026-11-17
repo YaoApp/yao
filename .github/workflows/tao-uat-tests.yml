@@ -236,8 +236,7 @@ jobs:
           psql "postgres://tao:tao@127.0.0.1:5432/tao_uat?sslmode=disable" \
             -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
           psql "postgres://tao:tao@127.0.0.1:5432/tao_uat?sslmode=disable" \
-            -v pass="$TAO_UAT_PASSWORD" \
-            -c "UPDATE users SET password_hash=crypt(:'pass', gen_salt('bf',12)) WHERE phone='$TAO_UAT_ACCOUNT';"
+            -c "UPDATE users SET password_hash=crypt('$TAO_UAT_PASSWORD', gen_salt('bf',12)) WHERE phone='$TAO_UAT_ACCOUNT';"
 
       - name: Create local OAuth client
         id: oauth-client
