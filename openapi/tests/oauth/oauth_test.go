@@ -283,15 +283,14 @@ func TestOAuthAuthorize(t *testing.T) {
 		assert.NotNil(t, resp)
 		defer resp.Body.Close()
 
-		assert.Equal(t, http.StatusFound, resp.StatusCode)
-
-		location := resp.Header.Get("Location")
-		redirectURL, err := url.Parse(location)
+		// Missing client_id cannot be safely redirected; the API must return
+		// a JSON invalid_request instead of redirecting to an unvalidated URI.
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
 		assert.NoError(t, err)
-
-		query := redirectURL.Query()
-		assert.Equal(t, "invalid_request", query.Get("error"), "Should return invalid_request error")
-		assert.Equal(t, "test-missing-client-id", query.Get("state"), "State should be preserved")
+		var errResp map[string]interface{}
+		assert.NoError(t, json.Unmarshal(body, &errResp))
+		assert.Equal(t, "invalid_request", errResp["error"])
 	})
 }
 
