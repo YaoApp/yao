@@ -268,7 +268,6 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "tao", fmt.Sprint(account["provider"]))
 	require.NotEmpty(t, fmt.Sprint(account["refresh_token"]))
-	require.True(t, strings.HasPrefix(fmt.Sprint(authUser["tao_api_key"]), "sk-tao-"))
 
 	// RequireTaoIdentity allows Tao identity and rejects local identity.
 	recorder := httptest.NewRecorder()
@@ -380,4 +379,42 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode, string(profileBody))
 	require.Contains(t, string(profileBody), "identity_source")
+	// Logout must be callable with the scope issued to the first-party client.
+	// The login session must be able to call logout. The ACL maps
+	// POST /user/logout to user:entry:write:own, so that scope must be
+	// present in the token issued for the first-party client.
+	baseURL, err := url.Parse(environment.BaseURL)
+	require.NoError(t, err)
+	var accessToken string
+	for _, cookie := range jar.Cookies(baseURL) {
+		if cookie.Name == "access_token" {
+			accessToken = strings.TrimPrefix(cookie.Value, "Bearer ")
+			break
+		}
+	}
+	require.NotEmpty(t, accessToken)
+	parts := strings.Split(accessToken, ".")
+	require.Len(t, parts, 3)
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	require.NoError(t, err)
+	var tokenClaims map[string]interface{}
+	require.NoError(t, json.Unmarshal(payload, &tokenClaims))
+	scope, _ := tokenClaims["scope"].(string)
+	require.Contains(t, scope, "user:entry:write:own")
+
+	logoutReq, err := http.NewRequest(http.MethodPost, environment.BaseURL+"/v1/user/logout", strings.NewReader("{}"))
+	require.NoError(t, err)
+	logoutReq.Header.Set("Content-Type", "application/json")
+	resp, err = authClient.Do(logoutReq)
+	require.NoError(t, err)
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	resp, err = authClient.Get(environment.BaseURL + "/v1/user/profile")
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	require.True(t, strings.HasPrefix(fmt.Sprint(authUser["tao_api_key"]), "sk-tao-"))
+
 }

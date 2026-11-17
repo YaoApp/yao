@@ -229,6 +229,19 @@ func getTaoAuthorizationURL(c *gin.Context) {
 	})
 }
 
+// taoTxnSessionMatches binds a login transaction to the initiating browser
+// only when both sides have a session id. Safari/WebKit does not send the
+// SameSite=Lax session cookie on the cross-site redirect from an external IdP
+// back to Yao, so a missing cookie must not invalidate an otherwise one-time
+// state + PKCE transaction. If a cookie is present it must still match.
+func taoTxnSessionMatches(c *gin.Context, txn *taoLoginTxn) bool {
+	if txn == nil || txn.SID == "" {
+		return true
+	}
+	current := utils.GetSessionID(c)
+	return current == "" || current == txn.SID
+}
+
 func taoActivateCallback(c *gin.Context) {
 	state := c.Query("state")
 	activeCode := c.Query("activation_code")
@@ -240,7 +253,7 @@ func taoActivateCallback(c *gin.Context) {
 		taoCallbackFailure(c, "invalid_state")
 		return
 	}
-	if txn.SID != "" && utils.GetSessionID(c) != txn.SID {
+	if !taoTxnSessionMatches(c, txn) {
 		taoCallbackFailure(c, "invalid_state")
 		return
 	}
@@ -295,7 +308,7 @@ func taoLoginCallback(c *gin.Context) {
 		taoCallbackFailure(c, "invalid_state")
 		return
 	}
-	if txn.SID != "" && utils.GetSessionID(c) != txn.SID {
+	if !taoTxnSessionMatches(c, txn) {
 		taoCallbackFailure(c, "invalid_state")
 		return
 	}

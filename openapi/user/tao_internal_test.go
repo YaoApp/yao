@@ -1338,3 +1338,20 @@ func TestTaoLoginFailureURL(t *testing.T) {
 	require.Equal(t, "/auth/entry/failure?code=invalid_state&message=Invalid+or+expired+login+state", taoLoginFailureURLFromConfig(&EntryConfig{}, "invalid_state"))
 	require.Equal(t, "/login-error?code=access_denied&message=Login+was+cancelled+or+denied", taoLoginFailureURLFromConfig(&EntryConfig{FailureURL: "/login-error"}, "access_denied"))
 }
+
+func TestTaoTxnSessionMatches(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	newCtx := func(cookie string) *gin.Context {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodGet, "/cb", nil)
+		if cookie != "" {
+			c.Request.AddCookie(&http.Cookie{Name: "session_id", Value: cookie})
+		}
+		return c
+	}
+	require.True(t, taoTxnSessionMatches(newCtx(""), &taoLoginTxn{SID: "sid"}))
+	require.True(t, taoTxnSessionMatches(newCtx("sid"), &taoLoginTxn{SID: "sid"}))
+	require.False(t, taoTxnSessionMatches(newCtx("other"), &taoLoginTxn{SID: "sid"}))
+	require.True(t, taoTxnSessionMatches(newCtx(""), &taoLoginTxn{}))
+}
