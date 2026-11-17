@@ -112,6 +112,8 @@ type EntryConfig struct {
 	VerificationCodeRequired *bool             `json:"verification_code_required,omitempty"` // Whether email/SMS verification code is required for registration (default true)
 	Invite                   *InvitePageConfig `json:"invite,omitempty"`                     // Invite code page configuration
 	ThirdParty               *ThirdParty       `json:"third_party,omitempty"`
+	Providers                []*Provider       `json:"providers,omitempty"`
+	LocalLoginEnabled        bool              `json:"local_login_enabled"`
 	SecureCookie             bool              `json:"secure_cookie"` // Whether secure cookie is enabled (for frontend JWT verification)
 }
 
@@ -137,18 +139,30 @@ type InvitePageConfig struct {
 	ApplyText   string `json:"apply_text,omitempty"`   // Text for apply link (e.g., "Apply for invitation code")
 }
 
+// UserSystemConfig mirrors the Yao user-system application configuration.
+type UserSystemConfig struct {
+	LocalLogin *LocalLoginConfig `json:"local_login,omitempty"`
+}
+
+// LocalLoginConfig controls Yao local username/password login.
+type LocalLoginConfig struct {
+	Enabled bool `json:"enabled"`
+}
+
 // YaoClientConfig represents the Yao OpenAPI Client config
 type YaoClientConfig struct {
-	ClientID              string   `json:"client_id,omitempty"`
-	ClientSecret          string   `json:"client_secret,omitempty"`
-	Scopes                []string `json:"scopes,omitempty"`                   // Default scopes if not set in the provider config
-	ExpiresIn             int      `json:"expires_in,omitempty"`               // Default expires in for the access token (optional) in seconds
-	RefreshTokenExpiresIn int      `json:"refresh_token_expires_in,omitempty"` // Default expires in for the refresh token (optional) in seconds
+	ClientID              string            `json:"client_id,omitempty"`
+	ClientSecret          string            `json:"client_secret,omitempty"`
+	User                  *UserSystemConfig `json:"user,omitempty"`
+	Scopes                []string          `json:"scopes,omitempty"`                   // Default scopes if not set in the provider config
+	ExpiresIn             int               `json:"expires_in,omitempty"`               // Default expires in for the access token (optional) in seconds
+	RefreshTokenExpiresIn int               `json:"refresh_token_expires_in,omitempty"` // Default expires in for the refresh token (optional) in seconds
 }
 
 // Provider represents a third party login provider
 type Provider struct {
 	ID                    string                  `json:"id,omitempty"`
+	Kind                  string                  `json:"kind,omitempty"`
 	Label                 string                  `json:"label,omitempty"`
 	Title                 string                  `json:"title,omitempty"`
 	Logo                  string                  `json:"logo,omitempty"`
@@ -159,6 +173,8 @@ type Provider struct {
 	DeviceClientSecret    string                  `json:"device_client_secret,omitempty"` // Device Flow dedicated client_secret (Google TV type has its own secret)
 	ClientSecret          string                  `json:"client_secret,omitempty"`
 	ClientSecretGenerator *SecretGenerator        `json:"client_secret_generator,omitempty"`
+	Issuer                string                  `json:"issuer,omitempty"`
+	Available             bool                    `json:"available"`
 	Scopes                []string                `json:"scopes,omitempty"`
 	ResponseMode          string                  `json:"response_mode,omitempty"`
 	UserInfoSource        string                  `json:"user_info_source,omitempty"` // "endpoint" (default) | "id_token" | "access_token"
@@ -388,6 +404,7 @@ const (
 	MappingApple     = "apple"
 	MappingWeChat    = "wechat"
 	MappingGeneric   = "generic"
+	MappingTao       = "tao"
 )
 
 // User info source types

@@ -22,13 +22,60 @@ func (s *Service) ProtectedResource(ctx context.Context) string {
 // Authorize processes an authorization request and returns an authorization code
 // The authorization code can be exchanged for an access token
 func (s *Service) Authorize(ctx context.Context, request *types.AuthorizationRequest) (*types.AuthorizationResponse, error) {
+	// Validate client, redirect URI, response type and scope
+	if errResp := s.ValidateAuthorizationRequest(ctx, request); errResp != nil {
+		return errResp, nil
+	}
+
+	// Generate authorization code with authorization information.
+	// Subject and identity metadata are resolved by the authorize endpoint from
+	// the Yao session; they are empty when Authorize is called directly.
+	authCode, err := s.generateAuthorizationCode(
+		request.ClientID,
+		request.State,
+		request.Scope,               // Store the requested scope for validation
+		request.CodeChallenge,       // PKCE code challenge
+		request.CodeChallengeMethod, // PKCE method
+		request.Subject,             // Opaque OAuth subject resolved from the Yao session
+		request.AuthSource,          // auth_source claim (tao | password)
+		request.IdentitySource,      // user.identity_source (tao | local)
+	)
+	if err != nil {
+		return &types.AuthorizationResponse{
+			Error:            types.ErrorServerError,
+			ErrorDescription: "Failed to generate authorization code",
+		}, nil
+	}
+
+	response := &types.AuthorizationResponse{
+		Code:  authCode,
+		State: request.State,
+	}
+
+	return response, nil
+}
+
+// ValidateAuthorizationRequest validates an authorization request without
+// issuing an authorization code. It returns nil when the request is valid and
+// an AuthorizationResponse carrying the OAuth error otherwise.
+//
+// The authorize endpoint uses this to reject invalid clients/redirect
+// URIs/response types/scopes before any login redirect is performed.
+func (s *Service) ValidateAuthorizationRequest(ctx context.Context, request *types.AuthorizationRequest) *types.AuthorizationResponse {
+	if request == nil {
+		return &types.AuthorizationResponse{
+			Error:            types.ErrorInvalidRequest,
+			ErrorDescription: "Missing authorization request",
+		}
+	}
+
 	// Validate client
 	_, err := s.clientProvider.GetClientByID(ctx, request.ClientID)
 	if err != nil {
 		return &types.AuthorizationResponse{
 			Error:            types.ErrorInvalidClient,
 			ErrorDescription: "Invalid client",
-		}, nil
+		}
 	}
 
 	// Validate redirect URI
@@ -36,7 +83,7 @@ func (s *Service) Authorize(ctx context.Context, request *types.AuthorizationReq
 		return &types.AuthorizationResponse{
 			Error:            types.ErrorInvalidRequest,
 			ErrorDescription: "Missing redirect URI",
-		}, nil
+		}
 	}
 
 	validationResult, err := s.clientProvider.ValidateRedirectURI(ctx, request.ClientID, request.RedirectURI)
@@ -44,7 +91,7 @@ func (s *Service) Authorize(ctx context.Context, request *types.AuthorizationReq
 		return &types.AuthorizationResponse{
 			Error:            types.ErrorInvalidRequest,
 			ErrorDescription: "Invalid redirect URI",
-		}, nil
+		}
 	}
 
 	// Validate response type
@@ -52,10 +99,10 @@ func (s *Service) Authorize(ctx context.Context, request *types.AuthorizationReq
 		return &types.AuthorizationResponse{
 			Error:            types.ErrorInvalidRequest,
 			ErrorDescription: "Missing response type",
-		}, nil
+		}
 	}
 
-	validResponseTypes := []string{"code", "token", "id_token"}
+	validResponseTypes := []string{"code"}
 	validResponseType := false
 	for _, validType := range validResponseTypes {
 		if request.ResponseType == validType || strings.Contains(request.ResponseType, validType) {
@@ -68,7 +115,7 @@ func (s *Service) Authorize(ctx context.Context, request *types.AuthorizationReq
 		return &types.AuthorizationResponse{
 			Error:            types.ErrorUnsupportedResponseType,
 			ErrorDescription: "Unsupported response type",
-		}, nil
+		}
 	}
 
 	// Validate scope if provided
@@ -84,32 +131,11 @@ func (s *Service) Authorize(ctx context.Context, request *types.AuthorizationReq
 			return &types.AuthorizationResponse{
 				Error:            types.ErrorInvalidScope,
 				ErrorDescription: "Invalid scope",
-			}, nil
+			}
 		}
 	}
 
-	// Generate authorization code with authorization information
-	// TODO: Future implementation will generate subject here after user authentication
-	authCode, err := s.generateAuthorizationCodeWithInfo(
-		request.ClientID,
-		request.State,
-		request.Scope,               // Store the requested scope for validation
-		request.CodeChallenge,       // PKCE code challenge
-		request.CodeChallengeMethod, // PKCE method
-	)
-	if err != nil {
-		return &types.AuthorizationResponse{
-			Error:            types.ErrorServerError,
-			ErrorDescription: "Failed to generate authorization code",
-		}, nil
-	}
-
-	response := &types.AuthorizationResponse{
-		Code:  authCode,
-		State: request.State,
-	}
-
-	return response, nil
+	return nil
 }
 
 // Token exchanges an authorization code for an access token
@@ -433,9 +459,14 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 		subject = subjectVal
 	}
 
+	// Carry the identity metadata recorded on the authorization code into the
+	// issued tokens. Only auth_source/identity_source are propagated here:
+	// Team/Tenant claims are intentionally not part of OAuth identity.
+	extraClaims := authorizationCodeIdentityClaims(codeInfo)
+
 	// Generate and store access token with proper scope and subject
 	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
-	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn, nil)
+	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn, extraClaims)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -451,7 +482,7 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 
 	// Generate refresh token if supported
 	if types.Contains(client.GrantTypes, types.GrantTypeRefreshToken) {
-		refreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject, 0, nil)
+		refreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject, 0, extraClaims)
 		if err != nil {
 			return nil, &types.ErrorResponse{
 				Code:             types.ErrorServerError,
@@ -539,13 +570,10 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 
 // validatePKCE validates PKCE code verifier against stored code challenge
 func (s *Service) validatePKCE(ctx context.Context, client *types.ClientInfo, codeInfo map[string]interface{}, codeVerifier string) error {
-	// Check if PKCE is required
-	isPKCERequired := s.config.Security.PKCERequired
-
-	// For OAuth 2.1, PKCE is mandatory for public clients
-	if client.ClientType == types.ClientTypePublic {
-		isPKCERequired = true
-	}
+	// OAuth 2.1 requires PKCE for public AND confidential clients.
+	// ClientInfo.RequirePKCE records the policy on the client; Yao forces it
+	// for every authorization-code exchange.
+	isPKCERequired := true
 
 	// Extract code challenge information from stored authorization code
 	codeChallenge := ""
@@ -704,6 +732,29 @@ func (s *Service) handleDeviceCodeGrant(ctx context.Context, client *types.Clien
 			ErrorDescription: "Invalid device code status",
 		}
 	}
+}
+
+// authorizationCodeIdentityClaims returns the identity metadata stored on an
+// authorization code that must be carried into the issued access/refresh
+// tokens. Only auth_source and identity_source are propagated: Team/Tenant
+// claims are deliberately not part of OAuth identity.
+func authorizationCodeIdentityClaims(codeInfo map[string]interface{}) map[string]interface{} {
+	if codeInfo == nil {
+		return nil
+	}
+
+	var claims map[string]interface{}
+	for _, key := range []string{types.ClaimAuthSource, types.ClaimIdentitySource} {
+		value, ok := codeInfo[key].(string)
+		if !ok || value == "" {
+			continue
+		}
+		if claims == nil {
+			claims = make(map[string]interface{}, 2)
+		}
+		claims[key] = value
+	}
+	return claims
 }
 
 // extractExtraClaims pulls non-reserved fields from a token info map so they

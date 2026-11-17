@@ -32,6 +32,7 @@ type OAuth struct {
 	Token     types.TokenConfig     `json:"token,omitempty" yaml:"token,omitempty"`
 	Security  types.SecurityConfig  `json:"security,omitempty" yaml:"security,omitempty"`
 	Client    types.ClientConfig    `json:"client,omitempty" yaml:"client,omitempty"`
+	Clients   []types.ClientInfo    `json:"clients,omitempty" yaml:"clients,omitempty"`
 	Features  oauth.FeatureFlags    `json:"features,omitempty" yaml:"features,omitempty"`
 }
 
@@ -131,6 +132,7 @@ type TempOAuth struct {
 	Token     TempTokenConfig     `json:"token,omitempty"`
 	Security  TempSecurityConfig  `json:"security,omitempty"`
 	Client    TempClientConfig    `json:"client,omitempty"`
+	Clients   []types.ClientInfo  `json:"clients,omitempty"`
 	Features  oauth.FeatureFlags  `json:"features,omitempty"`
 }
 

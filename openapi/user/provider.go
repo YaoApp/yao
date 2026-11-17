@@ -195,6 +195,9 @@ func (p *Provider) getFieldMapping() map[string]string {
 	switch mapping := p.Mapping.(type) {
 	case string:
 		// Case 1: string (preset enum)
+		if mapping == MappingTao {
+			mapping = MappingGeneric
+		}
 		if presetMapping, exists := getPresetMappings()[mapping]; exists {
 			return presetMapping
 		}
@@ -413,9 +416,10 @@ func (p *Provider) getUserInfoFromEndpoint(accessToken string, tokenType string)
 // verifyIDTokenAndGetClaims verifies ID token signature and returns raw claims for user info mapping
 func (p *Provider) verifyIDTokenAndGetClaims(idToken string) (map[string]interface{}, error) {
 	// Parse token to get header for key ID
-	token, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
-		// Verify signing method
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+	parser := &jwt.Parser{SkipClaimsValidation: true}
+	token, err := parser.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
+		// Verify signing method: Tao only accepts RS256.
+		if token.Method.Alg() != "RS256" {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 

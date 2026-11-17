@@ -213,6 +213,16 @@
       "nullable": true,
       "crypt": "AES"
     },
+    {
+      "name": "identity_source",
+      "type": "enum",
+      "label": "Identity Source",
+      "comment": "Local identity source: tao or local",
+      "option": ["tao", "local"],
+      "default": "local",
+      "index": true,
+      "nullable": false
+    },
 
     // ============================================================================
     // Authentication Fields

@@ -2,7 +2,8 @@
 {
   "client_id": "$ENV.YAO_CLIENT_ID", // if not set, it will be generated automatically
   "client_secret": "$ENV.YAO_CLIENT_SECRET", // it will be used to get the access token for the backend service (optional)
-  "scopes": ["openid", "profile", "email"], // default scopes if not set in the provider config
+  "user": {"local_login": {"enabled": true}}, // test app enables local login for existing user flows
+  "scopes": ["openid","profile","email","offline_access","user:profile:read:own","builtin:teams:selection","computer:computers:write:all","computer:computers:write:own","computer:computers:write:team","computer:computers:read:all","computer:computers:read:own","computer:computers:read:team","computer:computers:delete:all","computer:computers:delete:own","computer:computers:delete:team","computer:computers:start:all","computer:computers:start:own","computer:computers:start:team","computer:computers:stop:all","computer:computers:stop:own","computer:computers:stop:team","computer:computers:reboot:all","computer:computers:reboot:own","computer:computers:reboot:team","computer:computers:connect:all","computer:computers:connect:own","computer:computers:connect:team","tao:computers:read:all","tao:computers:read:own","tao:computers:write:all","tao:computers:write:own","tao:account:read"], // default scopes
   "expires_in": 86400, // default expires in for the access token (optional) in seconds, default is 24 hours
   "refresh_token_expires_in": 604800 // default expires in for the refresh token (optional) in seconds, default is 30 days
 }

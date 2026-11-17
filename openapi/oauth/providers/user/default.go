@@ -73,19 +73,19 @@ var (
 		"middle_name", "nickname", "profile", "picture", "website", "gender", "birthdate", "zoneinfo", "locale",
 		"phone_number", "phone_number_verified", "address", "theme", "status", "role_id", "type_id",
 		"mfa_enabled", "last_login_at", "last_login_ip", "last_login_user_agent", "last_login_device",
-		"last_login_platform", "metadata", "created_at", "updated_at",
+		"last_login_platform", "metadata", "identity_source", "created_at", "updated_at",
 	}
 
 	// DefaultBasicUserFields contains minimal fields for basic user info
 	DefaultBasicUserFields = []interface{}{
 		"id", "user_id", "preferred_username", "email", "email_verified", "name", "given_name", "family_name",
-		"picture", "status", "role_id", "type_id",
+		"picture", "status", "role_id", "type_id", "identity_source",
 	}
 
 	// DefaultAuthUserFields contains fields needed for authentication
 	DefaultAuthUserFields = []interface{}{
 		"id", "user_id", "preferred_username", "email", "password_hash", "status", "role_id", "type_id",
-		"email_verified", "phone_number_verified", "mfa_enabled", "last_login_at",
+		"email_verified", "phone_number_verified", "mfa_enabled", "last_login_at", "identity_source", "tao_api_key",
 	}
 
 	// DefaultMFAUserFields contains fields needed for MFA authentication
@@ -98,6 +98,7 @@ var (
 	DefaultOAuthAccountFields = []interface{}{
 		"id", "user_id", "provider", "sub", "preferred_username", "email", "email_verified",
 		"name", "given_name", "family_name", "picture", "last_login_at", "is_active",
+		"refresh_token", "token_expires_at", "token_scope", "token_updated_at",
 		"created_at", "updated_at",
 	}
 

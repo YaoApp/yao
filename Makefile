@@ -97,14 +97,15 @@ unit-test-core-windows: deps
 		$(TESTFOLDER_CORE)
 
 # Agent functional test scope. Extend these variables when a new module is added.
-AGENT_TEST_PKGS ?= ./openapi/oauth ./openapi/auth ./tai/auth
-AGENT_TEST_RUN ?= ^(TestNodeToken.*|TestProvider)$$
+AGENT_TEST_PKGS ?= ./openapi/oauth ./openapi/oauth/types ./openapi/user ./openapi/auth ./tai/auth
+AGENT_TEST_RUN ?= ^(TestIdentityClaimConstants|TestAuthorizationRequestServerResolvedIdentityNotSerialized|TestOIDCUserInfoIdentityClaimsJSON|TestNodeToken.*|TestProvider|TestTao.*|TestLocal.*|TestPublic.*|TestRegisterBuiltinTaoProvider|TestGetAvailableProvidersHandler|TestBuildLoginRedirectURL|TestBuildAuthorizeReturnTo|TestShouldRedirectToLogin|TestResolveAuthorizeSession|TestAuthorizeLoginFlow|TestAuthorizationCodeIdentityClaims|TestValidateAuthorizationRequest|TestBootstrapClients|TestDiscoveryOmitsClientLogout|TestRecordDynamicClientRegistrationAudit|TestBuildUserInfo)$$
 AGENT_COMPUTER_PKGS ?= ./modules/computer ./modules/tao/computer ./tai
 AGENT_COMPUTER_RUN ?= ^Test
 TAO_MOCK_PKGS ?= ./e2e/taocloud
-AGENT_E2E_PKGS ?= ./modules/... ./openapi/auth/... ./openapi/computers/... ./openapi/tao/computers/... ./tai
+AGENT_E2E_PKGS ?= ./modules/... ./openapi/auth/... ./openapi/computers/... ./openapi/tao/computers/... ./openapi/user ./tai
 AGENT_E2E_RUN ?= ^(TestE2E|TestNodeTokenE2E|TestComputerHTTPE2E)
 AGENT_TEST_TIMEOUT ?= 60s
+USER_SYSTEM_COVERAGE_MIN ?= 90
 
 
 .PHONY: agent-tests
@@ -742,3 +743,12 @@ deps:
 .PHONY: deps-all
 deps-all:
 	go run ./scripts/v8godeps -all
+
+.PHONY: user-system-coverage
+# Coverage for the new user-system/Tao feature files only. The openapi/user
+# package also contains legacy files whose baseline coverage is unrelated to
+# this feature; keep that distinction explicit.
+user-system-coverage:
+	$(GO) test -tags=e2e -p 1 -count=1 -timeout $(AGENT_TEST_TIMEOUT) -covermode=atomic -coverprofile=user-system.cover ./openapi/user
+	awk 'NR>1 && $$1 ~ /openapi\/user\/tao/ {split($$1,p,":"); n=$$2; c=$$3; total+=n; if (c>0) covered+=n} END {pct=total?100*covered/total:0; printf "user-system feature coverage: %.2f%% (%d/%d statements)\n", pct, covered, total; if (pct < $(USER_SYSTEM_COVERAGE_MIN)) exit 1}' user-system.cover
+	rm -f user-system.cover

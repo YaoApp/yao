@@ -217,6 +217,11 @@ func profileGet(ctx context.Context, userID, teamID string, req ProfileGetReques
 
 	// Convert to map for response (this will include all Yao fields)
 	profileData := oidcUserInfo.Map()
+	identitySource := utils.ToString(userData["identity_source"])
+	if identitySource == "" {
+		identitySource = "local"
+	}
+	profileData["identity_source"] = identitySource
 
 	// Add member as separate object if requested (not part of OIDCUserInfo structure)
 	if req.Member && teamID != "" {
@@ -469,6 +474,12 @@ func GinProfileProviders(c *gin.Context) {
 		if email, ok := accounts[i]["email"].(string); ok && email != "" {
 			accounts[i]["email"] = MaskEmail(email)
 		}
+		// Tokens are server-side custody only and must never leave the API.
+		delete(accounts[i], "refresh_token")
+		delete(accounts[i], "token_expires_at")
+		delete(accounts[i], "token_scope")
+		delete(accounts[i], "token_updated_at")
+		delete(accounts[i], "raw")
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, accounts)

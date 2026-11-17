@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openapi/oauth"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
@@ -159,14 +160,19 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, login
 				status = "pending_invite" // Waiting for invite code verification
 			}
 
+			identitySource := "local"
+			if providerID == "tao" {
+				identitySource = "tao"
+			}
 			userData := map[string]interface{}{
-				"name":        userinfo.Name,
-				"given_name":  userinfo.GivenName,
-				"family_name": userinfo.FamilyName,
-				"picture":     userinfo.Picture,
-				"role_id":     entryConfig.Role,
-				"type_id":     entryConfig.Type,
-				"status":      status,
+				"identity_source": identitySource,
+				"name":            userinfo.Name,
+				"given_name":      userinfo.GivenName,
+				"family_name":     userinfo.FamilyName,
+				"picture":         userinfo.Picture,
+				"role_id":         entryConfig.Role,
+				"type_id":         entryConfig.Type,
+				"status":          status,
 			}
 
 			// Register user with default team (with rollback on failure)
@@ -180,10 +186,7 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, login
 			oauthData["provider"] = providerID
 			_, err = userProvider.CreateOAuthAccount(ctx, userID, oauthData)
 			if err != nil {
-				// Rollback: delete user and team if OAuth account creation fails
-				if delErr := userProvider.DeleteUser(ctx, userID); delErr != nil {
-					log.Error("Failed to rollback user %s after OAuth account creation failure: %v", userID, delErr)
-				}
+				rollbackOAuthRegistration(ctx, userID)
 				return nil, fmt.Errorf("failed to create OAuth account: %w", err)
 			}
 		}
@@ -199,8 +202,51 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, login
 	if loginCtx != nil && userinfo.Email != "" {
 		loginCtx.OAuthEmail = userinfo.Email
 	}
+	// Tao-backed application APIs use Tao scopes; request them on the Yao session.
+	if loginCtx != nil && providerID == "tao" {
+		scopes := append([]string{}, yaoClientConfig.Scopes...)
+		for _, scope := range provider.Scopes {
+			exists := false
+			for _, current := range scopes {
+				if current == scope {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				scopes = append(scopes, scope)
+			}
+		}
+		loginCtx.Scopes = scopes
+	}
 
 	return LoginByUserID(userID, loginCtx)
+}
+
+// rollbackOAuthRegistration removes the user and any teams/members created by
+// the registration transaction. It is best effort and never masks the original
+// OAuth-account creation error.
+func rollbackOAuthRegistration(ctx context.Context, userID string) {
+	userProvider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		return
+	}
+	if teams, err := userProvider.GetUserTeams(ctx, userID); err == nil {
+		for _, team := range teams {
+			teamID := utils.ToString(team["team_id"])
+			if teamID == "" {
+				continue
+			}
+			if utils.ToString(team["owner_id"]) == userID {
+				_ = userProvider.DeleteTeam(ctx, teamID)
+			} else {
+				_ = userProvider.RemoveMember(ctx, teamID, userID)
+			}
+		}
+	}
+	if err := userProvider.DeleteUser(ctx, userID); err != nil {
+		log.Error("Failed to rollback user %s after OAuth account creation failure: %v", userID, err)
+	}
 }
 
 // LoginByUserID is the handler for login by user ID
@@ -222,7 +268,10 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 
 	yaoClientConfig := GetYaoClientConfig()
 	var scopes []string = yaoClientConfig.Scopes
-	if v, ok := user["scopes"].([]string); ok {
+	if loginCtx != nil && len(loginCtx.Scopes) > 0 {
+		scopes = loginCtx.Scopes
+	}
+	if v, ok := user["scopes"].([]string); ok && len(v) > 0 {
 		scopes = v
 	}
 
@@ -410,7 +459,10 @@ func LoginByTeamID(userid string, teamID string, loginCtx *LoginContext) (*Login
 
 	yaoClientConfig := GetYaoClientConfig()
 	var scopes []string = yaoClientConfig.Scopes
-	if v, ok := user["scopes"].([]string); ok {
+	if loginCtx != nil && len(loginCtx.Scopes) > 0 {
+		scopes = loginCtx.Scopes
+	}
+	if v, ok := user["scopes"].([]string); ok && len(v) > 0 {
 		scopes = v
 	}
 
@@ -683,6 +735,26 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 	// Prepare extra claims for access token
 	extraClaims := make(map[string]interface{})
 
+	// Persisted identity metadata is part of both the ID token and access token.
+	authSource := params.AuthSource
+	if authSource == "" && params.LoginCtx != nil {
+		authSource = params.LoginCtx.AuthSource
+	}
+	if authSource != "" {
+		extraClaims["auth_source"] = authSource
+		oidcUserInfo.AuthSource = authSource
+	}
+	identitySource := utils.ToString(params.User["identity_source"])
+	if identitySource == "" {
+		if authSource == "tao" {
+			identitySource = "tao"
+		} else {
+			identitySource = "local"
+		}
+	}
+	extraClaims["identity_source"] = identitySource
+	oidcUserInfo.IdentitySource = identitySource
+
 	// Add team context if available
 	if params.TeamID != "" && params.Team != nil {
 		extraClaims["team_id"] = params.TeamID
@@ -842,6 +914,16 @@ func generateSessionID() string {
 // GinLogout handles user logout
 func GinLogout(c *gin.Context) {
 	ctx := c.Request.Context()
+	info := authorized.GetInfo(c)
+
+	// Best effort: revoke the Tao refresh token and clear local custody.
+	// Tao browser SSO cookies are not accessible to Yao server-side; a separate
+	// Yao logout API is not required.
+	if info != nil && info.UserID != "" {
+		if err := taoLogoutByUserID(ctx, info.UserID); err != nil {
+			log.Warn("Tao refresh revoke failed during logout: %v", err)
+		}
+	}
 
 	// Get access token and refresh token from cookies or headers
 	// These methods already handle Bearer prefix removal and cookie prefixes
@@ -862,6 +944,11 @@ func GinLogout(c *gin.Context) {
 		if err != nil {
 			log.Warn("Failed to revoke refresh token during logout: %v", err)
 		}
+	}
+
+	// Tao token custody is server-side only; clear it after revocation.
+	if info != nil && info.UserID != "" {
+		clearTaoRefreshTokenForUser(ctx, info.UserID)
 	}
 
 	// Clear all authentication cookies

@@ -469,15 +469,27 @@ func (s *Service) generateRefreshToken(clientID, scope, subject string, expiresI
 	return refreshToken, nil
 }
 
-// generateAuthorizationCodeWithInfo generates a new authorization code with authorization information
+// generateAuthorizationCodeWithInfo generates a new authorization code with authorization information.
+// The optional subject is the opaque OAuth subject resolved from the Yao session.
 func (s *Service) generateAuthorizationCodeWithInfo(clientID, state, scope, codeChallenge, codeChallengeMethod string, subject ...string) (string, error) {
+	subjectVal := ""
+	if len(subject) > 0 {
+		subjectVal = subject[0]
+	}
+	return s.generateAuthorizationCode(clientID, state, scope, codeChallenge, codeChallengeMethod, subjectVal, "", "")
+}
+
+// generateAuthorizationCode generates and stores an authorization code together
+// with the resolved user identity: opaque subject, auth_source and
+// identity_source. The identity metadata is carried into the issued tokens.
+func (s *Service) generateAuthorizationCode(clientID, state, scope, codeChallenge, codeChallengeMethod, subject, authSource, identitySource string) (string, error) {
 	authCode, err := s.generateToken("ac", clientID)
 	if err != nil {
 		return "", err
 	}
 
 	// Store authorization code with metadata for later validation
-	err = s.storeAuthorizationCode(authCode, clientID, state, scope, codeChallenge, codeChallengeMethod, subject...)
+	err = s.storeAuthorizationCode(authCode, clientID, state, scope, codeChallenge, codeChallengeMethod, subject, authSource, identitySource)
 	if err != nil {
 		return "", fmt.Errorf("failed to store authorization code: %w", err)
 	}
@@ -486,7 +498,7 @@ func (s *Service) generateAuthorizationCodeWithInfo(clientID, state, scope, code
 }
 
 // storeAuthorizationCode stores authorization code with metadata
-func (s *Service) storeAuthorizationCode(code, clientID, state, scope, codeChallenge, codeChallengeMethod string, subject ...string) error {
+func (s *Service) storeAuthorizationCode(code, clientID, state, scope, codeChallenge, codeChallengeMethod, subject, authSource, identitySource string) error {
 	codeData := map[string]interface{}{
 		"client_id":  clientID,
 		"state":      state,
@@ -500,9 +512,17 @@ func (s *Service) storeAuthorizationCode(code, clientID, state, scope, codeChall
 		codeData["scope"] = scope
 	}
 
-	// Add subject if provided (optional parameter)
-	if len(subject) > 0 && subject[0] != "" {
-		codeData["subject"] = subject[0]
+	// Add subject if provided (resolved from the Yao session)
+	if subject != "" {
+		codeData["subject"] = subject
+	}
+
+	// Add identity metadata if provided
+	if authSource != "" {
+		codeData[types.ClaimAuthSource] = authSource
+	}
+	if identitySource != "" {
+		codeData[types.ClaimIdentitySource] = identitySource
 	}
 
 	// Add PKCE information if provided

@@ -96,11 +96,11 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.POST("/token/login", GinTokenLogin)   // Token login for automation/testing (public)
 
 	// Register a new user
-	group.POST("/entry/register", oauth.Guard, GinEntryRegister)     // Register a new user
-	group.POST("/entry/login", oauth.Guard, GinEntryLogin)           // Login a user
-	group.POST("/entry/invite/verify", oauth.Guard, GinVerifyInvite) // Verify invitation code (redeem)
-	group.POST("/entry/otp", oauth.Guard, GinSendOTP)                // Send OTP
-	group.POST("/logout", oauth.Guard, GinLogout)                    // User logout
+	group.POST("/entry/register", localLoginGuard, oauth.Guard, GinEntryRegister)     // Register a new user
+	group.POST("/entry/login", localLoginGuard, oauth.Guard, GinEntryLogin)           // Login a user
+	group.POST("/entry/invite/verify", localLoginGuard, oauth.Guard, GinVerifyInvite) // Verify invitation code (redeem)
+	group.POST("/entry/otp", localLoginGuard, oauth.Guard, GinSendOTP)                // Send OTP
+	group.POST("/logout", oauth.Guard, GinLogout)                                     // User logout
 
 	// Features query endpoint
 	group.GET("/features", oauth.Guard, GinFeatures)
@@ -198,7 +198,7 @@ func attachPreferences(group *gin.RouterGroup, oauth types.OAuth) {
 // Placeholder: future implementation reads billing/invoices directly from Tao.
 func attachBilling(group *gin.RouterGroup, oauth types.OAuth) {
 	billing := group.Group("/billing")
-	billing.Use(oauth.Guard)
+	billing.Use(oauth.Guard, RequireTaoIdentity)
 	billing.GET("/history", placeholder)  // Get user billing history
 	billing.GET("/invoices", placeholder) // Get user invoices list
 }
@@ -217,14 +217,16 @@ func attachReferral(group *gin.RouterGroup, oauth types.OAuth) {
 // User Credits Management
 // Placeholder: future implementation reads credits directly from Tao.
 func attachCredits(group *gin.RouterGroup, oauth types.OAuth) {
-	group.GET("/credits", oauth.Guard, placeholder)         // Get user credits info
-	group.GET("/credits/history", oauth.Guard, placeholder) // Get credits change history
+	credits := group.Group("/credits")
+	credits.Use(oauth.Guard, RequireTaoIdentity)
+	credits.GET("", placeholder)         // Get user credits info
+	credits.GET("/history", placeholder) // Get credits change history
 
 	// Top-up Management
-	group.GET("/credits/topup", oauth.Guard, placeholder)            // Get topup records
-	group.POST("/credits/topup", oauth.Guard, placeholder)           // Create topup order
-	group.GET("/credits/topup/:order_id", oauth.Guard, placeholder)  // Get topup order status
-	group.POST("/credits/topup/card-code", oauth.Guard, placeholder) // Redeem card code
+	credits.GET("/topup", placeholder)            // Get topup records
+	credits.POST("/topup", placeholder)           // Create topup order
+	credits.GET("/topup/:order_id", placeholder)  // Get topup order status
+	credits.POST("/topup/card-code", placeholder) // Redeem card code
 }
 
 // Usage Management
@@ -312,7 +314,9 @@ func attachThirdParty(group *gin.RouterGroup, oauth types.OAuth) {
 	thirdParty.GET("/providers", oauth.Guard, placeholder)    // Get linked OAuth providers
 	thirdParty.DELETE("/:provider", oauth.Guard, placeholder) // Unlink OAuth provider
 
-	thirdParty.GET("/providers/available", placeholder)              // Get available OAuth providers
+	thirdParty.GET("/providers/available", getAvailableProviders)    // Get available OAuth providers
+	thirdParty.GET("/tao/activate/callback", taoActivateCallback)    // Tao activation callback
+	thirdParty.GET("/tao/callback", taoLoginCallback)                // Tao login callback
 	thirdParty.GET("/:provider/authorize", getOAuthAuthorizationURL) // Get OAuth authorization URL - migrated from /signin/oauth/:provider/authorize
 	thirdParty.POST("/:provider/connect", oauth.Guard, placeholder)  // Connect OAuth provider
 	thirdParty.POST("/:provider/authorize/prepare", authbackPrepare) // OAuth authorization prepare - migrated from /signin/oauth/:provider/authorize/prepare

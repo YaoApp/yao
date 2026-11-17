@@ -202,6 +202,37 @@
       "comment": "OIDC original user info response from provider",
       "nullable": true
     },
+    {
+      "name": "refresh_token",
+      "type": "string",
+      "label": "Refresh Token",
+      "comment": "Encrypted Tao refresh token",
+      "length": 4096,
+      "nullable": true,
+      "crypt": "AES"
+    },
+    {
+      "name": "token_expires_at",
+      "type": "timestamp",
+      "label": "Token Expires At",
+      "comment": "Tao access token expiry",
+      "nullable": true
+    },
+    {
+      "name": "token_scope",
+      "type": "string",
+      "label": "Token Scope",
+      "comment": "Tao granted scope",
+      "length": 1024,
+      "nullable": true
+    },
+    {
+      "name": "token_updated_at",
+      "type": "timestamp",
+      "label": "Token Updated At",
+      "comment": "Last Tao token refresh",
+      "nullable": true
+    },
 
     // ============================================================================
     // Account Management Fields

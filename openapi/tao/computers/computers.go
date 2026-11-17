@@ -12,24 +12,13 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/user"
 )
 
 // Handler implements /v1/tao/computers.
 type Handler struct {
 	Service *taocomputer.Service
 	Keys    taocomputer.KeyResolver
-}
-
-// Attach registers Tao computer purchase routes.
-func Attach(group *gin.RouterGroup, oauthSvc oauthtypes.OAuth, service *taocomputer.Service, keys taocomputer.KeyResolver) {
-	h := &Handler{Service: service, Keys: keys}
-	group.POST("", oauthSvc.Guard, h.Purchase)
-	group.GET("", oauthSvc.Guard, h.List)
-	group.GET("/:instance_id", oauthSvc.Guard, h.Get)
-	group.POST("/:instance_id/start", oauthSvc.Guard, h.Action)
-	group.POST("/:instance_id/stop", oauthSvc.Guard, h.Action)
-	group.POST("/:instance_id/reboot", oauthSvc.Guard, h.Action)
-	group.DELETE("/:instance_id", oauthSvc.Guard, h.Delete)
 }
 
 type purchaseRequest struct {
@@ -42,6 +31,19 @@ type purchaseRequest struct {
 	SSH           *taocomputer.SSHRequest  `json:"ssh"`
 	Metadata      map[string]string        `json:"metadata"`
 	Computer      taocomputer.ComputerSpec `json:"computer"`
+}
+
+// Attach registers Tao computer purchase routes.
+func Attach(group *gin.RouterGroup, oauthSvc oauthtypes.OAuth, service *taocomputer.Service, keys taocomputer.KeyResolver) {
+	h := &Handler{Service: service, Keys: keys}
+	group.Use(oauthSvc.Guard, user.RequireTaoIdentity, user.RequireTaoManagedKey)
+	group.POST("", h.Purchase)
+	group.GET("", h.List)
+	group.GET("/:instance_id", h.Get)
+	group.POST("/:instance_id/start", h.Action)
+	group.POST("/:instance_id/stop", h.Action)
+	group.POST("/:instance_id/reboot", h.Action)
+	group.DELETE("/:instance_id", h.Delete)
 }
 
 func (h *Handler) Purchase(c *gin.Context) {

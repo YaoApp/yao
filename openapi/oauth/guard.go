@@ -1,9 +1,11 @@
 package oauth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -24,6 +26,15 @@ var (
 
 type refreshGate struct {
 	done chan struct{} // closed when rotation completes
+}
+
+// AuthorizeSession is the Yao login session resolved for an authorization request.
+type AuthorizeSession struct {
+	Claims         *types.TokenClaims // Yao session token claims
+	UserID         string             // Yao user ID resolved from the session subject
+	Subject        string             // Opaque OAuth subject for the requesting client
+	AuthSource     string             // auth_source claim value (tao | password)
+	IdentitySource string             // user.identity_source value (tao | local)
 }
 
 // Guard is the OAuth guard middleware
@@ -326,6 +337,157 @@ func (s *Service) getSessionID(c *gin.Context) string {
 	}
 
 	return ""
+}
+
+// ============================================================================
+// Authorize endpoint session resolution (Yao OAuth Server - downstream clients)
+// ============================================================================
+
+const (
+	// DefaultLoginEntryPath is the Yao frontend login page that establishes a
+	// Yao session before the browser returns to the authorization endpoint.
+	// It is a login UI, not an OAuth protocol endpoint.
+	DefaultLoginEntryPath = "/auth/entry"
+
+	// PromptNone is the OIDC prompt value that forbids interactive login.
+	PromptNone = "none"
+)
+
+// ResolveAuthorizeSession resolves the Yao login session from the request and
+// maps it to the opaque OAuth subject used for the target OAuth client.
+//
+// It returns (nil, nil) when the request carries no valid Yao session; the
+// caller is expected to redirect the browser to the login page. An error means
+// the session exists but the opaque subject could not be resolved.
+func (s *Service) ResolveAuthorizeSession(c *gin.Context, targetClientID string) (*AuthorizeSession, error) {
+	claims := s.sessionClaims(c)
+	if claims == nil {
+		return nil, nil
+	}
+
+	userID, err := s.UserID(claims.ClientID, claims.Subject)
+	if err != nil || userID == "" {
+		// The session subject is unknown to the fingerprint store: treat the
+		// browser as anonymous so it goes through login again.
+		return nil, nil
+	}
+
+	subject, err := s.Subject(targetClientID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	authSource := extraClaimString(claims, types.ClaimAuthSource)
+	identitySource := s.resolveIdentitySource(c.Request.Context(), userID, authSource)
+
+	return &AuthorizeSession{
+		Claims:         claims,
+		UserID:         userID,
+		Subject:        subject,
+		AuthSource:     authSource,
+		IdentitySource: identitySource,
+	}, nil
+}
+
+// sessionClaims extracts and verifies the Yao access token from the request.
+// It returns nil when the request has no valid, non-expired Yao session.
+func (s *Service) sessionClaims(c *gin.Context) *types.TokenClaims {
+	token := s.getAccessToken(c)
+	if token == "" {
+		return nil
+	}
+
+	claims, err := s.VerifyToken(token)
+	if err != nil || claims == nil || claims.Subject == "" {
+		return nil
+	}
+	return claims
+}
+
+// resolveIdentitySource resolves user.identity_source for a Yao user. The user
+// record is authoritative; when it cannot be read, the documented mapping from
+// the session auth_source is used (Tao login -> tao, everything else -> local).
+func (s *Service) resolveIdentitySource(ctx context.Context, userID, authSource string) string {
+	if userID != "" && s.userProvider != nil {
+		if user, err := s.userProvider.GetUser(ctx, userID); err == nil && user != nil {
+			if value, ok := user[types.ClaimIdentitySource].(string); ok && value != "" {
+				return value
+			}
+		}
+	}
+
+	if authSource == types.AuthSourceTao {
+		return types.IdentitySourceTao
+	}
+	return types.IdentitySourceLocal
+}
+
+// extraClaimString returns a string claim from the token's extra claims.
+func extraClaimString(claims *types.TokenClaims, key string) string {
+	if claims == nil || claims.Extra == nil {
+		return ""
+	}
+	value, _ := claims.Extra[key].(string)
+	return value
+}
+
+// BuildAuthorizeReturnTo reconstructs the absolute, same-origin URL of the
+// current authorization request so the login page can return to exactly the
+// same request after the Yao session is established.
+func BuildAuthorizeReturnTo(c *gin.Context) string {
+	if c == nil || c.Request == nil {
+		return ""
+	}
+
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	if proto := firstForwardedValue(c.GetHeader("X-Forwarded-Proto")); proto == "http" || proto == "https" {
+		scheme = proto
+	}
+
+	host := c.Request.Host
+	if forwarded := firstForwardedValue(c.GetHeader("X-Forwarded-Host")); forwarded != "" {
+		host = forwarded
+	}
+
+	return (&url.URL{
+		Scheme:   scheme,
+		Host:     host,
+		Path:     c.Request.URL.Path,
+		RawQuery: c.Request.URL.RawQuery,
+	}).String()
+}
+
+// BuildLoginRedirectURL builds the redirect to the Yao login page. The original
+// authorization request URL is preserved as an encoded same-origin return_to
+// parameter (never an arbitrary external URL).
+func BuildLoginRedirectURL(entryPath, returnTo string) string {
+	if entryPath == "" {
+		entryPath = DefaultLoginEntryPath
+	}
+
+	separator := "?"
+	if strings.Contains(entryPath, "?") {
+		separator = "&"
+	}
+	return entryPath + separator + "return_to=" + url.QueryEscape(returnTo)
+}
+
+// ShouldRedirectToLogin reports whether an authorize request without a Yao
+// session may use interactive login. prompt=none forbids user interaction and
+// must return login_required instead.
+func ShouldRedirectToLogin(prompt string) bool {
+	return !strings.EqualFold(prompt, PromptNone)
+}
+
+// firstForwardedValue returns the first element of a comma-separated proxy header.
+func firstForwardedValue(value string) string {
+	if idx := strings.Index(value, ","); idx >= 0 {
+		value = value[:idx]
+	}
+	return strings.TrimSpace(value)
 }
 
 // handleACLError handles ACL errors and returns appropriate HTTP responses

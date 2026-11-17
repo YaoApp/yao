@@ -75,11 +75,53 @@
       "client_secret_length": 64, // Optional: Client secret length in bytes (default: 64)
       "client_secret_lifetime": "0s", // Optional: Client secret lifetime - 0 = never expires (default: 0s)
       "dynamic_registration_enabled": true, // Optional: Enable dynamic client registration (default: true)
-      "allowed_redirect_uri_schemes": ["https", "http"], // Optional: Allowed redirect URI schemes (default: [https, http])
+      "allowed_redirect_uri_schemes": ["https", "http", "yaosso"], // Optional: Allowed redirect URI schemes (default: [https, http])
       "allowed_redirect_uri_hosts": ["localhost", "127.0.0.1"], // Optional: Allowed redirect URI hosts (default: [localhost, 127.0.0.1])
       "client_certificate_required": false, // Optional: Require client certificates (default: false)
       "client_certificate_validation": "none", // Optional: Client certificate validation mode - none/optional/required (default: none)
     },
+    "clients": [
+      {
+        "client_id": "yao_e2e_web_client_0123456789ab",
+        "client_name": "Yao E2E Web BFF",
+        "client_type": "confidential",
+        "redirect_uris": ["https://app.e2e.local/callback"],
+        "grant_types": ["authorization_code", "refresh_token"],
+        "response_types": ["code"],
+        "scope": "openid profile email offline_access",
+        "require_pkce": true
+      },
+      {
+        "client_id": "yao_e2e_desktop_client_01234567",
+        "client_name": "Yao E2E Desktop",
+        "client_type": "public",
+        "redirect_uris": ["http://127.0.0.1:5173/callback"],
+        "grant_types": ["authorization_code", "refresh_token"],
+        "response_types": ["code"],
+        "scope": "openid profile offline_access",
+        "require_pkce": true
+      },
+      {
+        "client_id": "yao_e2e_mobile_client_0123456789",
+        "client_name": "Yao E2E Mobile",
+        "client_type": "public",
+        "redirect_uris": ["yaosso://callback", "https://app.e2e.local/mobile/callback"],
+        "grant_types": ["authorization_code", "refresh_token"],
+        "response_types": ["code"],
+        "scope": "openid profile offline_access",
+        "require_pkce": true
+      },
+      {
+        "client_id": "yao_e2e_cli_client_0123456789abcd",
+        "client_name": "Yao E2E CLI",
+        "client_type": "public",
+        "redirect_uris": ["http://127.0.0.1:0/callback"],
+        "grant_types": ["urn:ietf:params:oauth:grant-type:device_code", "refresh_token"],
+        "response_types": ["code"],
+        "scope": "openid profile offline_access",
+        "require_pkce": true
+      }
+    ],
     "features": {
       "oauth21_enabled": true, // Optional: Enable OAuth 2.1 features (default: true)
       "pkce_enforced": true, // Optional: Enforce PKCE for all clients (default: true)

@@ -238,6 +238,10 @@ func loadProviders(_ string) error {
 		return fmt.Errorf("failed to walk providers directory: %v", err)
 	}
 
+	if err := registerBuiltinTaoProvider(); err != nil {
+		return fmt.Errorf("failed to register builtin Tao provider: %v", err)
+	}
+
 	return nil
 }
 

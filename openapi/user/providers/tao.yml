@@ -1,0 +1,32 @@
+{
+  "id": "tao",
+  "kind": "oidc-tao",
+  "label": "Tao",
+  "title": "Sign in with Tao",
+  "logo": "",
+  "color": "",
+  "text_color": "",
+  "issuer": "$ENV.TAO_OAUTH_ISSUER",
+  "endpoints": {
+    "authorization": "$ENV.TAO_OAUTH_ISSUER/oauth/authorize",
+    "token": "$ENV.TAO_OAUTH_ISSUER/oauth/token",
+    "user_info": "$ENV.TAO_OAUTH_ISSUER/oauth/userinfo",
+    "jwks": "$ENV.TAO_OAUTH_ISSUER/.well-known/jwks.json"
+  },
+  "client_id": "$ENV.TAO_OAUTH_CLIENT_ID",
+  "client_secret": "$ENV.TAO_OAUTH_CLIENT_SECRET",
+  "scopes": [
+    "openid",
+    "profile",
+    "email",
+    "offline_access",
+    "account:read",
+    "wallet:read",
+    "wallet:write",
+    "bills:read",
+    "keys:write",
+    "keys:manage"
+  ],
+  "mapping": "tao",
+  "register": {"auto": true}
+}

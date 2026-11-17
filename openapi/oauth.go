@@ -2,7 +2,6 @@ package openapi
 
 import (
 	"encoding/base64"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -81,8 +80,72 @@ func (openapi *OpenAPI) oauthAuthorize(c *gin.Context) {
 	// Parse and validate authorization request
 	authReq, parseErr := openapi.parseAuthorizationRequest(c)
 	if parseErr != nil {
+		if !openapi.authorizationErrorRedirectSafe(c, authReq, parseErr) {
+			response.RespondWithError(c, http.StatusBadRequest, parseErr)
+			return
+		}
 		response.RespondWithAuthorizationError(c, authReq.RedirectURI, parseErr, authReq.State)
 		return
+	}
+
+	// Resolve the Yao login session before issuing an authorization code.
+	// A valid session is required: without it the browser is sent to the Yao
+	// login page with the current authorize URL as return_to.
+	if oauthService, ok := openapi.OAuth.(*oauthpkg.Service); ok {
+		// Validate the request first so invalid clients/redirect URIs/response
+		// types/scopes never reach the login page.
+		// Yao OAuth 2.1 client authorization always requires PKCE S256.
+		if authReq.CodeChallenge == "" || authReq.CodeChallengeMethod != types.CodeChallengeMethodS256 {
+			response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{
+				Code:             types.ErrorInvalidRequest,
+				ErrorDescription: "PKCE code_challenge with S256 is required",
+			})
+			return
+		}
+
+		if validationErr := oauthService.ValidateAuthorizationRequest(c, authReq); validationErr != nil {
+			oauthError := &response.ErrorResponse{
+				Code:             validationErr.Error,
+				ErrorDescription: validationErr.ErrorDescription,
+			}
+			if !authorizationErrorRedirectSafe(validationErr.Error, validationErr.ErrorDescription) {
+				response.RespondWithError(c, http.StatusBadRequest, oauthError)
+				return
+			}
+			response.RespondWithAuthorizationError(c, authReq.RedirectURI, oauthError, authReq.State)
+			return
+		}
+
+		session, err := oauthService.ResolveAuthorizeSession(c, authReq.ClientID)
+		if err != nil {
+			response.RespondWithAuthorizationError(c, authReq.RedirectURI, response.ErrServerError, authReq.State)
+			return
+		}
+
+		if session == nil {
+			// No Yao session: prompt=none must fail without user interaction.
+			if !oauthpkg.ShouldRedirectToLogin(openapi.getParam(c, "prompt")) {
+				response.RespondWithAuthorizationError(c, authReq.RedirectURI, &response.ErrorResponse{
+					Code:             types.ErrorLoginRequired,
+					ErrorDescription: "Login required",
+				}, authReq.State)
+				return
+			}
+
+			// Redirect to the Yao login page, preserving the original
+			// same-origin authorize request as return_to.
+			loginURL := oauthpkg.BuildLoginRedirectURL(
+				oauthpkg.DefaultLoginEntryPath,
+				oauthpkg.BuildAuthorizeReturnTo(c),
+			)
+			c.Redirect(http.StatusFound, loginURL)
+			return
+		}
+
+		// Logged in: issue the code for the opaque subject of this client.
+		authReq.Subject = session.Subject
+		authReq.AuthSource = session.AuthSource
+		authReq.IdentitySource = session.IdentitySource
 	}
 
 	// Call OAuth service to process authorization request
@@ -508,16 +571,30 @@ func (openapi *OpenAPI) oauthJWKS(c *gin.Context) {
 }
 
 // oauthUserInfo returns user information - OpenID Connect Core 1.0
+// The response carries the standard subject plus the Yao identity extensions
+// auth_source / identity_source. Team/Tenant claims are never returned.
 func (openapi *OpenAPI) oauthUserInfo(c *gin.Context) {
-	// Check for Bearer token in Authorization header
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" || len(authHeader) < 7 || authHeader[:7] != "Bearer " {
+	// Check for Bearer token in Authorization header or access token cookie
+	tokenStr := extractBearerToken(c)
+	if tokenStr == "" {
 		response.RespondWithError(c, response.StatusUnauthorized, response.ErrInvalidToken)
 		return
 	}
 
-	// TODO: Implement user info retrieval
-	response.RespondWithError(c, response.StatusNotImplemented, response.ErrServerError)
+	oauthService, ok := openapi.OAuth.(*oauthpkg.Service)
+	if !ok {
+		response.RespondWithError(c, response.StatusInternalServerError, response.ErrServerError)
+		return
+	}
+
+	claims, err := oauthService.VerifyToken(tokenStr)
+	if err != nil || claims == nil || claims.Subject == "" {
+		response.RespondWithError(c, response.StatusUnauthorized, response.ErrInvalidToken)
+		return
+	}
+
+	userInfo := oauthService.BuildUserInfo(c.Request.Context(), claims)
+	response.RespondWithSecureSuccess(c, response.StatusOK, userInfo)
 }
 
 // OAuth Extended Endpoints Implementation
@@ -526,13 +603,17 @@ func (openapi *OpenAPI) oauthUserInfo(c *gin.Context) {
 func (openapi *OpenAPI) oauthRegister(c *gin.Context) {
 	var req response.DynamicClientRegistrationRequest
 
+	remoteIP, userAgent := c.ClientIP(), c.Request.UserAgent()
+
 	if err := c.ShouldBindJSON(&req); err != nil {
+		oauthpkg.RecordDynamicClientRegistrationAudit(nil, nil, response.ErrInvalidClientMetadata.Code, remoteIP, userAgent)
 		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidClientMetadata)
 		return
 	}
 
 	// Basic validation
 	if len(req.RedirectURIs) == 0 {
+		oauthpkg.RecordDynamicClientRegistrationAudit(&req, nil, response.ErrMissingRedirectURI.Code, remoteIP, userAgent)
 		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrMissingRedirectURI)
 		return
 	}
@@ -551,9 +632,17 @@ func (openapi *OpenAPI) oauthRegister(c *gin.Context) {
 
 	res, err := openapi.OAuth.DynamicClientRegistration(c, &req)
 	if err != nil {
+		errorCode := response.ErrInvalidClientMetadata.Code
+		if oauthErr, ok := err.(*response.ErrorResponse); ok && oauthErr.Code != "" {
+			errorCode = oauthErr.Code
+		}
+		oauthpkg.RecordDynamicClientRegistrationAudit(&req, nil, errorCode, remoteIP, userAgent)
 		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidClientMetadata)
 		return
 	}
+
+	// DCR stays enabled; only an audit entry is recorded.
+	oauthpkg.RecordDynamicClientRegistrationAudit(&req, &response.ClientInfo{ClientID: res.ClientID, ClientName: req.ClientName}, "", remoteIP, userAgent)
 
 	// Return the authorization response with security headers (RFC 7591 compliant, contains client credentials)
 	response.RespondWithSecureSuccess(c, response.StatusCreated, res)
@@ -699,42 +788,23 @@ func (openapi *OpenAPI) oauthDeviceAuthorize(c *gin.Context) {
 		return
 	}
 
-	if tokenClaims.Subject == "" {
+	if tokenClaims.Subject == "" || tokenClaims.ClientID == "" {
 		response.RespondWithSecureError(c, response.StatusUnauthorized, &response.ErrorResponse{
 			Code:             types.ErrorInvalidGrant,
 			ErrorDescription: "Token has no subject",
 		})
 		return
 	}
-
-	extraClaims := tokenClaims.Extra
-	if extraClaims == nil {
-		extraClaims = make(map[string]interface{})
+	userID, err := svc.UserID(tokenClaims.ClientID, tokenClaims.Subject)
+	if err != nil || userID == "" {
+		response.RespondWithSecureError(c, response.StatusUnauthorized, &response.ErrorResponse{
+			Code:             types.ErrorInvalidGrant,
+			ErrorDescription: "Token subject is unknown",
+		})
+		return
 	}
 
-	teamID := tokenClaims.TeamID
-	if teamID == "" {
-		switch v := extraClaims["team_id"].(type) {
-		case string:
-			teamID = v
-		case float64:
-			teamID = fmt.Sprintf("%.0f", v)
-		}
-	}
-	if teamID != "" {
-		extraClaims["team_id"] = teamID
-	}
-
-	tenantID := tokenClaims.TenantID
-	if tenantID == "" {
-		if v, ok := extraClaims["tenant_id"].(string); ok {
-			tenantID = v
-		}
-	}
-	if tenantID != "" {
-		extraClaims["tenant_id"] = tenantID
-	}
-
+	extraClaims := make(map[string]interface{})
 	if tokenClaims.ClientID != "" {
 		extraClaims["authorizer_client_id"] = tokenClaims.ClientID
 	}
@@ -756,7 +826,7 @@ func (openapi *OpenAPI) oauthDeviceAuthorize(c *gin.Context) {
 		return
 	}
 
-	if err := svc.AuthorizeDevice(c, userCode, tokenClaims.Subject, extraClaims); err != nil {
+	if err := svc.AuthorizeDeviceForUser(c.Request.Context(), userCode, userID, extraClaims); err != nil {
 		if oauthErr, ok := err.(*response.ErrorResponse); ok {
 			response.RespondWithSecureError(c, response.StatusBadRequest, oauthErr)
 		} else {
@@ -819,6 +889,40 @@ func (openapi *OpenAPI) oauthTokenExchange(c *gin.Context) {
 }
 
 // parseAuthorizationRequest parses and validates authorization request parameters
+// authorizationErrorRedirectSafe reports whether an OAuth error may be sent to
+// the client redirect_uri. Client and redirect_uri validation must complete
+// before any redirect; otherwise the endpoint returns a JSON 400 and never
+// becomes an open redirect.
+func authorizationErrorRedirectSafe(code, description string) bool {
+	switch code {
+	case types.ErrorInvalidClient:
+		return false
+	case types.ErrorInvalidRequest:
+		if description == "" {
+			return false
+		}
+		desc := strings.ToLower(description)
+		return !strings.Contains(desc, "redirect") && !strings.Contains(desc, "client")
+	default:
+		return true
+	}
+}
+
+func (openapi *OpenAPI) authorizationErrorRedirectSafe(c *gin.Context, authReq *types.AuthorizationRequest, parseErr *response.ErrorResponse) bool {
+	if authReq == nil || authReq.ClientID == "" || authReq.RedirectURI == "" {
+		return false
+	}
+	service, ok := openapi.OAuth.(*oauthpkg.Service)
+	if !ok {
+		return false
+	}
+	validation := service.ValidateAuthorizationRequest(c, authReq)
+	if validation == nil {
+		return true
+	}
+	return authorizationErrorRedirectSafe(validation.Error, validation.ErrorDescription)
+}
+
 func (openapi *OpenAPI) parseAuthorizationRequest(c *gin.Context) (*types.AuthorizationRequest, *response.ErrorResponse) {
 	// Parse authorization request parameters from both GET (query) and POST (form) methods
 	authReq := &types.AuthorizationRequest{

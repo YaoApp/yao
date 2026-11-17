@@ -7,9 +7,27 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
+
+// DynamicClientRegistrationAudit captures the fields recorded for every dynamic
+// client registration attempt.
+type DynamicClientRegistrationAudit struct {
+	ClientID        string
+	ClientName      string
+	RedirectURIs    []string
+	GrantTypes      []string
+	ResponseTypes   []string
+	Scope           string
+	ApplicationType string
+	RemoteIP        string
+	UserAgent       string
+	Result          string // "success" or "failure"
+	ErrorCode       string
+}
 
 // Register registers a new OAuth client with the authorization server
 func (s *Service) Register(ctx context.Context, clientInfo *types.ClientInfo) (*types.ClientInfo, error) {
@@ -29,6 +47,51 @@ func (s *Service) DeleteClient(ctx context.Context, clientID string) error {
 // ValidateScope validates requested scopes against available scopes
 func (s *Service) ValidateScope(ctx context.Context, requestedScopes []string, clientID string) (*types.ValidationResult, error) {
 	return s.clientProvider.ValidateScope(ctx, clientID, requestedScopes)
+}
+
+// BootstrapClients creates first-party OAuth clients from deployment config.
+// Existing clients are left untouched so runtime registrations/secrets are not
+// overwritten on restart.
+func (s *Service) BootstrapClients(ctx context.Context, clients []types.ClientInfo) error {
+	for i := range clients {
+		client := clients[i]
+		if client.ClientID == "" {
+			return fmt.Errorf("preconfigured client_id is required")
+		}
+		if existing, err := s.clientProvider.GetClientByID(ctx, client.ClientID); err == nil && existing != nil {
+			continue
+		}
+		if client.ClientType == "" {
+			client.ClientType = s.config.Client.DefaultClientType
+		}
+		if len(client.GrantTypes) == 0 {
+			client.GrantTypes = append([]string{}, s.config.Client.DefaultGrantTypes...)
+		}
+		if len(client.ResponseTypes) == 0 {
+			client.ResponseTypes = append([]string{}, s.config.Client.DefaultResponseTypes...)
+		}
+		if client.Scope == "" {
+			client.Scope = "openid profile email"
+		}
+		if client.TokenEndpointAuthMethod == "" {
+			client.TokenEndpointAuthMethod = s.config.Client.DefaultTokenEndpointAuthMethod
+		}
+		if client.ClientType == types.ClientTypePublic {
+			client.ClientSecret = ""
+		}
+		if client.ClientType != types.ClientTypePublic && client.ClientSecret == "" {
+			secret, err := s.GenerateClientSecret()
+			if err != nil {
+				return fmt.Errorf("generate preconfigured client secret: %w", err)
+			}
+			client.ClientSecret = secret
+		}
+		client.RequirePKCE = true
+		if _, err := s.clientProvider.CreateClient(ctx, &client); err != nil {
+			return fmt.Errorf("create preconfigured client %s: %w", client.ClientID, err)
+		}
+	}
+	return nil
 }
 
 // DynamicClientRegistration handles dynamic client registration
@@ -85,6 +148,7 @@ func (s *Service) DynamicClientRegistration(ctx context.Context, request *types.
 		ClientName:              request.ClientName,
 		ClientType:              clientType,
 		RedirectURIs:            request.RedirectURIs,
+		RequirePKCE:             request.RequirePKCE,
 		ResponseTypes:           request.ResponseTypes,
 		GrantTypes:              request.GrantTypes,
 		ApplicationType:         request.ApplicationType,
@@ -340,4 +404,62 @@ func (s *Service) isValidResponseType(responseType string) bool {
 		}
 	}
 	return false
+}
+
+// ============================================================================
+// Dynamic Client Registration audit (RFC 7591)
+// ============================================================================
+
+// RecordDynamicClientRegistrationAudit emits a structured audit log entry for a
+// dynamic client registration attempt. Auditing is best effort: it always
+// returns and never blocks registration. DCR itself stays enabled; this only
+// records who registered which client metadata and the outcome.
+func RecordDynamicClientRegistrationAudit(request *types.DynamicClientRegistrationRequest, client *types.ClientInfo, errorCode, remoteIP, userAgent string) {
+	audit := &DynamicClientRegistrationAudit{
+		RemoteIP:  remoteIP,
+		UserAgent: userAgent,
+		Result:    "success",
+	}
+
+	if errorCode != "" {
+		audit.Result = "failure"
+		audit.ErrorCode = errorCode
+	}
+
+	if request != nil {
+		audit.ClientID = request.ClientID
+		audit.ClientName = request.ClientName
+		audit.RedirectURIs = request.RedirectURIs
+		audit.GrantTypes = request.GrantTypes
+		audit.ResponseTypes = request.ResponseTypes
+		audit.Scope = request.Scope
+		audit.ApplicationType = request.ApplicationType
+	}
+
+	if client != nil {
+		audit.ClientID = client.ClientID
+		if client.ClientName != "" {
+			audit.ClientName = client.ClientName
+		}
+	}
+
+	fields := log.F{
+		"event":            "oauth.dynamic_client_registration",
+		"result":           audit.Result,
+		"registered_at":    time.Now().UTC().Format(time.RFC3339),
+		"client_id":        audit.ClientID,
+		"client_name":      audit.ClientName,
+		"redirect_uris":    audit.RedirectURIs,
+		"grant_types":      audit.GrantTypes,
+		"response_types":   audit.ResponseTypes,
+		"scope":            audit.Scope,
+		"application_type": audit.ApplicationType,
+		"remote_ip":        audit.RemoteIP,
+		"user_agent":       audit.UserAgent,
+	}
+	if audit.ErrorCode != "" {
+		fields["error"] = audit.ErrorCode
+	}
+
+	log.With(fields).Info("[OAuth] dynamic client registration audit")
 }

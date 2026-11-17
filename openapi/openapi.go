@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"context"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
@@ -63,6 +64,10 @@ func Load(appConfig config.Config) (*OpenAPI, error) {
 	// Create the OAuth service
 	oauthService, err := oauth.NewService(oauthConfig)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := oauthService.BootstrapClients(context.Background(), oauthConfig.Clients); err != nil {
 		return nil, err
 	}
 

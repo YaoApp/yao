@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/user"
 )
 
 // Handler implements /v1/tao/account.
@@ -17,9 +18,10 @@ type Handler struct{}
 // Attach registers Tao account routes.
 func Attach(group *gin.RouterGroup, oauthSvc oauthtypes.OAuth) {
 	h := &Handler{}
-	group.GET("", oauthSvc.Guard, h.Get)
-	group.PUT("", oauthSvc.Guard, h.Bind)
-	group.DELETE("", oauthSvc.Guard, h.Delete)
+	group.Use(oauthSvc.Guard, user.RequireTaoIdentity)
+	group.GET("", h.Get)
+	group.PUT("", h.Bind)
+	group.DELETE("", h.Delete)
 }
 
 func (h *Handler) Get(c *gin.Context) {

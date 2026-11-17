@@ -58,6 +58,9 @@ type Config struct {
 	// Default client settings
 	Client types.ClientConfig `json:"client"`
 
+	// First-party preconfigured OAuth clients
+	Clients []types.ClientInfo `json:"clients,omitempty"`
+
 	// Feature flags
 	Features FeatureFlags `json:"features"`
 

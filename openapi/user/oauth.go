@@ -225,6 +225,10 @@ func authback(c *gin.Context) {
 // getOAuthAuthorizationURL generates OAuth authorization URL for a provider
 func getOAuthAuthorizationURL(c *gin.Context) {
 	providerID := c.Param("provider")
+	if providerID == "tao" {
+		getTaoAuthorizationURL(c)
+		return
+	}
 	if providerID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -366,6 +370,10 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 		State:            state,
 		Warnings:         warnings,
 	})
+}
+
+func getAvailableProviders(c *gin.Context) {
+	response.RespondWithSuccess(c, http.StatusOK, PublicProviders())
 }
 
 // Helper functions for OAuth state management

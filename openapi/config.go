@@ -43,6 +43,7 @@ func (config *Config) MarshalJSON() ([]byte, error) {
 	if config.OAuth != nil {
 		tempConfig.OAuth = &TempOAuth{
 			IssuerURL: config.OAuth.IssuerURL,
+			Clients:   config.OAuth.Clients,
 			Features:  config.OAuth.Features,
 			Signing: TempSigningConfig{
 				SigningCertPath:      convertAbsoluteToRelativePath(config.OAuth.Signing.SigningCertPath, config.root),
@@ -141,6 +142,7 @@ func (config *Config) UnmarshalJSON(data []byte) error {
 	if tempConfig.OAuth != nil {
 		config.OAuth = &OAuth{
 			IssuerURL: tempConfig.OAuth.IssuerURL,
+			Clients:   tempConfig.OAuth.Clients,
 			Features:  tempConfig.OAuth.Features,
 		}
 
@@ -420,6 +422,7 @@ func (config *Config) OAuthConfig(appConfig config.Config) (*oauth.Config, error
 		Token:          config.OAuth.Token,
 		Security:       config.OAuth.Security,
 		Client:         config.OAuth.Client,
+		Clients:        config.OAuth.Clients,
 		Features:       config.OAuth.Features,
 	}
 

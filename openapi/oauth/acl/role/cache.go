@@ -178,63 +178,6 @@ func (m *Manager) setScopesCache(roleID string, allowedScopes []string, restrict
 	return nil
 }
 
-// ============================================================================
-// Cache Delete Operations
-// ============================================================================
-
-// delUserRoleCache deletes the user role from the cache
-func (m *Manager) delUserRoleCache(userID string) error {
-	if m.cache == nil {
-		return nil // Silently skip if cache is not configured
-	}
-	return m.cache.Del(m.keyUserRole(userID))
-}
-
-// delClientRoleCache deletes the client role from the cache
-func (m *Manager) delClientRoleCache(clientID string) error {
-	if m.cache == nil {
-		return nil // Silently skip if cache is not configured
-	}
-	return m.cache.Del(m.keyClientRole(clientID))
-}
-
-// delTeamRoleCache deletes the team role from the cache
-func (m *Manager) delTeamRoleCache(teamID string) error {
-	if m.cache == nil {
-		return nil // Silently skip if cache is not configured
-	}
-	return m.cache.Del(m.keyTeamRole(teamID))
-}
-
-// delMemberRoleCache deletes the member role from the cache
-func (m *Manager) delMemberRoleCache(teamID, userID string) error {
-	if m.cache == nil {
-		return nil // Silently skip if cache is not configured
-	}
-	return m.cache.Del(m.keyMemberRole(teamID, userID))
-}
-
-// delScopesCache deletes the scopes from the cache
-func (m *Manager) delScopesCache(roleID string) error {
-	if m.cache == nil {
-		return nil // Silently skip if cache is not configured
-	}
-
-	// Delete allowed scopes
-	err := m.cache.Del(m.keyScopes(roleID))
-	if err != nil {
-		return err
-	}
-
-	// Delete restricted scopes
-	err = m.cache.Del(m.keyScopesRestricted(roleID))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // ClearCache clears the role cache
 func (m *Manager) ClearCache() error {
 	if m.cache == nil {

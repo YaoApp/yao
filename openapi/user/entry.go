@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 
@@ -17,6 +18,27 @@ import (
 	utilscaptcha "github.com/yaoapp/yao/utils/captcha"
 	utilsotp "github.com/yaoapp/yao/utils/otp"
 )
+
+func localLoginDisabled(c *gin.Context) bool {
+	if LocalLoginEnabled() {
+		return false
+	}
+	response.RespondWithError(c, http.StatusForbidden, &response.ErrorResponse{
+		Code:             "local_login_disabled",
+		ErrorDescription: "Local login is disabled; use Tao account login",
+	})
+	return true
+}
+
+// localLoginGuard rejects local auth routes before oauth.Guard so a disabled
+// local-login deployment returns the documented 403, not a token 401.
+func localLoginGuard(c *gin.Context) {
+	if localLoginDisabled(c) {
+		c.Abort()
+		return
+	}
+	c.Next()
+}
 
 // getEntryConfig is the handler for get unified auth entry configuration
 func getEntryConfig(c *gin.Context) {
@@ -56,6 +78,9 @@ func getEntryConfig(c *gin.Context) {
 // GinEntryVerify is the handler for verifying entry (login/register)
 // It checks if the username exists and sends verification code if needed
 func GinEntryVerify(c *gin.Context) {
+	if localLoginDisabled(c) {
+		return
+	}
 	// Parse request body
 	var req EntryVerifyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -428,6 +453,8 @@ func createPublicEntryConfig(config *EntryConfig) *EntryConfig {
 		Type:                     config.Type,
 		InviteRequired:           config.InviteRequired,
 		VerificationCodeRequired: config.VerificationCodeRequired,
+		LocalLoginEnabled:        LocalLoginEnabled(),
+		Providers:                PublicProviders(),
 	}
 
 	// Deep copy Form config
@@ -564,6 +591,9 @@ func validatePassword(password string) error {
 
 // GinSendOTP handles resending OTP verification code
 func GinSendOTP(c *gin.Context) {
+	if localLoginDisabled(c) {
+		return
+	}
 	// Get authorized info from the temporary token
 	authInfo := oauth.GetAuthorizedInfo(c)
 	if authInfo == nil || authInfo.Scope != ScopeEntryVerification {
@@ -648,6 +678,9 @@ func GinSendOTP(c *gin.Context) {
 
 // GinEntryRegister handles user registration
 func GinEntryRegister(c *gin.Context) {
+	if localLoginDisabled(c) {
+		return
+	}
 	// Get authorized info from the temporary token
 	authInfo := oauth.GetAuthorizedInfo(c)
 	if authInfo == nil || authInfo.Scope != ScopeEntryVerification {
@@ -814,10 +847,11 @@ func GinEntryRegister(c *gin.Context) {
 
 	// Prepare user data
 	userData := map[string]interface{}{
-		"name":     name,
-		"password": req.Password, // Yao will auto-hash this
-		"role_id":  config.Role,
-		"type_id":  config.Type,
+		"identity_source": "local",
+		"name":            name,
+		"password":        req.Password, // Yao will auto-hash this
+		"role_id":         config.Role,
+		"type_id":         config.Type,
 	}
 
 	// Set email or mobile
@@ -919,6 +953,9 @@ func GinEntryRegister(c *gin.Context) {
 
 // GinEntryLogin handles user login with username and password
 func GinEntryLogin(c *gin.Context) {
+	if localLoginDisabled(c) {
+		return
+	}
 	// Get authorized info from the temporary token
 	authInfo := oauth.GetAuthorizedInfo(c)
 	if authInfo == nil || authInfo.Scope != ScopeEntryVerification {
@@ -1094,6 +1131,9 @@ func GinEntryLogin(c *gin.Context) {
 // This endpoint is called with the temporary access token (scope: invite_verification)
 // after user registration when invite is required
 func GinVerifyInvite(c *gin.Context) {
+	if localLoginDisabled(c) {
+		return
+	}
 	// Parse request body
 	var req struct {
 		InvitationCode string `json:"invitation_code" binding:"required"`

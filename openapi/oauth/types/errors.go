@@ -12,6 +12,9 @@ var (
 
 // Authentication & Authorization Error definitions
 var (
+	// Login/session errors
+	ErrLoginRequired = &ErrorResponse{Code: ErrorLoginRequired, ErrorDescription: "Login required: no active Yao session"}
+
 	// Token related errors
 	ErrUnauthorized        = &ErrorResponse{Code: "unauthorized", ErrorDescription: "Authentication is required to access this resource"}
 	ErrInvalidToken        = &ErrorResponse{Code: "invalid_token", ErrorDescription: "The access token provided is invalid, expired or malformed"}

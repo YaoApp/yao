@@ -14,28 +14,6 @@ import (
 	taipkg "github.com/yaoapp/yao/tai"
 )
 
-// attachWellKnown attaches the well-known handlers to the router
-func (openapi *OpenAPI) attachWellKnown(router *gin.Engine) {
-
-	// OAuth Discovery and Metadata Endpoints
-	wellKnown := router.Group("/.well-known")
-
-	// Yao Configuration Metadata - for client discovery
-	wellKnown.GET("/yao", openapi.yaoMetadata)
-
-	// Tai transport discovery - Tai nodes use the Yao HTTP port.
-	wellKnown.GET("/yao-transport", openapi.yaoTransport)
-
-	// OAuth Authorization Server Metadata - RFC 8414 (Required by MCP)
-	wellKnown.GET("/oauth-authorization-server", openapi.oauthServerMetadata)
-
-	// OpenID Connect Discovery - OpenID Connect Discovery 1.0
-	wellKnown.GET("/openid_configuration", openapi.oauthOpenIDConfiguration)
-
-	// OAuth Protected Resource Metadata - RFC 9728 (Required by MCP)
-	wellKnown.GET("/oauth-protected-resource", openapi.oauthProtectedResourceMetadata)
-}
-
 // YaoMetadata represents the Yao server configuration metadata
 type YaoMetadata struct {
 	// Application information
@@ -89,6 +67,29 @@ type WebProxyMeta struct {
 	Domain   string `json:"domain"`
 	Prefix   string `json:"prefix"`
 	Protocol string `json:"protocol"`
+}
+
+// attachWellKnown attaches the well-known handlers to the router
+func (openapi *OpenAPI) attachWellKnown(router *gin.Engine) {
+
+	// OAuth Discovery and Metadata Endpoints
+	wellKnown := router.Group("/.well-known")
+
+	// Yao Configuration Metadata - for client discovery
+	wellKnown.GET("/yao", openapi.yaoMetadata)
+
+	// Tai transport discovery - Tai nodes use the Yao HTTP port.
+	wellKnown.GET("/yao-transport", openapi.yaoTransport)
+
+	// OAuth Authorization Server Metadata - RFC 8414 (Required by MCP)
+	wellKnown.GET("/oauth-authorization-server", openapi.oauthServerMetadata)
+
+	// OpenID Connect Discovery - OpenID Connect Discovery 1.0
+	wellKnown.GET("/openid-configuration", openapi.oauthOpenIDConfiguration)
+	wellKnown.GET("/openid_configuration", openapi.oauthOpenIDConfiguration) // legacy alias
+
+	// OAuth Protected Resource Metadata - RFC 9728 (Required by MCP)
+	wellKnown.GET("/oauth-protected-resource", openapi.oauthProtectedResourceMetadata)
 }
 
 // yaoMetadata returns Yao server configuration metadata
@@ -232,11 +233,56 @@ func (openapi *OpenAPI) oauthServerMetadata(c *gin.Context) {
 	c.JSON(200, metadata)
 }
 
-// oauthOpenIDConfiguration returns OpenID Connect configuration
-func (openapi *OpenAPI) oauthOpenIDConfiguration(c *gin.Context) {}
+// oauthOpenIDConfiguration returns OpenID Connect Discovery metadata.
+func (openapi *OpenAPI) oauthOpenIDConfiguration(c *gin.Context) {
+	if openapi.OAuth == nil {
+		c.JSON(503, gin.H{"error": "OAuth service not available"})
+		return
+	}
+	ctx := c.Request.Context()
+	server, err := openapi.OAuth.GetServerMetadata(ctx)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	endpoints, err := openapi.OAuth.Endpoints(ctx)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{
+		"issuer":                                server.Issuer,
+		"authorization_endpoint":                endpoints["authorization_endpoint"],
+		"token_endpoint":                        endpoints["token_endpoint"],
+		"userinfo_endpoint":                     endpoints["userinfo_endpoint"],
+		"jwks_uri":                              endpoints["jwks_uri"],
+		"registration_endpoint":                 endpoints["registration_endpoint"],
+		"response_types_supported":              server.ResponseTypesSupported,
+		"response_modes_supported":              server.ResponseModesSupported,
+		"grant_types_supported":                 server.GrantTypesSupported,
+		"subject_types_supported":               []string{"public"},
+		"scopes_supported":                      server.ScopesSupported,
+		"token_endpoint_auth_methods_supported": server.TokenEndpointAuthMethodsSupported,
+		"code_challenge_methods_supported":      []string{"S256"},
+	})
+}
 
-// oauthProtectedResourceMetadata returns protected resource metadata - RFC 9728
-func (openapi *OpenAPI) oauthProtectedResourceMetadata(c *gin.Context) {}
+// oauthProtectedResourceMetadata returns RFC 9728 protected resource metadata.
+func (openapi *OpenAPI) oauthProtectedResourceMetadata(c *gin.Context) {
+	issuer := ""
+	if openapi.Config != nil {
+		issuer = openapi.Config.OAuth.IssuerURL
+	}
+	if issuer == "" {
+		issuer = strings.TrimRight(os.Getenv("YAO_SERVER_URL"), "/")
+	}
+	c.JSON(200, gin.H{
+		"resource":                 issuer,
+		"authorization_servers":    []string{issuer},
+		"scopes_supported":         []string{"openid", "profile", "email", "offline_access"},
+		"bearer_methods_supported": []string{"header"},
+	})
+}
 
 const (
 	defaultTaoBaseURLCN = "https://api.yaoagents.cn"

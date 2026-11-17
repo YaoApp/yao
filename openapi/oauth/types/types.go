@@ -8,15 +8,16 @@ import (
 
 // LoginContext represents the context information for login
 type LoginContext struct {
-	IP         string `json:"ip,omitempty"`          // Client IP address
-	UserAgent  string `json:"user_agent,omitempty"`  // Client user agent
-	Device     string `json:"device,omitempty"`      // Device type (e.g., "mobile", "desktop", "tablet")
-	Platform   string `json:"platform,omitempty"`    // Platform (e.g., "ios", "android", "web")
-	Location   string `json:"location,omitempty"`    // Geographic location (optional)
-	RememberMe bool   `json:"remember_me,omitempty"` // Remember Me flag for extended session
-	Locale     string `json:"locale,omitempty"`      // User's preferred locale (e.g., "en-US", "zh-CN")
-	AuthSource string `json:"auth_source,omitempty"` // Authentication source (password, google, github, etc.)
-	OAuthEmail string `json:"oauth_email,omitempty"` // OAuth account email (from third-party provider, not user profile)
+	IP         string   `json:"ip,omitempty"`          // Client IP address
+	UserAgent  string   `json:"user_agent,omitempty"`  // Client user agent
+	Device     string   `json:"device,omitempty"`      // Device type (e.g., "mobile", "desktop", "tablet")
+	Platform   string   `json:"platform,omitempty"`    // Platform (e.g., "ios", "android", "web")
+	Location   string   `json:"location,omitempty"`    // Geographic location (optional)
+	RememberMe bool     `json:"remember_me,omitempty"` // Remember Me flag for extended session
+	Locale     string   `json:"locale,omitempty"`      // User's preferred locale (e.g., "en-US", "zh-CN")
+	AuthSource string   `json:"auth_source,omitempty"` // Authentication source (password, google, github, etc.)
+	OAuthEmail string   `json:"oauth_email,omitempty"` // OAuth account email (from third-party provider, not user profile)
+	Scopes     []string `json:"scopes,omitempty"`      // Optional token scopes for this login (e.g. Tao provider scopes)
 }
 
 // MFAOptions contains configuration for MFA operations
@@ -106,6 +107,10 @@ const (
 	ErrorExpiredToken            = "expired_token"
 	ErrorAuthorizationPending    = "authorization_pending"
 	ErrorSlowDown                = "slow_down"
+
+	// ErrorLoginRequired is returned (via the client redirect_uri) when
+	// prompt=none is requested but the browser has no active Yao session.
+	ErrorLoginRequired = "login_required"
 )
 
 // Token Binding Types
@@ -180,6 +185,30 @@ const (
 	LoginMethodSSO      = "sso"
 )
 
+// Identity Sources
+// These values mirror the user.identity_source field: a Yao user is either
+// bound to a Tao account ("tao") or uses local identity ("local").
+const (
+	IdentitySourceTao   = "tao"
+	IdentitySourceLocal = "local"
+)
+
+// Authentication Sources
+// These values mirror the session claim auth_source: Tao SSO sessions carry
+// "tao", local password sessions carry "password".
+const (
+	AuthSourceTao      = "tao"
+	AuthSourcePassword = "password"
+)
+
+// Identity metadata claim names carried by Yao access tokens and exposed by
+// the userinfo endpoint. They intentionally replace any Team/Tenant claims:
+// Team is a Yao application concept, not part of OAuth identity.
+const (
+	ClaimAuthSource     = "auth_source"
+	ClaimIdentitySource = "identity_source"
+)
+
 // Response Modes
 const (
 	ResponseModeQuery    = "query"
@@ -252,6 +281,7 @@ type ClientInfo struct {
 	ClientName              string                 `json:"client_name,omitempty"`
 	ClientType              string                 `json:"client_type"` // "confidential", "public", "credentialed"
 	RedirectURIs            []string               `json:"redirect_uris"`
+	RequirePKCE             bool                   `json:"require_pkce,omitempty"` // Whether this client must use PKCE (forced by Yao for authorization code)
 	ResponseTypes           []string               `json:"response_types,omitempty"`
 	GrantTypes              []string               `json:"grant_types,omitempty"`
 	ApplicationType         string                 `json:"application_type,omitempty"`
@@ -358,6 +388,7 @@ type TokenExchangeResponse struct {
 type DynamicClientRegistrationRequest struct {
 	ClientID                    string   `json:"client_id,omitempty"` // Optional: Client ID to use for registration, if not provided, a new client ID will be generated
 	RedirectURIs                []string `json:"redirect_uris"`
+	RequirePKCE                 bool     `json:"require_pkce,omitempty"` // Require PKCE for this client
 	ResponseTypes               []string `json:"response_types,omitempty"`
 	GrantTypes                  []string `json:"grant_types,omitempty"`
 	ApplicationType             string   `json:"application_type,omitempty"`
@@ -451,6 +482,13 @@ type AuthorizationRequest struct {
 	CodeChallengeMethod string `json:"code_challenge_method,omitempty"`
 	Resource            string `json:"resource,omitempty"`
 	Nonce               string `json:"nonce,omitempty"`
+
+	// Server-resolved identity of the logged-in Yao user. These fields are
+	// never accepted from client input (json:"-"), they are filled in by the
+	// authorize endpoint after resolving the Yao session.
+	Subject        string `json:"-"`
+	AuthSource     string `json:"-"` // auth_source claim (tao | password)
+	IdentitySource string `json:"-"` // user.identity_source (tao | local)
 }
 
 // AuthorizationResponse represents authorization response
@@ -820,6 +858,13 @@ type OIDCUserInfo struct {
 	YaoType       *OIDCTypeInfo   `json:"yao:type,omitempty"`        // Yao user type info
 	YaoMember     *OIDCMemberInfo `json:"yao:member,omitempty"`      // Yao member profile info (for team context)
 	YaoAuthSource string          `json:"yao:auth_source,omitempty"` // Authentication source (password, google, github, etc.)
+
+	// Yao identity metadata (extension claims)
+	// auth_source mirrors the session auth_source (tao | password).
+	// identity_source mirrors user.identity_source (tao | local).
+	// Team/Tenant claims are deliberately NOT part of OAuth identity.
+	AuthSource     string `json:"auth_source,omitempty"`
+	IdentitySource string `json:"identity_source,omitempty"`
 
 	// Raw response for debugging and custom processing
 	Raw map[string]interface{} `json:"raw,omitempty"` // Original provider response

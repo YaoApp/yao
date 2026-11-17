@@ -589,6 +589,7 @@ func (s *Service) verifyOpaqueRefreshToken(token string) (*types.TokenClaims, er
 		Scope:     scope,
 		TokenType: "refresh_token",
 		Issuer:    s.config.IssuerURL,
+		Extra:     extractExtraClaims(tokenInfo),
 	}
 
 	if issuedAt, ok := tokenInfo["issued_at"].(int64); ok {

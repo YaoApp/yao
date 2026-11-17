@@ -138,6 +138,8 @@ func TestOAuthAuthorize(t *testing.T) {
 		params.Set("redirect_uri", testClient.RedirectURIs[0]) // Use registered redirect URI
 		params.Set("scope", "openid profile")
 		params.Set("state", "test-state-123")
+		params.Set("code_challenge", "test-challenge")
+		params.Set("code_challenge_method", "S256")
 
 		requestURL := endpoint + "?" + params.Encode()
 		t.Logf("Making GET request to: %s", requestURL)
@@ -156,28 +158,12 @@ func TestOAuthAuthorize(t *testing.T) {
 
 		t.Logf("Response status code: %d", resp.StatusCode)
 
-		// Should redirect with either success (302) or error (302)
+		// Unauthenticated authorize must redirect to the Yao login page.
 		assert.Equal(t, http.StatusFound, resp.StatusCode)
-
-		// Check redirect location
 		location := resp.Header.Get("Location")
-		assert.NotEmpty(t, location, "Location header should be present")
+		assert.Contains(t, location, "/auth/entry")
+		assert.Contains(t, location, "return_to=")
 		t.Logf("Redirect location: %s", location)
-
-		// Parse redirect URL to check parameters
-		redirectURL, err := url.Parse(location)
-		assert.NoError(t, err)
-
-		// Should contain either 'code' (success) or 'error' (failure) parameter
-		query := redirectURL.Query()
-		hasCode := query.Get("code") != ""
-		hasError := query.Get("error") != ""
-		assert.True(t, hasCode || hasError, "Redirect should contain either 'code' or 'error' parameter")
-
-		// State parameter should be preserved
-		assert.Equal(t, "test-state-123", query.Get("state"), "State parameter should be preserved")
-
-		t.Logf("Authorization result - Code: %s, Error: %s", query.Get("code"), query.Get("error"))
 	})
 
 	t.Run("Invalid Client ID", func(t *testing.T) {
@@ -188,6 +174,8 @@ func TestOAuthAuthorize(t *testing.T) {
 		params.Set("redirect_uri", "http://localhost/callback")
 		params.Set("scope", "openid profile")
 		params.Set("state", "test-state-456")
+		params.Set("code_challenge", "test-challenge")
+		params.Set("code_challenge_method", "S256")
 
 		requestURL := endpoint + "?" + params.Encode()
 
@@ -202,15 +190,9 @@ func TestOAuthAuthorize(t *testing.T) {
 		assert.NotNil(t, resp)
 		defer resp.Body.Close()
 
-		assert.Equal(t, http.StatusFound, resp.StatusCode)
-
-		location := resp.Header.Get("Location")
-		redirectURL, err := url.Parse(location)
-		assert.NoError(t, err)
-
-		query := redirectURL.Query()
-		assert.Equal(t, "invalid_client", query.Get("error"), "Should return invalid_client error")
-		assert.Equal(t, "test-state-456", query.Get("state"), "State should be preserved")
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		assert.Contains(t, string(body), "invalid_client")
 	})
 
 	t.Run("Valid Authorization Request via POST", func(t *testing.T) {
@@ -221,6 +203,8 @@ func TestOAuthAuthorize(t *testing.T) {
 		form.Set("redirect_uri", testClient.RedirectURIs[0])
 		form.Set("scope", "openid profile")
 		form.Set("state", "test-post-state-789")
+		form.Set("code_challenge", "test-challenge")
+		form.Set("code_challenge_method", "S256")
 
 		t.Logf("Making POST request to: %s", endpoint)
 
@@ -238,28 +222,12 @@ func TestOAuthAuthorize(t *testing.T) {
 
 		t.Logf("Response status code: %d", resp.StatusCode)
 
-		// Should redirect with either success (302) or error (302)
+		// Unauthenticated authorize must redirect to the Yao login page.
 		assert.Equal(t, http.StatusFound, resp.StatusCode)
-
-		// Check redirect location
 		location := resp.Header.Get("Location")
-		assert.NotEmpty(t, location, "Location header should be present")
+		assert.Contains(t, location, "/auth/entry")
+		assert.Contains(t, location, "return_to=")
 		t.Logf("Redirect location: %s", location)
-
-		// Parse redirect URL to check parameters
-		redirectURL, err := url.Parse(location)
-		assert.NoError(t, err)
-
-		// Should contain either 'code' (success) or 'error' (failure) parameter
-		query := redirectURL.Query()
-		hasCode := query.Get("code") != ""
-		hasError := query.Get("error") != ""
-		assert.True(t, hasCode || hasError, "Redirect should contain either 'code' or 'error' parameter")
-
-		// State parameter should be preserved
-		assert.Equal(t, "test-post-state-789", query.Get("state"), "State parameter should be preserved")
-
-		t.Logf("Authorization result (POST) - Code: %s, Error: %s", query.Get("code"), query.Get("error"))
 	})
 
 	t.Run("Invalid Response Type via POST", func(t *testing.T) {
@@ -270,6 +238,8 @@ func TestOAuthAuthorize(t *testing.T) {
 		form.Set("redirect_uri", testClient.RedirectURIs[0])
 		form.Set("scope", "openid profile")
 		form.Set("state", "test-invalid-response-type")
+		form.Set("code_challenge", "test-challenge")
+		form.Set("code_challenge_method", "S256")
 
 		client := &http.Client{
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {

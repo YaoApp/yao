@@ -40,7 +40,15 @@ func TestE2ETaoPurchaseHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	login, err := userpkg.LoginByUserID(fmt.Sprint(admin["user_id"]), nil)
+	userID := fmt.Sprint(admin["user_id"])
+	originalIdentitySource := fmt.Sprint(admin["identity_source"])
+	if err := provider.UpdateUser(context.Background(), userID, map[string]interface{}{"identity_source": "tao"}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = provider.UpdateUser(context.Background(), userID, map[string]interface{}{"identity_source": originalIdentitySource})
+	})
+	login, err := userpkg.LoginByUserID(userID, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

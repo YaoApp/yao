@@ -9,12 +9,14 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/user"
 )
 
 // AttachCatalog registers POST /v1/tao/catalog/sync.
 func AttachCatalog(group *gin.RouterGroup, oauthSvc oauthtypes.OAuth, service *taocomputer.Service, keys taocomputer.KeyResolver) {
 	h := &Handler{Service: service, Keys: keys}
-	group.POST("/sync", oauthSvc.Guard, h.SyncCatalog)
+	group.Use(oauthSvc.Guard, user.RequireTaoIdentity, user.RequireTaoManagedKey)
+	group.POST("/sync", h.SyncCatalog)
 }
 
 // SyncCatalog syncs Tao Catalog into Yao products.
