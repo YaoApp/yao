@@ -1,3 +1,14 @@
 openapi/certs/
 data/
 logs/
+
+# local environment (UAT)
+.env
+
+# Yao UAT SUI template source (runtime data stays ignored)
+!data/
+data/*
+!data/templates/
+data/templates/*
+!data/templates/default/
+!data/templates/default/**

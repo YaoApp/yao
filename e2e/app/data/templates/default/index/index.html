@@ -1,0 +1,84 @@
+<div class="page">
+  <header class="hero">
+    <span class="eyebrow"><span class="dot"></span> Yao UAT · Local</span>
+    <h1>Yao Agents<br />UAT Environment</h1>
+    <p class="lede">
+      Source-run Yao UAT for CUI integration and manual testing.
+      Connected to Tao UAT, with the local Tai transport on port 6099.
+    </p>
+    <div class="actions">
+      <a class="btn primary" href="/v1/user/entry">Sign in</a>
+      <a class="btn" href="/v1/oauth/jwks" target="_blank">JWKS</a>
+      <a class="btn" href="{{ env.CUI_URL }}" target="_blank">Open CUI</a>
+      <a class="btn" href="https://github.com/YaoApp/yaoagents-releases" target="_blank">Reference</a>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Runtime</h2>
+      <table>
+        <tr><td>Application</td><td><code>{{ $global.title }}</code></td></tr>
+        <tr><td>Yao Engine</td><td><code>v{{ yao.version }}</code></td></tr>
+        <tr><td>Environment</td><td><code>{{ env.YAO_ENV }}</code></td></tr>
+        <tr><td>Listen</td><td><code>{{ env.YAO_HOST }}:{{ env.YAO_PORT }}</code></td></tr>
+        <tr><td>Request host</td><td><code>{{ $url.host }}</code></td></tr>
+        <tr><td>Server URL</td><td><code>{{ env.SERVER }}</code></td></tr>
+        <tr><td>OAuth issuer</td><td><code>{{ env.OAUTH_ISSUER }}</code></td></tr>
+        <tr><td>Build</td><td><span class="badge warn">{{ env.BUILD }}</span></td></tr>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Tao UAT</h2>
+      <table>
+        <tr><td>Status</td><td><span class="badge ok">{{ env.TAO_STATUS }}</span></td></tr>
+        <tr><td>Issuer</td><td><code>{{ env.TAO_ISSUER }}</code></td></tr>
+        <tr><td>Client</td><td><code>{{ env.TAO_CLIENT }}</code></td></tr>
+        <tr><td>Callback</td><td><code>http://{{ $url.host }}/v1/user/oauth/tao/callback</code></td></tr>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Tai / Computer</h2>
+      <table>
+        <tr><td>Tai server</td><td><span class="badge ok">{{ env.TAI_STATUS }}</span></td></tr>
+        <tr><td>Transport port</td><td><code>{{ env.TAI_TRANSPORT }}</code></td></tr>
+        <tr><td>OpenAPI gRPC</td><td><code>{{ env.OPENAPI_GRPC }}</code></td></tr>
+        <tr><td>Transport discovery</td><td><a href="/.well-known/yao-transport" target="_blank">/.well-known/yao-transport</a></td></tr>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Database</h2>
+      <table>
+        <tr><td>Driver</td><td><code>{{ env.YAO_DB_DRIVER }}</code></td></tr>
+        <tr><td>Target</td><td><code>{{ env.DB_TARGET }}</code></td></tr>
+        <tr><td>DSN</td><td><code>{{ env.YAO_DB_PRIMARY }}</code></td></tr>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>CUI</h2>
+      <table>
+        <tr><td>Dev server</td><td><a href="{{ env.CUI_URL }}" target="_blank">{{ env.CUI_URL }}</a></td></tr>
+        <tr><td>Proxy</td><td><code>http://127.0.0.1:5199/v1/*</code></td></tr>
+        <tr><td>API base</td><td><code>/v1</code></td></tr>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Application root</h2>
+      <table>
+        <tr><td>Source</td><td><code>{{ env.APP_ROOT }}</code></td></tr>
+        <tr><td>Template</td><td><code>data/templates/default</code></td></tr>
+        <tr><td>Health</td><td><a href="/v1/user/entry" target="_blank">/v1/user/entry</a></td></tr>
+      </table>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Yao UAT · source-run via bin/yao-dev</span>
+    <span>Tao UAT: https://tao.dev.yaoagents.cn</span>
+  </footer>
+</div>

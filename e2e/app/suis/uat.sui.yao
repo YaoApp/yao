@@ -1,0 +1,15 @@
+{
+  "name": "Yao UAT",
+  "storage": {
+    "driver": "local",
+    "option": {
+      "root": "/templates"
+    }
+  },
+  "public": {
+    "root": "/",
+    "matcher": "[0-9a-zA-Z_\\-\\.]+",
+    "remote": "/",
+    "index": "/index"
+  }
+}
