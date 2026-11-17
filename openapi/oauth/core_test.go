@@ -2,6 +2,8 @@ package oauth
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
+
+// testPKCE returns a deterministic verifier/challenge pair for legacy token tests.
+func testPKCE() (string, string) {
+	verifier := "test-pkce-verifier-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	sum := sha256.Sum256([]byte(verifier))
+	return verifier, base64.RawURLEncoding.EncodeToString(sum[:])
+}
 
 // =============================================================================
 // Basic Service Endpoint Tests
@@ -153,7 +162,7 @@ func TestAuthorize(t *testing.T) {
 	})
 
 	t.Run("authorization with valid response types", func(t *testing.T) {
-		validResponseTypes := []string{"code", "token", "id_token", "code token", "code id_token"}
+		validResponseTypes := []string{"code"}
 
 		for _, responseType := range validResponseTypes {
 			request := &types.AuthorizationRequest{
@@ -220,11 +229,12 @@ func TestToken(t *testing.T) {
 		clientID := GetActualClientID(testClients[0].ClientID) // confidential client
 
 		// Generate a real authorization code using the service
-		code, err := service.generateAuthorizationCodeWithInfo(clientID, "test-state", "", "", "")
+		verifier, challenge := testPKCE()
+		code, err := service.generateAuthorizationCodeWithInfo(clientID, "test-state", "", challenge, types.CodeChallengeMethodS256)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 
-		token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, code, clientID, "")
+		token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, code, clientID, verifier)
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
 		assert.NotEmpty(t, token.AccessToken)
@@ -578,11 +588,12 @@ func TestHandleAuthorizationCodeGrant(t *testing.T) {
 		}
 
 		// Generate a real authorization code
-		code, err := service.generateAuthorizationCodeWithInfo(client.ClientID, "test-state", "", "", "")
+		verifier, challenge := testPKCE()
+		code, err := service.generateAuthorizationCodeWithInfo(client.ClientID, "test-state", "", challenge, types.CodeChallengeMethodS256)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 
-		token, err := service.handleAuthorizationCodeGrant(ctx, client, code, "")
+		token, err := service.handleAuthorizationCodeGrant(ctx, client, code, verifier)
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
 		assert.NotEmpty(t, token.AccessToken)
@@ -598,11 +609,12 @@ func TestHandleAuthorizationCodeGrant(t *testing.T) {
 		}
 
 		// Generate a real authorization code
-		code, err := service.generateAuthorizationCodeWithInfo(client.ClientID, "test-state", "", "", "")
+		verifier, challenge := testPKCE()
+		code, err := service.generateAuthorizationCodeWithInfo(client.ClientID, "test-state", "", challenge, types.CodeChallengeMethodS256)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 
-		token, err := service.handleAuthorizationCodeGrant(ctx, client, code, "")
+		token, err := service.handleAuthorizationCodeGrant(ctx, client, code, verifier)
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
 		assert.NotEmpty(t, token.AccessToken)
@@ -729,13 +741,16 @@ func TestCoreIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("complete authorization code flow", func(t *testing.T) {
+		verifier, challenge := testPKCE()
 		// Step 1: Authorization
 		authRequest := &types.AuthorizationRequest{
-			ClientID:     GetActualClientID(testClients[0].ClientID),
-			ResponseType: "code",
-			RedirectURI:  "https://localhost/callback",
-			Scope:        "openid profile",
-			State:        "integration-test-state",
+			ClientID:            GetActualClientID(testClients[0].ClientID),
+			ResponseType:        "code",
+			RedirectURI:         "https://localhost/callback",
+			Scope:               "openid profile",
+			State:               "integration-test-state",
+			CodeChallenge:       challenge,
+			CodeChallengeMethod: types.CodeChallengeMethodS256,
 		}
 
 		authResponse, err := service.Authorize(ctx, authRequest)
@@ -745,7 +760,7 @@ func TestCoreIntegration(t *testing.T) {
 		assert.Equal(t, "integration-test-state", authResponse.State)
 
 		// Step 2: Token exchange
-		token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, authResponse.Code, GetActualClientID(testClients[0].ClientID), "")
+		token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, authResponse.Code, GetActualClientID(testClients[0].ClientID), verifier)
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
 		assert.NotEmpty(t, token.AccessToken)
@@ -856,11 +871,12 @@ func TestCoreEdgeCases(t *testing.T) {
 		// Generate multiple tokens and ensure they're unique
 		for i := 0; i < 10; i++ {
 			// Generate a new authorization code for each iteration (codes can only be used once)
-			code, err := service.generateAuthorizationCodeWithInfo(clientID, "test-state", "", "", "")
+			verifier, challenge := testPKCE()
+			code, err := service.generateAuthorizationCodeWithInfo(clientID, "test-state", "", challenge, types.CodeChallengeMethodS256)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, code)
 
-			token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, code, clientID, "")
+			token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, code, clientID, verifier)
 			assert.NoError(t, err)
 			assert.NotNil(t, token)
 			assert.NotEmpty(t, token.AccessToken)
