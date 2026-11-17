@@ -71,6 +71,16 @@ jobs:
           token: ${{ secrets.REPO_GITHUB_TOKEN || github.token }}
           path: tai-golang-src
 
+      - name: Verify private repository token
+        env:
+          PRIVATE_REPO_TOKEN_VALUE: ${{ secrets.PRIVATE_REPO_TOKEN || secrets.TAO_CLONE_GITHUB_KEY }}
+        shell: bash
+        run: |
+          if [ -z "$PRIVATE_REPO_TOKEN_VALUE" ]; then
+            echo "::error::Set PRIVATE_REPO_TOKEN or TAO_CLONE_GITHUB_KEY with Contents: Read for YaoApp/ding and YaoApp/tao"
+            exit 1
+          fi
+
       - name: Checkout private Ding
         uses: actions/checkout@v4
         with:
@@ -259,15 +269,20 @@ jobs:
             -count=1 \
             -timeout 300s
 
+      - name: Collect Tao logs
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p e2e/logs
+          cp ../tao/uat/tao.log e2e/logs/tao.log 2>/dev/null || true
+          cp ../tao/uat/tao.err.log e2e/logs/tao.err.log 2>/dev/null || true
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tao-selfhosted-uat-logs
-          path: |
-            e2e/logs/**
-            ../tao/uat/tao.log
-            ../tao/uat/tao.err.log
+          path: e2e/logs/**
           if-no-files-found: ignore
           retention-days: 7
 
