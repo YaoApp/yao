@@ -206,6 +206,9 @@ jobs:
             ../tao/uat/configs/index.yml
           grep -q 'issuer: http://127.0.0.1:8090' ../tao/uat/configs/index.yml
           grep -q 'allow_insecure_public_http: true' ../tao/uat/configs/index.yml
+          if ! grep -q 'http://127.0.0.1:8090/debug/oauth' ../tao/uat/configs/index.yml; then
+            sed -i '/^[[:space:]]*allowed_next_prefixes:/a\    - http://127.0.0.1:8090/debug/oauth' ../tao/uat/configs/index.yml
+          fi
           if ! grep -q 'http://127.0.0.1:8090' ../tao/uat/ding.uat.yml; then
             sed -i '/^[[:space:]]*allowed_origins:/a\    - http://127.0.0.1:8090' ../tao/uat/ding.uat.yml
           fi
