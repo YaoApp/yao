@@ -3,6 +3,7 @@ package openapi
 import (
 	"errors"
 	// "fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -351,6 +352,16 @@ func convertAbsoluteToRelativePath(absolutePath, rootPath string) string {
 	return absolutePath
 }
 
+// resolveOAuthIssuerURL applies the deployment-level issuer override. The
+// application file remains environment-neutral; containers and local UAT can
+// set YAO_OAUTH_ISSUER_URL without rewriting openapi.yao.
+func resolveOAuthIssuerURL(configured string) string {
+	if value := strings.TrimSpace(os.Getenv("YAO_OAUTH_ISSUER_URL")); value != "" {
+		return strings.TrimRight(value, "/")
+	}
+	return configured
+}
+
 // OAuthConfig converts the configuration to an OAuth configuration
 func (config *Config) OAuthConfig(appConfig config.Config) (*oauth.Config, error) {
 	var oauthConfig oauth.Config
@@ -415,7 +426,7 @@ func (config *Config) OAuthConfig(appConfig config.Config) (*oauth.Config, error
 		ClientProvider: clientProvider,
 		Cache:          cacheStore,
 		Store:          dataStore,
-		IssuerURL:      config.OAuth.IssuerURL,
+		IssuerURL:      resolveOAuthIssuerURL(config.OAuth.IssuerURL),
 		BaseURL:        config.BaseURL,
 		Signing:        signingConfig, // Use the converted signing config
 		NodeToken:      nodeSigningConfig,
