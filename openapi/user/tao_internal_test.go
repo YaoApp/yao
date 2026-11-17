@@ -1295,6 +1295,10 @@ func TestTaoConfiguredAndLocalLoginHelpers(t *testing.T) {
 	require.False(t, LocalLoginEnabled())
 	yaoClientConfig = &YaoClientConfig{}
 	require.False(t, LocalLoginEnabled())
+	t.Setenv("YAO_USER_LOCAL_LOGIN_ENABLED", "true")
+	require.True(t, LocalLoginEnabled())
+	t.Setenv("YAO_USER_LOCAL_LOGIN_ENABLED", "false")
+	require.False(t, LocalLoginEnabled())
 }
 
 func TestTaoValidateAccessTokenAllowsClockSkew(t *testing.T) {

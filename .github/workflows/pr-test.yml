@@ -8,6 +8,7 @@ on:
     types:
       - completed
 env:
+  YAO_USER_LOCAL_LOGIN_ENABLED: "true"
   CGO_CXXFLAGS: "-Wno-template-id-cdtor -Wno-unknown-warning-option"
   YAO_DEV: ${{ github.WORKSPACE }}
   YAO_ENV: development

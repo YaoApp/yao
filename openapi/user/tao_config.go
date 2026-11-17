@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 )
@@ -54,6 +55,16 @@ func registerBuiltinTaoProvider() error {
 
 // LocalLoginEnabled reports whether Yao's local username/password login is on.
 func LocalLoginEnabled() bool {
+	// CI/legacy test applications can enable local login without rewriting
+	// their openapi.yao fixture. Deployments should use user.local_login.enabled.
+	if raw, ok := os.LookupEnv("YAO_USER_LOCAL_LOGIN_ENABLED"); ok {
+		switch strings.ToLower(strings.TrimSpace(raw)) {
+		case "1", "true", "yes", "on":
+			return true
+		case "0", "false", "no", "off":
+			return false
+		}
+	}
 	configMutex.RLock()
 	defer configMutex.RUnlock()
 	if yaoClientConfig == nil || yaoClientConfig.User == nil || yaoClientConfig.User.LocalLogin == nil {
