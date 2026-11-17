@@ -11,6 +11,13 @@ on:
       - "data/bindata.go"
       - "openapi/auth/**"
       - "openapi/oauth/**"
+      - "openapi/user/**"
+      - "openapi/tao/**"
+      - "openapi/well-known.go"
+      - "yao/models/user.mod.yao"
+      - "yao/models/user/**"
+      - "e2e/app/openapi/user/**"
+      - "e2e/app/openapi/openapi.yao"
       - "openapi/config.go"
       - "openapi/openapi.go"
       - "openapi/types.go"
@@ -28,6 +35,13 @@ on:
       - "data/bindata.go"
       - "openapi/auth/**"
       - "openapi/oauth/**"
+      - "openapi/user/**"
+      - "openapi/tao/**"
+      - "openapi/well-known.go"
+      - "yao/models/user.mod.yao"
+      - "yao/models/user/**"
+      - "e2e/app/openapi/user/**"
+      - "e2e/app/openapi/openapi.yao"
       - "openapi/config.go"
       - "openapi/openapi.go"
       - "openapi/types.go"
@@ -222,6 +236,11 @@ jobs:
         env:
           CGO_CFLAGS: ${{ runner.os == 'Linux' && '-Wno-discarded-qualifiers' || '' }}
         run: make agent-e2e-tests
+
+      - name: Check user-system feature coverage
+        if: runner.os == 'Linux' && matrix.db == 'sqlite3'
+        shell: bash
+        run: make user-system-coverage
 
       - name: Upload E2E logs
         if: always()

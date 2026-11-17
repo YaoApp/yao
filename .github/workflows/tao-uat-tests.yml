@@ -1,0 +1,279 @@
+name: Tao Self-Hosted UAT Tests
+
+# Build private Ding + Tao from source, start a local Tao UAT instance, then run
+# Yao's real Tao UAT login test against 127.0.0.1 (never tao.dev).
+#
+# Required secrets:
+#   PRIVATE_REPO_TOKEN or TAO_CLONE_GITHUB_KEY  read access to YaoApp/ding + YaoApp/tao
+#   UAT_DING_CONFIG_B64                         local-capable uat/ding.uat.yml
+#   UAT_ENV_B64                                 uat/.env (JWT_SECRET etc.)
+#   UAT_OAUTH_SIGNING_KEY_B64                   optional; generated when absent
+#   REPO_GITHUB_TOKEN                           read access to Tai/Tai-Golang
+#
+# The Tao/Ding repository is only cloned and built; it is never modified or
+# committed to.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "openapi/user/**"
+      - "openapi/oauth/**"
+      - "e2e/**"
+      - "Makefile"
+      - ".github/workflows/tao-uat-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "openapi/user/**"
+      - "openapi/oauth/**"
+      - "e2e/**"
+      - "Makefile"
+      - ".github/workflows/tao-uat-tests.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tao-selfhosted-uat-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tao-uat:
+    name: self-hosted Tao UAT / real login
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      TAO_OAUTH_ISSUER: http://127.0.0.1:8090
+      TAO_UAT_ACCOUNT: ${{ secrets.TAO_UAT_ACCOUNT || '10000000000' }}
+      YAO_E2E_DB: sqlite3
+      YAO_E2E_KEEP: "0"
+      YAO_E2E_ARTIFACTS_DIR: ${{ github.workspace }}/e2e/logs
+      PGPASSWORD: tao
+
+    steps:
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Checkout Tai
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/tai
+          token: ${{ secrets.REPO_GITHUB_TOKEN || github.token }}
+          path: tai-src
+
+      - name: Checkout Tai-Golang
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/tai-golang
+          token: ${{ secrets.REPO_GITHUB_TOKEN || github.token }}
+          path: tai-golang-src
+
+      - name: Checkout private Ding
+        uses: actions/checkout@v4
+        with:
+          repository: YaoApp/ding
+          ref: v1.1.13
+          token: ${{ secrets.PRIVATE_REPO_TOKEN || secrets.TAO_CLONE_GITHUB_KEY }}
+          path: ding-src
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Checkout private Tao
+        uses: actions/checkout@v4
+        with:
+          repository: YaoApp/tao
+          ref: ${{ inputs.tao_ref || 'main' }}
+          token: ${{ secrets.PRIVATE_REPO_TOKEN || secrets.TAO_CLONE_GITHUB_KEY }}
+          path: tao-src
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Move Tai/Ding/Tao to siblings
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv tai-src ../tai
+          mv tai-golang-src ../tai-golang
+          mv ding-src ../ding
+          mv tao-src ../tao
+          test -f ../ding/go.mod
+          test -f ../tao/go.mod
+          grep -q 'replace github.com/YaoApp/ding => ../ding' ../tao/go.mod
+          echo "YAO_E2E_TAI_DIR=$GITHUB_WORKSPACE/../tai" >> "$GITHUB_ENV"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.11"
+          cache: true
+
+      - name: Download modules
+        shell: bash
+        run: go mod download
+
+      - name: Build Tai
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA=$(git -C ../tai rev-parse --short HEAD)
+          GOOS=$(go env GOOS)
+          GOARCH=$(go env GOARCH)
+          OUT="$GITHUB_WORKSPACE/bin/tai/$SHA/$GOOS-$GOARCH/tai"
+          mkdir -p "$(dirname "$OUT")"
+          (cd ../tai && CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -o "$OUT" .)
+          test -f "$OUT"
+          printf '%s\n' "$SHA" > "$GITHUB_WORKSPACE/bin/tai/LATEST"
+          echo "YAO_E2E_TAI_BIN=$OUT" >> "$GITHUB_ENV"
+          "$OUT" version
+
+      - name: Install v8 native deps
+        shell: bash
+        run: go run ./scripts/v8godeps
+
+      - name: Start PostgreSQL and Redis
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name tao-ci-pg \
+            -e POSTGRES_USER=tao -e POSTGRES_PASSWORD=tao \
+            -e POSTGRES_DB=tao_uat -p 5432:5432 postgres:16
+          docker run -d --name tao-ci-redis -p 6379:6379 redis:7
+          for i in $(seq 1 30); do
+            pg_isready -h 127.0.0.1 -p 5432 -U tao >/dev/null 2>&1 && break
+            sleep 1
+          done
+          pg_isready -h 127.0.0.1 -p 5432 -U tao
+          redis-cli -h 127.0.0.1 ping | grep -q PONG
+
+      - name: Inject UAT config
+        env:
+          UAT_DING_CONFIG_B64: ${{ secrets.UAT_DING_CONFIG_B64 }}
+          UAT_ENV_B64: ${{ secrets.UAT_ENV_B64 }}
+          UAT_OAUTH_SIGNING_KEY_B64: ${{ secrets.UAT_OAUTH_SIGNING_KEY_B64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$UAT_DING_CONFIG_B64" || { echo "::error::UAT_DING_CONFIG_B64 is required"; exit 1; }
+          test -n "$UAT_ENV_B64" || { echo "::error::UAT_ENV_B64 is required"; exit 1; }
+          mkdir -p ../tao/uat/keys
+          printf '%s' "$UAT_DING_CONFIG_B64" | python3 -c 'import base64,sys;sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' > ../tao/uat/ding.uat.yml
+          printf '%s' "$UAT_ENV_B64" | python3 -c 'import base64,sys;sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' > ../tao/uat/.env
+          if [ -n "${UAT_OAUTH_SIGNING_KEY_B64:-}" ]; then
+            printf '%s' "$UAT_OAUTH_SIGNING_KEY_B64" | python3 -c 'import base64,sys;sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' > ../tao/uat/keys/oauth-signing-key.pem
+          else
+            openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out ../tao/uat/keys/oauth-signing-key.pem
+          fi
+          chmod 600 ../tao/uat/ding.uat.yml ../tao/uat/.env ../tao/uat/keys/oauth-signing-key.pem
+
+      - name: Point Tao UAT config at local instance
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's|^env: prod|env: dev|' ../tao/uat/ding.uat.yml
+          sed -i \
+            -e 's|issuer: https://tao.dev.yaoagents.cn|issuer: http://127.0.0.1:8090|' \
+            -e 's|audience: https://tao.dev.yaoagents.cn|audience: http://127.0.0.1:8090|' \
+            -e 's|login_url: https://tao.dev.yaoagents.cn/debug/oauth|login_url: http://127.0.0.1:8090/debug/oauth|' \
+            -e 's|session_cookie_domain: .tao.dev.yaoagents.cn|session_cookie_domain: ""|' \
+            -e 's|allow_insecure_public_http: false|allow_insecure_public_http: true|' \
+            ../tao/uat/configs/index.yml
+          grep -q 'issuer: http://127.0.0.1:8090' ../tao/uat/configs/index.yml
+          grep -q 'allow_insecure_public_http: true' ../tao/uat/configs/index.yml
+          if ! grep -q 'http://127.0.0.1:8090' ../tao/uat/ding.uat.yml; then
+            sed -i '/^[[:space:]]*allowed_origins:/a\    - http://127.0.0.1:8090' ../tao/uat/ding.uat.yml
+          fi
+          grep -q 'http://127.0.0.1:8090' ../tao/uat/ding.uat.yml
+
+      - name: Build Tao from source
+        shell: bash
+        run: |
+          cd ../tao
+          go build -trimpath -o uat/tao ./cmd/tao
+          test -x uat/tao
+          ./uat/tao version
+
+      - name: Generate local test password
+        shell: bash
+        run: |
+          set -euo pipefail
+          PASSWORD="$(openssl rand -hex 24)"
+          echo "::add-mask::$PASSWORD"
+          echo "TAO_UAT_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Prepare local test account
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ../tao
+          ./uat/tao prep --ding-config uat/ding.uat.yml -name tao-ci -phone "$TAO_UAT_ACCOUNT"
+          psql "postgres://tao:tao@127.0.0.1:5432/tao_uat?sslmode=disable" \
+            -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+          psql "postgres://tao:tao@127.0.0.1:5432/tao_uat?sslmode=disable" \
+            -v pass="$TAO_UAT_PASSWORD" \
+            -c "UPDATE users SET password_hash=crypt(:'pass', gen_salt('bf',12)) WHERE phone='$TAO_UAT_ACCOUNT';"
+
+      - name: Create local OAuth client
+        id: oauth-client
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ../tao
+          OUT=$(./uat/tao oauth-client create \
+            --config uat/configs/index.yml \
+            --ding-config uat/ding.uat.yml \
+            --name yao-ci \
+            --redirect-uri http://127.0.0.1:1/cb \
+            --scope openid --scope profile --scope email --scope offline_access)
+          CID=$(printf '%s' "$OUT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["client"]["client_id"])')
+          SECRET=$(printf '%s' "$OUT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["client_secret"])')
+          test -n "$CID"
+          test -n "$SECRET"
+          echo "::add-mask::$SECRET"
+          echo "TAO_OAUTH_CLIENT_ID=$CID" >> "$GITHUB_ENV"
+          echo "TAO_OAUTH_CLIENT_SECRET=$SECRET" >> "$GITHUB_ENV"
+          echo "client_id=$CID" >> "$GITHUB_OUTPUT"
+
+      - name: Start local Tao UAT
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ../tao
+          nohup ./uat/tao --ding-config uat/ding.uat.yml --config uat/configs/index.yml > uat/tao.log 2> uat/tao.err.log &
+          echo $! > uat/tao.pid
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8090/v1/health >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8090/v1/health
+          curl -fsS http://127.0.0.1:8090/.well-known/openid-configuration | grep -q 'http://127.0.0.1:8090'
+          curl -fsS http://127.0.0.1:8090/.well-known/jwks.json | grep -q '"keys"'
+
+      - name: Run Yao real Tao UAT test against local Tao
+        shell: bash
+        run: |
+          go test -tags uatmanual ./openapi/user \
+            -run TestTaoRealUATLogin \
+            -count=1 \
+            -timeout 300s
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tao-selfhosted-uat-logs
+          path: |
+            e2e/logs/**
+            ../tao/uat/tao.log
+            ../tao/uat/tao.err.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          if [ -f ../tao/uat/tao.pid ]; then kill "$(cat ../tao/uat/tao.pid)" 2>/dev/null || true; fi
+          docker rm -f tao-ci-pg tao-ci-redis 2>/dev/null || true
