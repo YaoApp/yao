@@ -178,7 +178,7 @@ jobs:
           else
             # Self-hosted CI fixture: no remote UAT config secret required.
             cp ../ding/config/config.example.yml ../tao/uat/ding.uat.yml
-            python3 -c "from pathlib import Path; p=Path('../tao/uat/ding.uat.yml'); s=p.read_text(); s=s.replace('port: 9000','port: 8090',1).replace('name: \"ding_dev\"','name: \"tao_uat\"').replace('user: \"ding\"','user: \"tao\"').replace('password: \"ding\"','password: \"tao\"').replace('host: \"localhost\"','host: \"127.0.0.1\"').replace('db:       0','db:       1').replace('prefix:   \"ding:dev:\"','prefix:   \"tao_uat:\"'); p.write_text(s)"
+            python3 -c "import re; from pathlib import Path; p=Path('../tao/uat/ding.uat.yml'); s=p.read_text(); s=s.replace('port: 9000','port: 8090',1); s=re.sub(r'(?m)^(\s*name:\s+)\"ding_dev\"', r'\1\"tao_uat\"', s); s=re.sub(r'(?m)^(\s*user:\s+)\"ding\"', r'\1\"tao\"', s); s=re.sub(r'(?m)^(\s*password:\s+)\"ding\"', r'\1\"tao\"', s); s=re.sub(r'(?m)^(\s*host:\s+)\"localhost\"', r'\1\"127.0.0.1\"', s); s=re.sub(r'(?m)^(\s*db:\s+)0\b', r'\g<1>1', s); s=re.sub(r'(?m)^(\s*prefix:\s+)\"ding:dev:\"', r'\1\"tao_uat:\"', s); p.write_text(s)"
           fi
           if [ -n "${UAT_ENV_B64:-}" ]; then
             printf '%s' "$UAT_ENV_B64" | python3 -c 'import base64,sys;sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' > ../tao/uat/.env
