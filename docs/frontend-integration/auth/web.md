@@ -145,7 +145,9 @@ Success response:
 }
 ```
 
-If no `session_id` cookie exists yet, the response sets one. The `state`, nonce, and PKCE verifier are stored server-side and bound to that cookie. If you lose the cookie or start the flow in a different cookie jar, the callback fails with `invalid_state`.
+If no `session_id` cookie exists yet, the response sets one. The `state`, nonce, and PKCE verifier are stored server-side. When the callback arrives with a `session_id`, it must match the transaction; a different cookie value is rejected as `invalid_state`.
+
+Safari/WebKit may omit the `SameSite=Lax` session cookie on the cross-site redirect from the Tao domain back to Yao. The callback therefore still validates the one-time `state` and PKCE verifier when the cookie is absent; only a present-but-different session cookie is treated as a state mismatch. The same applies to the first-login Tao activation callback.
 
 First deployment may return a Tao **activation** URL instead of a normal authorization URL. That is expected: Yao handles activation and automatically continues to the normal login. The frontend passes the returned URL to the browser unchanged.
 

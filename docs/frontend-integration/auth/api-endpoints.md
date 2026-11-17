@@ -33,7 +33,7 @@ These endpoints implement the first-party browser login described in [web.md](we
 Notes:
 
 - The entry-verification token is returned by `/v1/user/entry/verify` and must be sent as `Authorization: Bearer <token>` to the entry login/register/otp/invite endpoints.
-- `/v1/user/oauth/tao/authorize` sets a `session_id` cookie. The same browser cookie context must receive `/v1/user/oauth/tao/callback`.
+- `/v1/user/oauth/tao/authorize` sets a `session_id` cookie. The same browser cookie context is expected on `/v1/user/oauth/tao/callback`; if WebKit omits it on a cross-site redirect, Yao still validates the one-time state/PKCE transaction. A present-but-different session cookie is rejected.
 - The callback is a browser endpoint, not a JSON API. It redirects to the configured entry `success_url` on success (default `/auth/entry/success`), and to the configured `failure_url` with `?code=<code>&message=<message>` on failure (default `/auth/entry/failure`).
 - `local_login_enabled=false` makes the local login/register endpoints return `403 local_login_disabled`; hide those UI paths and use Tao.
 
