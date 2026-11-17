@@ -5,9 +5,10 @@ name: Tao Self-Hosted UAT Tests
 #
 # Required secrets:
 #   REPO_GITHUB_TOKEN          access to YaoApp/ding + YaoApp/tao (same secret as Tai)
-#   UAT_DING_CONFIG_B64        local-capable uat/ding.uat.yml
-#   UAT_ENV_B64                uat/.env (JWT_SECRET etc.)
-#   UAT_OAUTH_SIGNING_KEY_B64  optional; generated when absent
+# Optional overrides; CI generates a local self-hosted fixture when absent:
+#   UAT_DING_CONFIG_B64
+#   UAT_ENV_B64
+#   UAT_OAUTH_SIGNING_KEY_B64
 #
 # The Tao/Ding repository is only cloned and built; it is never modified or
 # committed to.
@@ -171,11 +172,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$UAT_DING_CONFIG_B64" || { echo "::error::UAT_DING_CONFIG_B64 is required"; exit 1; }
-          test -n "$UAT_ENV_B64" || { echo "::error::UAT_ENV_B64 is required"; exit 1; }
           mkdir -p ../tao/uat/keys
-          printf '%s' "$UAT_DING_CONFIG_B64" | python3 -c 'import base64,sys;sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' > ../tao/uat/ding.uat.yml
-          printf '%s' "$UAT_ENV_B64" | python3 -c 'import base64,sys;sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' > ../tao/uat/.env
+          if [ -n "${UAT_DING_CONFIG_B64:-}" ]; then
+            printf '%s' "$UAT_DING_CONFIG_B64" | python3 -c 'import base64,sys;sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' > ../tao/uat/ding.uat.yml
+          else
+            # Self-hosted CI fixture: no remote UAT config secret required.
+            cp ../ding/config/config.example.yml ../tao/uat/ding.uat.yml
+            python3 -c "from pathlib import Path; p=Path('../tao/uat/ding.uat.yml'); s=p.read_text(); s=s.replace('port: 9000','port: 8090',1).replace('name: \"ding_dev\"','name: \"tao_uat\"').replace('user: \"ding\"','user: \"tao\"').replace('password: \"ding\"','password: \"tao\"').replace('host: \"localhost\"','host: \"127.0.0.1\"').replace('db:       0','db:       1').replace('prefix:   \"ding:dev:\"','prefix:   \"tao_uat:\"'); p.write_text(s)"
+          fi
+          if [ -n "${UAT_ENV_B64:-}" ]; then
+            printf '%s' "$UAT_ENV_B64" | python3 -c 'import base64,sys;sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' > ../tao/uat/.env
+          else
+            printf 'JWT_SECRET=%s\n' "$(openssl rand -hex 32)" > ../tao/uat/.env
+          fi
           if [ -n "${UAT_OAUTH_SIGNING_KEY_B64:-}" ]; then
             printf '%s' "$UAT_OAUTH_SIGNING_KEY_B64" | python3 -c 'import base64,sys;sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' > ../tao/uat/keys/oauth-signing-key.pem
           else
