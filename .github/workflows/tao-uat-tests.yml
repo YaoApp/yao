@@ -4,11 +4,10 @@ name: Tao Self-Hosted UAT Tests
 # Yao's real Tao UAT login test against 127.0.0.1 (never tao.dev).
 #
 # Required secrets:
-#   PRIVATE_REPO_TOKEN or TAO_CLONE_GITHUB_KEY  read access to YaoApp/ding + YaoApp/tao
-#   UAT_DING_CONFIG_B64                         local-capable uat/ding.uat.yml
-#   UAT_ENV_B64                                 uat/.env (JWT_SECRET etc.)
-#   UAT_OAUTH_SIGNING_KEY_B64                   optional; generated when absent
-#   REPO_GITHUB_TOKEN                           read access to Tai/Tai-Golang
+#   REPO_GITHUB_TOKEN          access to YaoApp/ding + YaoApp/tao (same secret as Tai)
+#   UAT_DING_CONFIG_B64        local-capable uat/ding.uat.yml
+#   UAT_ENV_B64                uat/.env (JWT_SECRET etc.)
+#   UAT_OAUTH_SIGNING_KEY_B64  optional; generated when absent
 #
 # The Tao/Ding repository is only cloned and built; it is never modified or
 # committed to.
@@ -73,11 +72,11 @@ jobs:
 
       - name: Verify private repository token
         env:
-          PRIVATE_REPO_TOKEN_VALUE: ${{ secrets.PRIVATE_REPO_TOKEN || secrets.TAO_CLONE_GITHUB_KEY }}
+          REPO_GITHUB_TOKEN_VALUE: ${{ secrets.REPO_GITHUB_TOKEN }}
         shell: bash
         run: |
-          if [ -z "$PRIVATE_REPO_TOKEN_VALUE" ]; then
-            echo "::error::Set PRIVATE_REPO_TOKEN or TAO_CLONE_GITHUB_KEY with Contents: Read for YaoApp/ding and YaoApp/tao"
+          if [ -z "$REPO_GITHUB_TOKEN_VALUE" ]; then
+            echo "::error::Set REPO_GITHUB_TOKEN (same secret used to clone Tai) with Contents: Read for YaoApp/ding and TaoApp/tao"
             exit 1
           fi
 
@@ -86,7 +85,7 @@ jobs:
         with:
           repository: YaoApp/ding
           ref: v1.1.13
-          token: ${{ secrets.PRIVATE_REPO_TOKEN || secrets.TAO_CLONE_GITHUB_KEY }}
+          token: ${{ secrets.REPO_GITHUB_TOKEN || github.token }}
           path: ding-src
           persist-credentials: false
           fetch-depth: 1
@@ -96,7 +95,7 @@ jobs:
         with:
           repository: YaoApp/tao
           ref: ${{ inputs.tao_ref || 'main' }}
-          token: ${{ secrets.PRIVATE_REPO_TOKEN || secrets.TAO_CLONE_GITHUB_KEY }}
+          token: ${{ secrets.REPO_GITHUB_TOKEN || github.token }}
           path: tao-src
           persist-credentials: false
           fetch-depth: 1
