@@ -178,6 +178,7 @@ func TestTaoHTTPActivationAndToken(t *testing.T) {
 }
 
 func TestLocalLoginDisabledAndPublicConfig(t *testing.T) {
+	t.Setenv("YAO_USER_LOCAL_LOGIN_ENABLED", "")
 	old := yaoClientConfig
 	t.Cleanup(func() { yaoClientConfig = old })
 	yaoClientConfig = &YaoClientConfig{User: &UserSystemConfig{LocalLogin: &LocalLoginConfig{Enabled: false}}}
@@ -1284,6 +1285,7 @@ func TestBuiltinTaoEndpointFallback(t *testing.T) {
 }
 
 func TestTaoConfiguredAndLocalLoginHelpers(t *testing.T) {
+	t.Setenv("YAO_USER_LOCAL_LOGIN_ENABLED", "")
 	oldProviders := providers
 	oldCfg := yaoClientConfig
 	t.Cleanup(func() { providers = oldProviders; yaoClientConfig = oldCfg })
