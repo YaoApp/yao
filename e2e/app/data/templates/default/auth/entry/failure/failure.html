@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign-in failed</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4f6fb; color: #111827; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+      main { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; box-shadow: 0 12px 30px rgba(15,23,42,.06); padding: 36px 44px; text-align: center; max-width: 520px; }
+      h1 { margin: 0 0 8px; font-size: 24px; }
+      p { color: #6b7280; margin: 0 0 20px; }
+      code { background: #f3f4f6; border-radius: 6px; padding: 3px 6px; }
+      a { display: inline-block; padding: 9px 16px; border-radius: 8px; background: #2563eb; color: #fff; text-decoration: none; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Sign-in failed</h1>
+      <p><code id="message">Login failed</code></p>
+      <p>Error code: <code id="code">server_error</code></p>
+      <a href="/">Try again</a>
+    </main>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const code = document.getElementById("code");
+      const message = document.getElementById("message");
+      if (params.get("code")) code.textContent = params.get("code");
+      if (params.get("message")) message.textContent = params.get("message");
+    </script>
+  </body>
+</html>

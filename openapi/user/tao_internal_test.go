@@ -1326,3 +1326,15 @@ func TestTaoValidateAccessTokenAllowsClockSkew(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, taoValidateAccessToken(provider, signed, "client"))
 }
+
+func TestTaoLoginSuccessURL(t *testing.T) {
+	require.Equal(t, "/auth/entry/success", taoLoginSuccessURLFromConfig(nil))
+	require.Equal(t, "/auth/entry/success", taoLoginSuccessURLFromConfig(&EntryConfig{}))
+	require.Equal(t, "/app", taoLoginSuccessURLFromConfig(&EntryConfig{SuccessURL: " /app "}))
+}
+
+func TestTaoLoginFailureURL(t *testing.T) {
+	require.Equal(t, "/auth/entry/failure?code=server_error&message=Login+failed", taoLoginFailureURLFromConfig(nil, "server_error"))
+	require.Equal(t, "/auth/entry/failure?code=invalid_state&message=Invalid+or+expired+login+state", taoLoginFailureURLFromConfig(&EntryConfig{}, "invalid_state"))
+	require.Equal(t, "/login-error?code=access_denied&message=Login+was+cancelled+or+denied", taoLoginFailureURLFromConfig(&EntryConfig{FailureURL: "/login-error"}, "access_denied"))
+}

@@ -362,9 +362,67 @@ func taoLoginCallback(c *gin.Context) {
 	SendLoginCookies(c, loginResponse, sid)
 	target := txn.ReturnURL
 	if target == "" {
-		target = "/"
+		target = taoLoginSuccessURL(txn.Locale)
 	}
 	c.Redirect(http.StatusFound, target)
+}
+
+// taoLoginSuccessURL returns the configured post-login destination. The entry
+// configuration is part of the OpenAPI app config and may point at the
+// frontend's real entry route instead of the site root.
+func taoLoginSuccessURL(locale string) string {
+	return taoLoginSuccessURLFromConfig(GetEntryConfig(locale))
+}
+
+func taoLoginSuccessURLFromConfig(cfg *EntryConfig) string {
+	if cfg != nil {
+		if target := strings.TrimSpace(cfg.SuccessURL); target != "" {
+			return target
+		}
+	}
+	return "/auth/entry/success"
+}
+
+// taoLoginFailureURL returns the configured failure destination with the
+// OAuth error code and a human-readable message.
+func taoLoginFailureURL(locale, code string) string {
+	return taoLoginFailureURLFromConfig(GetEntryConfig(locale), code)
+}
+
+func taoLoginFailureURLFromConfig(cfg *EntryConfig, code string) string {
+	target := "/auth/entry/failure"
+	if cfg != nil {
+		if configured := strings.TrimSpace(cfg.FailureURL); configured != "" {
+			target = configured
+		}
+	}
+	separator := "?"
+	if strings.Contains(target, "?") {
+		separator = "&"
+	}
+	values := url.Values{}
+	values.Set("code", code)
+	values.Set("message", taoLoginFailureMessage(code))
+	return target + separator + values.Encode()
+}
+
+func taoLoginFailureMessage(code string) string {
+	switch code {
+	case "invalid_state":
+		return "Invalid or expired login state"
+	case "access_denied":
+		return "Login was cancelled or denied"
+	case "tao_not_configured":
+		return "Tao login is not configured"
+	case "tao_activation_failed":
+		return "Tao activation failed"
+	case "tao_activation_conflict":
+		return "Tao activation conflicts with an existing deployment"
+	case "tao_activation_rate_limited":
+		return "Tao activation is rate limited"
+	default:
+		return "Login failed"
+	}
 }
 
 func taoUserID(ctx context.Context, sub string) (string, error) {
@@ -600,7 +658,7 @@ func taoActivationErrorCode(err error) string {
 }
 
 func taoCallbackFailure(c *gin.Context, code string) {
-	c.Redirect(http.StatusFound, "/auth/entry?error="+url.QueryEscape(code))
+	c.Redirect(http.StatusFound, taoLoginFailureURL(c.Query("locale"), code))
 }
 
 func taoHTTPClient() *http.Client {
