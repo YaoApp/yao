@@ -243,7 +243,7 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	body, _ = io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	require.Equal(t, http.StatusFound, resp.StatusCode, "location=%s body=%s", resp.Header.Get("Location"), string(body))
-	require.Equal(t, "/", resp.Header.Get("Location"))
+	require.Equal(t, "/auth/entry/success", resp.Header.Get("Location"))
 
 	// Replaying a callback must fail without mutating state.
 	resp, err = authClient.Get(callback)
