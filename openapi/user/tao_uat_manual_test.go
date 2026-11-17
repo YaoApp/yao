@@ -43,7 +43,7 @@ func TestTaoRealUATLogin(t *testing.T) {
 	uat := issuer
 
 	// Browser-style Tao login with the documented UAT smoke account.
-	form := url.Values{"account": {account}, "password": {password}, "next": {"/debug/oauth"}}
+	form := url.Values{"account": {account}, "password": {password}, "next": {uat + "/debug/oauth"}}
 	req, _ := http.NewRequest(http.MethodPost, uat+"/oauth/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Origin", uat)
