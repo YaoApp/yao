@@ -283,7 +283,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          code=$(curl -sS -o /tmp/tao-login.json -w '%{http_code}'             -H 'Origin: http://127.0.0.1:8090'             --data-urlencode "account=$TAO_UAT_ACCOUNT"             --data-urlencode "password=$TAO_UAT_PASSWORD"             --data-urlencode "next=http://127.0.0.1:8090/debug/oauth"             http://127.0.0.1:8090/oauth/login)
+          code=$(curl -sS -o /tmp/tao-login.json -w '%{http_code}'             -H 'Origin: http://127.0.0.1:8090'             --data-urlencode "account=$TAO_UAT_ACCOUNT"             --data-urlencode "password=$TAO_UAT_PASSWORD"             --data-urlencode "next=http://127.0.0.1:8090/oauth/authorize"             http://127.0.0.1:8090/oauth/login)
           echo "login status=$code body=$(cat /tmp/tao-login.json)"
           test "$code" = "302"
 
