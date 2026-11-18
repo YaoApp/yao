@@ -85,7 +85,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: YaoApp/ding
-          ref: v1.1.13
+          ref: v1.1.15
           token: ${{ secrets.REPO_GITHUB_TOKEN || github.token }}
           path: ding-src
           persist-credentials: false
