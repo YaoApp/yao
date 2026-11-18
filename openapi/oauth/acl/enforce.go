@@ -74,6 +74,14 @@ func (acl *ACL) Enforce(c *gin.Context) (bool, error) {
 // ALL checks must pass (AND logic) - if any check fails, access is denied
 // Returns: (allowed bool, endpointInfo *EndpointInfo, error)
 func (acl *ACL) enforce(ctx context.Context, authInfo *types.AuthorizedInfo, request *AccessRequest) (bool, *EndpointInfo, error) {
+	// Invitation acceptance is a capability exchange: a valid signed-in user
+	// plus the invitation token is sufficient. Do not additionally require a
+	// team/invitation scope.
+	if authInfo != nil && authInfo.UserID != "" && isInvitationAcceptEndpoint(request) {
+		log.Trace("[ACL] Invitation accept endpoint, trusting authenticated user: path=%s", request.Path)
+		return true, nil, nil
+	}
+
 	// Step 1: Check client permission - MUST pass
 	allowed, matchedEndpoint, err := acl.enforceClient(ctx, authInfo, request)
 	if err != nil {
@@ -706,6 +714,19 @@ func hasTeamSelectionScope(scope string) bool {
 		}
 	}
 	return false
+}
+
+func isInvitationAcceptEndpoint(request *AccessRequest) bool {
+	if request == nil || request.Method != "POST" {
+		return false
+	}
+	const prefix = "/user/teams/invitations/"
+	const suffix = "/accept"
+	if !strings.HasPrefix(request.Path, prefix) || !strings.HasSuffix(request.Path, suffix) {
+		return false
+	}
+	invitationID := strings.TrimSuffix(strings.TrimPrefix(request.Path, prefix), suffix)
+	return invitationID != "" && !strings.Contains(invitationID, "/")
 }
 
 func isTeamSelectionEndpoint(request *AccessRequest) bool {

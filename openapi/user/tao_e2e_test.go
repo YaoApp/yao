@@ -118,6 +118,11 @@ func newTaoFake(t *testing.T, clientID string) *taoFake {
 	mux.HandleFunc("/oauth/revoke", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+	mux.HandleFunc("/v1/key", func(w http.ResponseWriter, r *http.Request) {
+		require.True(t, strings.HasPrefix(r.Header.Get("Authorization"), "Bearer sk-tao-"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"object":"key","valid":true,"balance":4052,"balance_available":true}`))
+	})
 	mux.HandleFunc("/api/v1/keys", func(w http.ResponseWriter, r *http.Request) {
 		require.True(t, strings.HasPrefix(r.Header.Get("Authorization"), "Bearer "))
 		if f.keyError {
@@ -270,6 +275,27 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "tao", fmt.Sprint(account["provider"]))
 	require.NotEmpty(t, fmt.Sprint(account["refresh_token"]))
+
+	// The account menu reads the current plan and Tao balance through Yao.
+	usageReq, usageReqErr := http.NewRequest(http.MethodGet, environment.BaseURL+"/v1/user/usage", nil)
+	require.NoError(t, usageReqErr)
+	usageResp, err := authClient.Do(usageReq)
+	require.NoError(t, err)
+	usageBody, _ := io.ReadAll(usageResp.Body)
+	_ = usageResp.Body.Close()
+	require.Equal(t, http.StatusOK, usageResp.StatusCode, string(usageBody))
+	var usage struct {
+		Plan             string `json:"plan"`
+		Remaining        *int64 `json:"remaining"`
+		Unit             string `json:"unit"`
+		BalanceAvailable bool   `json:"balance_available"`
+	}
+	require.NoError(t, json.Unmarshal(usageBody, &usage))
+	require.Equal(t, "free", usage.Plan)
+	require.Equal(t, "credits", usage.Unit)
+	require.True(t, usage.BalanceAvailable)
+	require.NotNil(t, usage.Remaining)
+	require.Equal(t, int64(4052), *usage.Remaining)
 
 	// RequireTaoIdentity allows Tao identity and rejects local identity.
 	recorder := httptest.NewRecorder()

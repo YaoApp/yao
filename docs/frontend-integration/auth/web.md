@@ -182,6 +182,12 @@ if (me.status === 401) {
 
 const profile = await me.json();
 // For Tao login: profile.identity_source === "tao"
+
+// Account menu: plan + remaining Tao credits.
+const usageResponse = await fetch("/v1/user/usage", { credentials: "include" });
+const usage = await usageResponse.json();
+// usage.plan, usage.remaining, usage.unit === "credits"
+// If usage.balance_available === false, show "—" instead of treating it as 0.
 ```
 
 Example:

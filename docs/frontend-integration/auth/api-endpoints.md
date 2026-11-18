@@ -29,6 +29,7 @@ These endpoints implement the first-party browser login described in [web.md](we
 | `GET` | `/v1/user/oauth/tao/callback` | Public browser redirect | Web | Tao callback; sets Yao session cookies and redirects to configured `success_url` (default `/auth/entry/success`) or `failure_url` |
 | `POST` | `/v1/user/logout` | Session/bearer | Web | revoke local session and clear auth cookies |
 | `GET` | `/v1/user/profile` | Session/bearer | Web | current user, including `identity_source` |
+| `GET` | `/v1/user/usage` | Session/bearer | Web, Desktop, Mobile | current plan and Tao credits balance for the account menu |
 
 Notes:
 
@@ -36,6 +37,43 @@ Notes:
 - `/v1/user/oauth/tao/authorize` sets a `session_id` cookie. The same browser cookie context is expected on `/v1/user/oauth/tao/callback`; if WebKit omits it on a cross-site redirect, Yao still validates the one-time state/PKCE transaction. A present-but-different session cookie is rejected.
 - The callback is a browser endpoint, not a JSON API. It redirects to the configured entry `success_url` on success (default `/auth/entry/success`), and to the configured `failure_url` with `?code=<code>&message=<message>` on failure (default `/auth/entry/failure`).
 - `local_login_enabled=false` makes the local login/register endpoints return `403 local_login_disabled`; hide those UI paths and use Tao.
+
+### 1.0.1 Account usage
+
+```http
+GET /v1/user/usage
+Cookie: session_id=...
+```
+
+Returns the current user's plan and the **remaining Tao credits** for the account
+menu. Unauthenticated requests return `401`.
+
+```json
+{
+  "plan": "free",
+  "plan_name": "free",
+  "remaining": 4052,
+  "unit": "credits",
+  "balance_available": true
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `plan` | Yao user type (`type_id`), for example `free` / `pro`; use it as the stable plan key |
+| `plan_name` | display name; currently mirrors `plan` |
+| `remaining` | available Tao credits, or `null` when Tao cannot report the balance |
+| `unit` | always `credits` for the Tao balance |
+| `balance_available` | `false` means the balance is unknown; do not render `remaining` as zero |
+
+Yao reads the balance from Tao `GET /v1/key` with the user's managed Tao API key
+(`balance` / `balance_available`). The user's key is never returned to the
+browser. The endpoint is read-only and does not change session state. No
+`upgradeUrl` is returned today; a frontend may omit the upgrade action.
+
+The access token (or first-party Web client scope) must include
+`user:usage:read:own`; add it to the OpenAPI client scopes when upgrading an
+existing deployment.
 
 ---
 

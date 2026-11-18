@@ -233,8 +233,9 @@ func attachCredits(group *gin.RouterGroup, oauth types.OAuth) {
 func attachUsage(group *gin.RouterGroup, oauth types.OAuth) {
 	usage := group.Group("/usage")
 	usage.Use(oauth.Guard)
-	usage.GET("/statistics", placeholder) // Get user usage statistics
-	usage.GET("/history", placeholder)    // Get user usage history
+	usage.GET("", GinUsage)               // Get user plan and remaining usage
+	usage.GET("/statistics", placeholder) // Get user usage statistics (future Tao usage proxy)
+	usage.GET("/history", placeholder)    // Get user usage history (future Tao usage proxy)
 }
 
 // User Subscription Management

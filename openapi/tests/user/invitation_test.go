@@ -1119,7 +1119,7 @@ func TestInvitationAccept(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, acceptResp.StatusCode)
 
-		// Try to accept again (should fail)
+		// Try to accept again (already a member: 409, not a generic 500)
 		acceptReq2, err := http.NewRequest("POST", acceptURL, bytes.NewBuffer(jsonData))
 		assert.NoError(t, err)
 		acceptReq2.Header.Set("Content-Type", "application/json")
@@ -1129,7 +1129,10 @@ func TestInvitationAccept(t *testing.T) {
 		assert.NoError(t, err)
 		defer acceptResp2.Body.Close()
 
-		assert.Equal(t, http.StatusNotFound, acceptResp2.StatusCode)
+		assert.Equal(t, http.StatusConflict, acceptResp2.StatusCode)
+		body2, _ := io.ReadAll(acceptResp2.Body)
+		assert.Contains(t, string(body2), "already_member")
+		assert.Contains(t, string(body2), "team_id")
 	})
 }
 

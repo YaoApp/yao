@@ -330,6 +330,7 @@ user:all:
   - user:entry:write:authenticated
   - user:entry:write:own
   - user:profile:read:own
+  - user:usage:read:own
   - user:profile:write:own
   - user:teams:read:public
   - user:teams:write:public
@@ -357,6 +358,7 @@ user:all:own:
   - user:entry:write:authenticated
   - user:entry:write:own
   - user:profile:read:own
+  - user:usage:read:own
   - user:profile:write:own
   - user:teams:read:public
   - user:teams:write:public
@@ -380,6 +382,7 @@ user:all:own:
 user:all:team:
   - user:entry:write:own
   - user:profile:read:own
+  - user:usage:read:own
   - user:profile:write:own
   - user:teams:read:public
   - user:teams:write:public
@@ -404,6 +407,7 @@ user:all:team:
 user:manage:team:
   - user:entry:write:own
   - user:profile:read:own
+  - user:usage:read:own
   - user:profile:write:own
   - user:teams:read:public
   - user:teams:write:public
@@ -427,6 +431,7 @@ user:manage:team:
 user:read:team:
   - user:entry:write:own
   - user:profile:read:own
+  - user:usage:read:own
   - user:teams:read:public
   - user:teams:read:config
   - user:teams:read:team

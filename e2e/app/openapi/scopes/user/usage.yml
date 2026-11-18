@@ -1,0 +1,11 @@
+# Usage - user usage and quota
+# namespace: user
+# resource: usage
+# actions: read
+# levels: own
+
+user:usage:read:own:
+  owner: true
+  description: "Read own usage and remaining balance"
+  endpoints:
+    - GET /user/usage

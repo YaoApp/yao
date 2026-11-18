@@ -555,12 +555,32 @@ func GinTeamInvitationAccept(c *gin.Context) {
 		return
 	}
 
+	// Already-active members must not enter AcceptInvitation: it would reach
+	// the unique-member constraint and surface as a generic 500.
+	if member, memberErr := provider.GetMember(ctx, teamID, userID); memberErr == nil {
+		if utils.ToString(member["status"]) == "active" {
+			teamName := ""
+			if team, teamErr := provider.GetTeam(ctx, teamID); teamErr == nil {
+				teamName = utils.ToString(team["name"])
+			}
+			respondAlreadyMember(c, teamID, teamName)
+			return
+		}
+	}
+
 	// Accept the invitation (will update user_id if invitation doesn't have one)
 	err = provider.AcceptInvitation(ctx, invitationID, req.Token, userID)
 	if err != nil {
 		log.Error("Failed to accept invitation: %v", err)
 		// Check error type for appropriate response
-		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "already accepted") {
+		if strings.Contains(err.Error(), "already member") || strings.Contains(err.Error(), "already a member") {
+			teamName := ""
+			if team, teamErr := provider.GetTeam(ctx, teamID); teamErr == nil {
+				teamName = utils.ToString(team["name"])
+			}
+			respondAlreadyMember(c, teamID, teamName)
+			return
+		} else if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "already accepted") {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrInvalidRequest.Code,
 				ErrorDescription: "Invitation not found or already accepted",
@@ -612,6 +632,15 @@ func GinTeamInvitationAccept(c *gin.Context) {
 
 	// Return the new tokens in response body
 	response.RespondWithSuccess(c, http.StatusOK, loginResponse)
+}
+
+func respondAlreadyMember(c *gin.Context, teamID, teamName string) {
+	c.JSON(http.StatusConflict, gin.H{
+		"error":             "already_member",
+		"error_description": "User is already a member of this team",
+		"team_id":           teamID,
+		"team_name":         teamName,
+	})
 }
 
 // Yao Process Handlers (for Yao application calls)

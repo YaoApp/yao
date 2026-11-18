@@ -12,9 +12,8 @@ user:teams:read:public:
     - GET /user/teams/invitations/:invitation_id
 
 user:teams:write:public:
-  description: "Accept team invitation"
-  endpoints:
-    - POST /user/teams/invitations/:invitation_id/accept
+  description: "Deprecated: accept invitation is no longer a team write permission"
+  endpoints: []
 
 # ============ Common Access (Both User and Team Context) ============
 
