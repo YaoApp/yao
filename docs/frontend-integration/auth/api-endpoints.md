@@ -45,34 +45,60 @@ GET /v1/user/usage
 Cookie: session_id=...
 ```
 
-Returns the current user's plan and the **remaining Tao credits** for the account
-menu. Unauthenticated requests return `401`.
+Returns the plan and **remaining Tao credits** for the selected billing account.
+The deployment-level `client.yao` setting `tao.billing_key.mode` controls the
+selection:
+
+- `owner` (default): team context uses the team owner's balance/plan;
+- `self`: the current user's balance/plan is used;
+- no team context: self.
+
+Unauthenticated requests return `401`.
 
 ```json
 {
   "plan": "free",
   "plan_name": "free",
   "remaining": 4052,
-  "unit": "credits",
-  "balance_available": true
+  "unit": "credits"
 }
 ```
 
 | Field | Meaning |
 | --- | --- |
-| `plan` | Yao user type (`type_id`), for example `free` / `pro`; use it as the stable plan key |
+| `plan` | billing user's Yao type (`type_id`), for example `free` / `pro`; stable plan key |
 | `plan_name` | display name; currently mirrors `plan` |
-| `remaining` | available Tao credits, or `null` when Tao cannot report the balance |
+| `remaining` | available Tao credits of the billing user; always present on success |
 | `unit` | always `credits` for the Tao balance |
-| `balance_available` | `false` means the balance is unknown; do not render `remaining` as zero |
 
-Yao reads the balance from Tao `GET /v1/key` with the user's managed Tao API key
-(`balance` / `balance_available`). If a legacy user has no recoverable managed
-key (Tao only reveals a managed key once), Yao falls back to the Tao account
-balance (`GET /api/v1/users/me/balance`) using the user's refreshed OAuth token.
-The user's key/token is never returned to the browser. The endpoint is
-read-only and does not change session state. No `upgradeUrl` is returned today;
-a frontend may omit the upgrade action.
+Yao reads the balance from the Tao account API `GET /api/v1/users/me/balance`
+using the billing user's refreshed Tao OAuth access token. This is an account
+API, not a service key call; the `sk-tao-` service key is not involved. The
+user's Tao token is never returned to the browser. The endpoint is read-only and
+does not change session state.
+
+In `owner` mode, a non-owner member does not receive the owner's balance:
+
+```http
+403 Forbidden
+```
+
+```json
+{"error":"owner_balance_hidden","error_description":"Owner balance is only visible to the team owner"}
+```
+
+Hide the balance/plan display for this error; do not show `0`, `null`, or a fake
+balance, and do not treat it as a normal failed request.
+
+There is no fallback balance source. Other failures:
+
+| HTTP | `error` | Meaning |
+| --- | --- | --- |
+| `403` | `owner_balance_hidden` | owner mode, current user is not the owner |
+| `503` | `tao_not_configured` | Tao OAuth is not configured |
+| `502` | `tao_balance_unavailable` | Tao rejected or failed the billing user's account balance query |
+
+No `upgradeUrl` is returned today; a frontend may omit the upgrade action.
 
 The access token (or first-party Web client scope) must include
 `user:usage:read:own`; add it to the OpenAPI client scopes when upgrading an
@@ -251,6 +277,28 @@ OAuth JSON errors have the shape:
 ```
 
 Browser authorization errors are delivered by redirect to the client URI (when the client and redirect URI are valid), not as an HTML page.
+
+### 4.1 Tao-backed service APIs
+
+`/v1/tao/*` endpoints (Computers, Catalog) need the selected billing user's
+managed Tao key. The deployment-level `client.yao` setting
+`tao.billing_key.mode` selects the billing user:
+
+- `owner` (default): team owner;
+- `self`: current user.
+
+If the selected billing user has no managed key, the request fails and the UI
+must not substitute another user's key:
+
+```http
+403 Forbidden
+```
+
+```json
+{"error":"owner_key_missing","error_description":"Team owner Tao key is missing"}
+```
+
+Ask the owner to sign in / complete Tao authorization, then retry.
 
 ---
 

@@ -118,6 +118,10 @@ func loadClientConfig() error {
 	}
 
 	// Validate client config
+	if err := normalizeTaoBillingKeyConfig(&clientConfig); err != nil {
+		return err
+	}
+
 	err = validateClientConfig(&clientConfig)
 	if err != nil {
 		return fmt.Errorf("failed to validate client config: %v", err)
@@ -125,6 +129,45 @@ func loadClientConfig() error {
 
 	yaoClientConfig = &clientConfig
 	return nil
+}
+
+const (
+	TaoBillingKeyModeOwner = "owner"
+	TaoBillingKeyModeSelf  = "self"
+)
+
+func normalizeTaoBillingKeyConfig(clientConfig *YaoClientConfig) error {
+	if clientConfig == nil {
+		return fmt.Errorf("client config is required")
+	}
+	if clientConfig.Tao == nil {
+		clientConfig.Tao = &TaoClientConfig{}
+	}
+	if clientConfig.Tao.BillingKey == nil {
+		clientConfig.Tao.BillingKey = &TaoBillingKeyConfig{}
+	}
+	mode := strings.ToLower(strings.TrimSpace(clientConfig.Tao.BillingKey.Mode))
+	if mode == "" {
+		mode = TaoBillingKeyModeOwner
+	}
+	if mode != TaoBillingKeyModeOwner && mode != TaoBillingKeyModeSelf {
+		return fmt.Errorf("invalid tao.billing_key.mode %q: expected owner or self", clientConfig.Tao.BillingKey.Mode)
+	}
+	clientConfig.Tao.BillingKey.Mode = mode
+	return nil
+}
+
+// TaoBillingKeyMode returns the deployment-level billing key mode.
+func TaoBillingKeyMode() string {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+	if yaoClientConfig == nil || yaoClientConfig.Tao == nil || yaoClientConfig.Tao.BillingKey == nil {
+		return TaoBillingKeyModeOwner
+	}
+	if yaoClientConfig.Tao.BillingKey.Mode == TaoBillingKeyModeSelf {
+		return TaoBillingKeyModeSelf
+	}
+	return TaoBillingKeyModeOwner
 }
 
 // validateClientConfig validates the client config

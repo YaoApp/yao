@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -94,11 +95,19 @@ func RequireTaoManagedKey(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	if err := EnsureManagedKeyForUser(c.Request.Context(), info.UserID); err != nil {
-		response.RespondWithError(c, http.StatusForbidden, &response.ErrorResponse{
-			Code:             "tao_authorization_required",
-			ErrorDescription: "Please sign in with Tao again to continue",
-		})
+	if _, err := ResolveTaoBillingKey(c.Request.Context(), info); err != nil {
+		var billingErr *TaoBillingError
+		if errors.As(err, &billingErr) {
+			response.RespondWithError(c, billingErr.Status, &response.ErrorResponse{
+				Code:             billingErr.Code,
+				ErrorDescription: billingErr.Description,
+			})
+		} else {
+			response.RespondWithError(c, http.StatusForbidden, &response.ErrorResponse{
+				Code:             "tao_authorization_required",
+				ErrorDescription: "Please sign in with Tao again to continue",
+			})
+		}
 		c.Abort()
 		return
 	}

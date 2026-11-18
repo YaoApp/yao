@@ -28,7 +28,7 @@ func (h *Handler) SyncCatalog(c *gin.Context) {
 	}
 	key, err := h.resolveKey(c, info)
 	if err != nil {
-		forbidden(c)
+		keyError(c, err)
 		return
 	}
 	count, err := h.Service.SyncCatalog(c.Request.Context(), key)

@@ -43,6 +43,7 @@ type taoFake struct {
 	keyError        bool
 	keyBadJSON      bool
 	keyEmpty        bool
+	rotateError     bool
 }
 
 func newTaoFake(t *testing.T, clientID string) *taoFake {
@@ -84,7 +85,27 @@ func newTaoFake(t *testing.T, clientID string) *taoFake {
 			return
 		}
 		require.NoError(t, r.ParseForm())
-		require.Equal(t, "authorization_code", r.PostForm.Get("grant_type"))
+		grantType := r.PostForm.Get("grant_type")
+		if grantType == "refresh_token" {
+			accessClaims := jwt.MapClaims{
+				"iss": f.server.URL, "aud": f.server.URL, "sub": "tao-e2e-sub",
+				"client_id": f.clientID, "azp": f.clientID,
+				"scope": "openid profile email offline_access keys:manage",
+				"exp":   time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			}
+			accessJWT := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
+			accessJWT.Header["kid"] = "e2e-key"
+			accessToken, err := accessJWT.SignedString(f.key)
+			require.NoError(t, err)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"access_token": accessToken, "refresh_token": "tao-refresh-rotated",
+				"token_type": "Bearer", "expires_in": 3600,
+				"scope": "openid profile email offline_access keys:manage",
+			})
+			return
+		}
+		require.Equal(t, "authorization_code", grantType)
 		claims := jwt.MapClaims{
 			"iss": f.server.URL, "aud": f.clientID, "sub": "tao-e2e-sub",
 			"nonce": f.nonce, "exp": time.Now().Add(time.Hour).Unix(),
@@ -123,6 +144,11 @@ func newTaoFake(t *testing.T, clientID string) *taoFake {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"object":"key","valid":true,"balance":4052,"balance_available":true}`))
 	})
+	mux.HandleFunc("/api/v1/users/me/balance", func(w http.ResponseWriter, r *http.Request) {
+		require.True(t, strings.HasPrefix(r.Header.Get("Authorization"), "Bearer "))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"balance":4052,"total_income":4052,"total_expense":0}`))
+	})
 	mux.HandleFunc("/api/v1/keys", func(w http.ResponseWriter, r *http.Request) {
 		require.True(t, strings.HasPrefix(r.Header.Get("Authorization"), "Bearer "))
 		if f.keyError {
@@ -138,7 +164,16 @@ func newTaoFake(t *testing.T, clientID string) *taoFake {
 			_, _ = w.Write([]byte(`{}`))
 			return
 		}
-		_, _ = w.Write([]byte(`{"key":"sk-tao-e2e-managed","item":{"id":"key_1"}}`))
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"key":"sk-tao-e2e-managed","item":{"id":"key_1"},"created":true}`))
+	})
+	mux.HandleFunc("/api/v1/keys/managed/rotate", func(w http.ResponseWriter, r *http.Request) {
+		if f.rotateError {
+			http.Error(w, "rotate unavailable", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"key":"sk-tao-e2e-rotated","item":{"id":"key_2"},"created":true,"rotated_from":"key_1"}`))
 	})
 	f.server = httptest.NewServer(mux)
 	t.Cleanup(f.server.Close)
@@ -163,6 +198,27 @@ func loginAgain(t *testing.T, fake *taoFake, hc *http.Client, baseURL string) {
 	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	require.Equal(t, http.StatusFound, resp.StatusCode, "location=%s body=%s", resp.Header.Get("Location"), string(body))
+}
+
+func loginAgainFailure(t *testing.T, fake *taoFake, hc *http.Client, baseURL string) {
+	t.Helper()
+	resp, err := hc.Get(baseURL + "/v1/user/oauth/tao/authorize")
+	require.NoError(t, err)
+	var auth struct {
+		URL string `json:"authorization_url"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&auth))
+	_ = resp.Body.Close()
+	parsed, err := url.Parse(auth.URL)
+	require.NoError(t, err)
+	fake.nonce = parsed.Query().Get("nonce")
+	callback := baseURL + "/v1/user/oauth/tao/callback?code=again&state=" + url.QueryEscape(parsed.Query().Get("state"))
+	resp, err = hc.Get(callback)
+	require.NoError(t, err)
+	body, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusFound, resp.StatusCode, "location=%s body=%s", resp.Header.Get("Location"), string(body))
+	require.Contains(t, resp.Header.Get("Location"), "code=server_error")
 }
 
 func TestE2ETaoLoginFlow(t *testing.T) {
@@ -285,15 +341,13 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	_ = usageResp.Body.Close()
 	require.Equal(t, http.StatusOK, usageResp.StatusCode, string(usageBody))
 	var usage struct {
-		Plan             string `json:"plan"`
-		Remaining        *int64 `json:"remaining"`
-		Unit             string `json:"unit"`
-		BalanceAvailable bool   `json:"balance_available"`
+		Plan      string `json:"plan"`
+		Remaining *int64 `json:"remaining"`
+		Unit      string `json:"unit"`
 	}
 	require.NoError(t, json.Unmarshal(usageBody, &usage))
 	require.Equal(t, "free", usage.Plan)
 	require.Equal(t, "credits", usage.Unit)
-	require.True(t, usage.BalanceAvailable)
 	require.NotNil(t, usage.Remaining)
 	require.Equal(t, int64(4052), *usage.Remaining)
 
@@ -636,7 +690,10 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	require.Equal(t, http.StatusOK, teamSelectResp.StatusCode, string(teamSelectBodyResp))
 
 	// Activation exchange failure is surfaced without leaving a partial client.
-	require.NoError(t, os.Remove(filepath.Join(environment.Root, "app", ".tao", "client.json")))
+	clientPath := filepath.Join(environment.Root, "app", ".tao", "client.json")
+	clientBackup, err := os.ReadFile(clientPath)
+	require.NoError(t, err)
+	require.NoError(t, os.Remove(clientPath))
 	fake.activationError = true
 	resp, err = authClient.Get(environment.BaseURL + "/v1/user/oauth/tao/authorize")
 	require.NoError(t, err)
@@ -652,21 +709,38 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	_ = resp.Body.Close()
 	require.Contains(t, resp.Header.Get("Location"), "tao_activation_failed")
 	fake.activationError = false
+	require.NoError(t, os.MkdirAll(filepath.Dir(clientPath), 0700))
+	require.NoError(t, os.WriteFile(clientPath, clientBackup, 0600))
 
-	// Managed-key failure modes keep login successful but log the provisioning error.
+	// Managed-key provisioning failure must abort login.
 	require.NoError(t, provider.UpdateUser(t.Context(), userID, map[string]interface{}{"tao_api_key": ""}))
 	for _, tc := range []struct {
-		name string
-		set  func(bool)
+		name  string
+		set   func(bool)
+		extra func(bool)
 	}{
-		{"key-error", func(v bool) { fake.keyError = v }},
-		{"key-bad-json", func(v bool) { fake.keyBadJSON = v }},
-		{"key-empty", func(v bool) { fake.keyEmpty = v }},
+		{"key-error", func(v bool) { fake.keyError = v }, nil},
+		{"key-bad-json", func(v bool) { fake.keyBadJSON = v }, nil},
+		{"key-empty-rotate-error", func(v bool) { fake.keyEmpty = v }, func(v bool) { fake.rotateError = v }},
 	} {
 		tc.set(true)
-		loginAgain(t, fake, authClient, environment.BaseURL)
+		if tc.extra != nil {
+			tc.extra(true)
+		}
+		loginAgainFailure(t, fake, authClient, environment.BaseURL)
 		tc.set(false)
+		if tc.extra != nil {
+			tc.extra(false)
+		}
 	}
+	// Empty create response followed by successful rotate must persist the key.
+	require.NoError(t, provider.UpdateUser(t.Context(), userID, map[string]interface{}{"tao_api_key": ""}))
+	fake.keyEmpty = true
+	loginAgain(t, fake, authClient, environment.BaseURL)
+	fake.keyEmpty = false
+	authUser, err = provider.GetUserForAuth(t.Context(), userID, "user_id")
+	require.NoError(t, err)
+	require.Equal(t, "sk-tao-e2e-rotated", fmt.Sprint(authUser["tao_api_key"]))
 	// Existing key path: second successful login must not request a new plaintext key.
 	loginAgain(t, fake, authClient, environment.BaseURL)
 

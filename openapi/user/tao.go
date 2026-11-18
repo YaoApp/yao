@@ -431,12 +431,21 @@ func taoLoginCallback(c *gin.Context) {
 	if err := taoSaveRefreshToken(c.Request.Context(), userInfo.Sub, tokenResponse); err != nil {
 		log.Warn("failed to save Tao refresh token: %v", err)
 	}
-	if loginResponse.AccessToken != "" {
-		if userID, err := taoUserID(c.Request.Context(), userInfo.Sub); err == nil {
-			if err := taoEnsureManagedKey(c.Request.Context(), userID, tokenResponse.AccessToken); err != nil {
-				log.Warn("failed to provision Tao managed key: %v", err)
-			}
-		}
+	if loginResponse.AccessToken == "" {
+		log.Warn("Tao login did not return an access token; cannot provision managed key")
+		taoCallbackFailure(c, "server_error")
+		return
+	}
+	userID, userIDErr := taoUserID(c.Request.Context(), userInfo.Sub)
+	if userIDErr != nil {
+		log.Warn("failed to resolve Tao user for managed key: %v", userIDErr)
+		taoCallbackFailure(c, "server_error")
+		return
+	}
+	if keyErr := taoEnsureManagedKey(c.Request.Context(), userID, tokenResponse.AccessToken); keyErr != nil {
+		log.Warn("failed to provision Tao managed key: %v", keyErr)
+		taoCallbackFailure(c, "server_error")
+		return
 	}
 	SendLoginCookies(c, loginResponse, sid)
 	target := txn.ReturnURL

@@ -63,7 +63,7 @@ func (h *Handler) Purchase(c *gin.Context) {
 	}
 	key, err := h.resolveKey(c, info)
 	if err != nil {
-		forbidden(c)
+		keyError(c, err)
 		return
 	}
 	result, err := h.Service.Purchase(c.Request.Context(), key, taocomputer.PurchaseRequest{
@@ -89,7 +89,7 @@ func (h *Handler) Action(c *gin.Context) {
 	}
 	key, err := h.resolveKey(c, info)
 	if err != nil {
-		forbidden(c)
+		keyError(c, err)
 		return
 	}
 	action := path.Base(c.FullPath())
@@ -117,7 +117,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 	key, err := h.resolveKey(c, info)
 	if err != nil {
-		forbidden(c)
+		keyError(c, err)
 		return
 	}
 	result, err := h.Service.Delete(c.Request.Context(), key, c.Param("instance_id"))
@@ -136,7 +136,7 @@ func (h *Handler) Get(c *gin.Context) {
 	}
 	key, err := h.resolveKey(c, info)
 	if err != nil {
-		forbidden(c)
+		keyError(c, err)
 		return
 	}
 	result, err := h.Service.Get(c.Request.Context(), key, c.Param("instance_id"))
@@ -155,7 +155,7 @@ func (h *Handler) List(c *gin.Context) {
 	}
 	key, err := h.resolveKey(c, info)
 	if err != nil {
-		forbidden(c)
+		keyError(c, err)
 		return
 	}
 	items, err := h.Service.List(c.Request.Context(), key, taocomputer.ListOptions{
@@ -173,7 +173,30 @@ func (h *Handler) resolveKey(c *gin.Context, info *oauthtypes.AuthorizedInfo) (s
 	if h.Keys == nil {
 		return "", errors.New("tao key resolver is not configured")
 	}
-	return h.Keys.ResolveTaoKey(c.Request.Context(), info.UserID)
+	identity, err := user.ResolveTaoBillingIdentity(c.Request.Context(), info)
+	if err != nil {
+		return "", err
+	}
+	key, err := h.Keys.ResolveTaoKey(c.Request.Context(), identity.UserID)
+	if err != nil {
+		if identity.Mode == user.TaoBillingKeyModeOwner {
+			return "", &user.TaoBillingError{Code: "owner_key_missing", Status: http.StatusForbidden, Description: "Team owner Tao key is missing", Err: err}
+		}
+		return "", &user.TaoBillingError{Code: "tao_key_missing", Status: http.StatusForbidden, Description: "Tao managed key is missing", Err: err}
+	}
+	return key, nil
+}
+
+func keyError(c *gin.Context, err error) {
+	var billingErr *user.TaoBillingError
+	if errors.As(err, &billingErr) {
+		response.RespondWithError(c, billingErr.Status, &response.ErrorResponse{
+			Code:             billingErr.Code,
+			ErrorDescription: billingErr.Description,
+		})
+		return
+	}
+	forbidden(c)
 }
 
 func purchaseResponse(result *taocomputer.PurchaseResult, detail bool) gin.H {

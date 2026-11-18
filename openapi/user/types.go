@@ -158,6 +158,17 @@ type YaoClientConfig struct {
 	Scopes                []string          `json:"scopes,omitempty"`                   // Default scopes if not set in the provider config
 	ExpiresIn             int               `json:"expires_in,omitempty"`               // Default expires in for the access token (optional) in seconds
 	RefreshTokenExpiresIn int               `json:"refresh_token_expires_in,omitempty"` // Default expires in for the refresh token (optional) in seconds
+	Tao                   *TaoClientConfig  `json:"tao,omitempty"`                      // Tao integration deployment settings
+}
+
+// TaoClientConfig contains deployment-level Tao settings.
+type TaoClientConfig struct {
+	BillingKey *TaoBillingKeyConfig `json:"billing_key,omitempty"`
+}
+
+// TaoBillingKeyConfig controls whose managed Tao key is used for team billing.
+type TaoBillingKeyConfig struct {
+	Mode string `json:"mode,omitempty"` // owner (default) | self
 }
 
 // Provider represents a third party login provider

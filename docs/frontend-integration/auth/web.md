@@ -186,8 +186,15 @@ const profile = await me.json();
 // Account menu: plan + remaining Tao credits.
 const usageResponse = await fetch("/v1/user/usage", { credentials: "include" });
 const usage = await usageResponse.json();
-// usage.plan, usage.remaining, usage.unit === "credits"
-// If usage.balance_available === false, show "—" instead of treating it as 0.
+
+if (usageResponse.status === 403 && usage.error === "owner_balance_hidden") {
+  // owner billing mode: the current member must not see the owner's balance.
+  // Hide the balance/plan values; do not show 0 or a fake balance.
+} else if (!usageResponse.ok) {
+  // Failed usage request: render an error state, never substitute a fake balance.
+} else {
+  // usage.plan, usage.remaining, usage.unit === "credits"
+}
 ```
 
 Example:

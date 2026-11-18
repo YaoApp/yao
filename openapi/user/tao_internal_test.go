@@ -39,6 +39,9 @@ type fakeTaoUserProvider struct {
 	authUser    maps.MapStrAny
 	authErr     error
 	updateErr   error
+	updated     maps.MapStrAny
+	teams       map[string]maps.MapStrAny
+	teamErr     error
 }
 
 func TestTaoPKCE(t *testing.T) {
@@ -1047,6 +1050,25 @@ func (f *fakeTaoUserProvider) GetUser(ctx context.Context, userID string) (maps.
 func (f *fakeTaoUserProvider) GetUserForAuth(ctx context.Context, identifier, identifierType string) (maps.MapStrAny, error) {
 	return f.authUser, f.authErr
 }
+
+func (f *fakeTaoUserProvider) GetTeam(ctx context.Context, teamID string) (maps.MapStrAny, error) {
+	if f.teamErr != nil {
+		return nil, f.teamErr
+	}
+	team, ok := f.teams[teamID]
+	if !ok {
+		return nil, errors.New("team not found")
+	}
+	return team, nil
+}
+
+func (f *fakeTaoUserProvider) UpdateUser(ctx context.Context, userID string, data maps.MapStrAny) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+	f.updated = data
+	return nil
+}
 func (f *fakeTaoUserProvider) UpdateOAuthAccount(ctx context.Context, provider, subject string, data maps.MapStrAny) error {
 	if f.authUser == nil {
 		f.authUser = maps.MapStrAny{}
@@ -1093,6 +1115,8 @@ func TestTaoLogoutBranches(t *testing.T) {
 func TestTaoManagedKeyBranches(t *testing.T) {
 	oldProviders := providers["tao"]
 	t.Cleanup(func() { providers["tao"] = oldProviders })
+	t.Setenv("TAO_OAUTH_CLIENT_ID", "cid")
+	t.Setenv("TAO_OAUTH_CLIENT_SECRET", "secret")
 	installFakeTaoProvider(t, &fakeTaoUserProvider{authUser: maps.MapStrAny{"tao_api_key": "sk-tao-existing"}}, nil)
 	require.NoError(t, taoEnsureManagedKey(context.Background(), "u", "at"))
 
@@ -1122,6 +1146,30 @@ func TestTaoManagedKeyBranches(t *testing.T) {
 			require.Error(t, taoEnsureManagedKey(context.Background(), "u", "at"))
 		})
 	}
+}
+
+func TestTaoManagedKeyRotatesWhenLocalPlaintextMissing(t *testing.T) {
+	oldProviders := providers["tao"]
+	t.Cleanup(func() { providers["tao"] = oldProviders })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/keys":
+			_, _ = w.Write([]byte(`{"item":{"id":"old"},"created":false}`))
+		case "/api/v1/keys/managed/rotate":
+			_, _ = w.Write([]byte(`{"key":"sk-tao-rotated","created":true,"rotated_from":"old"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	providers["tao"] = &Provider{ID: "tao", Issuer: srv.URL}
+	fake := &fakeTaoUserProvider{authUser: maps.MapStrAny{"tao_api_key": ""}}
+	installFakeTaoProvider(t, fake, nil)
+
+	require.NoError(t, taoEnsureManagedKey(context.Background(), "u", "at"))
+	require.Equal(t, "sk-tao-rotated", fake.updated["tao_api_key"])
 }
 
 func TestTaoGateProviderBranches(t *testing.T) {

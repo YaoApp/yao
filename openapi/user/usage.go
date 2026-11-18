@@ -9,28 +9,22 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/response"
 	"github.com/yaoapp/yao/openapi/utils"
 )
 
 // UsageResponse is the stable account-menu contract for the current user.
-// remaining is null when Tao cannot report the balance; callers must treat
-// balance_available=false as unknown, not as zero.
+// A successful response always contains the real Tao account balance.
 type UsageResponse struct {
-	Plan             string `json:"plan"`
-	PlanName         string `json:"plan_name,omitempty"`
-	Remaining        *int64 `json:"remaining"`
-	Unit             string `json:"unit"`
-	BalanceAvailable bool   `json:"balance_available"`
+	Plan      string `json:"plan"`
+	PlanName  string `json:"plan_name,omitempty"`
+	Remaining int64  `json:"remaining"`
+	Unit      string `json:"unit"`
 }
 
-type taoKeyBalanceResponse struct {
-	Object           string `json:"object"`
-	Valid            bool   `json:"valid"`
-	Balance          *int64 `json:"balance"`
-	BalanceAvailable bool   `json:"balance_available"`
+type taoAccountBalanceResponse struct {
+	Balance *int64 `json:"balance"`
 }
 
 // GinUsage returns the current user's plan and Tao account balance.
@@ -44,7 +38,28 @@ func GinUsage(c *gin.Context) {
 		return
 	}
 
-	provider, err := getUserProvider()
+	if !TaoConfigured() {
+		response.RespondWithError(c, http.StatusServiceUnavailable, &response.ErrorResponse{
+			Code:             "tao_not_configured",
+			ErrorDescription: "Tao OAuth is not configured",
+		})
+		return
+	}
+
+	identity, err := ResolveTaoBillingIdentity(c.Request.Context(), authInfo)
+	if err != nil {
+		respondTaoBillingError(c, err)
+		return
+	}
+	if identity.Mode == TaoBillingKeyModeOwner && !identity.IsOwner {
+		response.RespondWithError(c, http.StatusForbidden, &response.ErrorResponse{
+			Code:             "owner_balance_hidden",
+			ErrorDescription: "Owner balance is only visible to the team owner",
+		})
+		return
+	}
+
+	provider, err := taoGetUserProvider()
 	if err != nil {
 		response.RespondWithError(c, http.StatusInternalServerError, &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
@@ -53,142 +68,81 @@ func GinUsage(c *gin.Context) {
 		return
 	}
 
-	user, err := provider.GetUser(c.Request.Context(), authInfo.UserID)
+	user, err := provider.GetUser(c.Request.Context(), identity.UserID)
 	if err != nil {
 		response.RespondWithError(c, http.StatusInternalServerError, &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: "Failed to retrieve usage",
+		})
+		return
+	}
+
+	balance, err := fetchTaoAccountBalance(c.Request.Context(), identity.UserID)
+	if err != nil {
+		response.RespondWithError(c, http.StatusBadGateway, &response.ErrorResponse{
+			Code:             "tao_balance_unavailable",
+			ErrorDescription: "Failed to retrieve Tao account balance",
+			Reason:           err.Error(),
 		})
 		return
 	}
 
 	result := UsageResponse{
-		Plan: utils.ToString(user["type_id"]),
-		Unit: "credits",
+		Plan:      utils.ToString(user["type_id"]),
+		PlanName:  utils.ToString(user["type_id"]),
+		Remaining: balance,
+		Unit:      "credits",
 	}
 	if result.Plan == "" {
 		result.Plan = "free"
 	}
-	result.PlanName = result.Plan
-
-	apiKey := utils.ToString(user["tao_api_key"])
-	if apiKey == "" {
-		// GetUser is the public profile shape and may not include the managed
-		// Tao key; the auth shape does.
-		if authUser, authErr := provider.GetUserForAuth(c.Request.Context(), authInfo.UserID, "user_id"); authErr == nil {
-			apiKey = utils.ToString(authUser["tao_api_key"])
-		}
-	}
-	if TaoConfigured() {
-		var balance *int64
-		var available bool
-		var balanceErr error
-		if apiKey != "" {
-			balance, available, balanceErr = fetchTaoKeyBalance(c.Request.Context(), apiKey)
-		}
-		if balance == nil || !available || balanceErr != nil {
-			// Older Tao users may have a managed key that is no longer stored
-			// locally (Tao only returns plaintext once). Use their OAuth account
-			// balance instead, which does not require a key.
-			accountBalance, accountAvailable, accountErr := fetchTaoAccountBalance(c.Request.Context(), authInfo.UserID)
-			if accountErr != nil {
-				log.Warn("Failed to fetch Tao account balance: %v", accountErr)
-			} else if accountAvailable {
-				balance = accountBalance
-				available = accountAvailable
-				balanceErr = nil
-			}
-		}
-		if balanceErr != nil {
-			log.Warn("Failed to fetch Tao balance: %v", balanceErr)
-		}
-		result.BalanceAvailable = available
-		result.Remaining = balance
+	if result.PlanName == "" {
+		result.PlanName = result.Plan
 	}
 
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
-func fetchTaoKeyBalance(ctx context.Context, apiKey string) (*int64, bool, error) {
-	provider, err := taoProvider()
-	if err != nil {
-		return nil, false, err
-	}
-	baseURL := strings.TrimRight(provider.Issuer, "/")
-	if baseURL == "" {
-		return nil, false, fmt.Errorf("tao API base URL is not configured")
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/v1/key", nil)
-	if err != nil {
-		return nil, false, err
-	}
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
-	if err != nil {
-		return nil, false, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, false, fmt.Errorf("tao key endpoint returned %d", resp.StatusCode)
-	}
-
-	var body taoKeyBalanceResponse
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, false, err
-	}
-	if !body.BalanceAvailable || body.Balance == nil {
-		return nil, false, nil
-	}
-	return body.Balance, true, nil
-}
-
-type taoAccountBalanceResponse struct {
-	Balance *int64 `json:"balance"`
-}
-
-// fetchTaoAccountBalance reads the account-level Ding balance through Tao's
-// OAuth bridge. It is used when the user's managed Tao key cannot be recovered
-// or was created before Yao started persisting the plaintext.
-func fetchTaoAccountBalance(ctx context.Context, userID string) (*int64, bool, error) {
+// fetchTaoAccountBalance reads the account-level balance through Tao's OAuth
+// bridge. It is the only source for account usage; it does not use an sk-tao
+// service key.
+func fetchTaoAccountBalance(ctx context.Context, userID string) (int64, error) {
 	token, err := taoRefreshUserToken(ctx, userID)
 	if err != nil {
-		return nil, false, err
+		return 0, err
 	}
 	if token == nil || token.AccessToken == "" {
-		return nil, false, fmt.Errorf("tao access token is empty")
+		return 0, fmt.Errorf("tao access token is empty")
 	}
 	return fetchTaoAccountBalanceWithToken(ctx, token.AccessToken)
 }
 
-func fetchTaoAccountBalanceWithToken(ctx context.Context, accessToken string) (*int64, bool, error) {
+func fetchTaoAccountBalanceWithToken(ctx context.Context, accessToken string) (int64, error) {
 	provider, err := taoProvider()
 	if err != nil {
-		return nil, false, err
+		return 0, err
 	}
 	endpoint := strings.TrimRight(provider.Issuer, "/") + "/api/v1/users/me/balance"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return nil, false, err
+		return 0, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Accept", "application/json")
 	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
 	if err != nil {
-		return nil, false, err
+		return 0, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, false, fmt.Errorf("tao account balance endpoint returned %d", resp.StatusCode)
+		return 0, fmt.Errorf("tao account balance endpoint returned %d", resp.StatusCode)
 	}
 	var body taoAccountBalanceResponse
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, false, err
+		return 0, err
 	}
 	if body.Balance == nil {
-		return nil, false, nil
+		return 0, fmt.Errorf("tao account balance is unavailable")
 	}
-	return body.Balance, true, nil
+	return *body.Balance, nil
 }
