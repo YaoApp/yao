@@ -1372,3 +1372,60 @@ func TestTaoReturnURL(t *testing.T) {
 	require.Empty(t, taoReturnURL(ctx("return_to="+url.QueryEscape("//evil.example/v1/oauth/authorize"))))
 	require.Empty(t, taoReturnURL(ctx("")))
 }
+
+func TestTaoLoginHandoffBranches(t *testing.T) {
+	testTaoCache(t)
+	_, err := saveTaoLoginHandoff("", "rt", "sid")
+	require.Error(t, err)
+	if _, ok := ConsumeTaoLoginHandoff(""); ok {
+		t.Fatal("empty handoff id must not resolve")
+	}
+	if _, ok := ConsumeTaoLoginHandoff("missing"); ok {
+		t.Fatal("missing handoff id must not resolve")
+	}
+	id, err := saveTaoLoginHandoff("access", "refresh", "session")
+	require.NoError(t, err)
+	require.NotEmpty(t, id)
+	handoff, ok := ConsumeTaoLoginHandoff(id)
+	require.True(t, ok)
+	require.Equal(t, "access", handoff.AccessToken)
+	require.Equal(t, "refresh", handoff.RefreshToken)
+	require.Equal(t, "session", handoff.SessionID)
+	if _, ok := ConsumeTaoLoginHandoff(id); ok {
+		t.Fatal("handoff must be one-time")
+	}
+
+	if err := taoCache().Set(taoHandoffKey("bad-json"), "not-json", taoHandoffTTL); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := ConsumeTaoLoginHandoff("bad-json"); ok {
+		t.Fatal("malformed handoff must not resolve")
+	}
+	if err := taoCache().Set(taoHandoffKey("empty-access"), `{"access_token":""}`, taoHandoffTTL); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := ConsumeTaoLoginHandoff("empty-access"); ok {
+		t.Fatal("empty access handoff must not resolve")
+	}
+
+	oldCache := taoCache
+	taoCache = func() store.Store { return nil }
+	_, err = saveTaoLoginHandoff("access", "refresh", "session")
+	require.Error(t, err)
+	if _, ok := ConsumeTaoLoginHandoff("missing"); ok {
+		t.Fatal("handoff must not resolve without cache")
+	}
+	taoCache = oldCache
+
+	if err := taoCache().Set(taoHandoffKey("non-string"), 123, taoHandoffTTL); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := ConsumeTaoLoginHandoff("non-string"); ok {
+		t.Fatal("non-string handoff must not resolve")
+	}
+}
+
+func TestTaoAppendQueryBranches(t *testing.T) {
+	require.Equal(t, "https://example.test/cb?a=b&x=1", taoAppendQuery("https://example.test/cb?x=1", "a", "b"))
+	require.Equal(t, "://bad", taoAppendQuery("://bad", "a", "b"))
+}
