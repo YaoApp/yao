@@ -112,6 +112,16 @@ func (acl *ACL) enforce(ctx context.Context, authInfo *types.AuthorizedInfo, req
 		log.Trace("[ACL] Step 2: Token scope is empty, skipping scope check")
 	}
 
+	// Team-selection endpoints are intentionally usable before/while a team is
+	// selected. Their token scope already proved access in Step 2; applying the
+	// selected team's role scopes here would reject list/profile/select calls
+	// with a team claim (the consent page needs these endpoints to choose a
+	// team).
+	if authInfo.TeamID != "" && hasTeamSelectionScope(authInfo.Scope) && isTeamSelectionEndpoint(request) {
+		log.Trace("[ACL] Team-selection endpoint, skipping team/member enforcement: method=%s path=%s", request.Method, request.Path)
+		return true, matchedEndpoint, nil
+	}
+
 	// Step 3: Check team or user permissions
 	// 3.1: If TeamID is present, this is a team login
 	if authInfo.TeamID != "" {
@@ -687,4 +697,27 @@ func (acl *ACL) enforceMember(ctx context.Context, authInfo *types.AuthorizedInf
 		log.Trace("[ACL] Step 3.1.2: enforceMember - Success, no endpoint info")
 	}
 	return true, endpointInfo, nil
+}
+
+func hasTeamSelectionScope(scope string) bool {
+	for _, value := range strings.Split(scope, " ") {
+		if value == "builtin:teams:selection" {
+			return true
+		}
+	}
+	return false
+}
+
+func isTeamSelectionEndpoint(request *AccessRequest) bool {
+	if request == nil {
+		return false
+	}
+	switch request.Method + " " + request.Path {
+	case "GET /user/profile",
+		"GET /user/teams",
+		"GET /user/teams/config",
+		"POST /user/teams/select":
+		return true
+	}
+	return false
 }

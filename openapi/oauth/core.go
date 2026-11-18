@@ -30,7 +30,17 @@ func (s *Service) Authorize(ctx context.Context, request *types.AuthorizationReq
 	// Generate authorization code with authorization information.
 	// Subject and identity metadata are resolved by the authorize endpoint from
 	// the Yao session; they are empty when Authorize is called directly.
-	authCode, err := s.generateAuthorizationCode(
+	extraClaims := map[string]interface{}{}
+	if request.TeamID != "" {
+		extraClaims["team_id"] = request.TeamID
+	}
+	if request.TenantID != "" {
+		extraClaims["tenant_id"] = request.TenantID
+	}
+	if len(extraClaims) == 0 {
+		extraClaims = nil
+	}
+	authCode, err := s.generateAuthorizationCodeWithExtra(
 		request.ClientID,
 		request.State,
 		request.Scope,               // Store the requested scope for validation
@@ -39,6 +49,7 @@ func (s *Service) Authorize(ctx context.Context, request *types.AuthorizationReq
 		request.Subject,             // Opaque OAuth subject resolved from the Yao session
 		request.AuthSource,          // auth_source claim (tao | password)
 		request.IdentitySource,      // user.identity_source (tao | local)
+		extraClaims,
 	)
 	if err != nil {
 		return &types.AuthorizationResponse{
@@ -70,12 +81,18 @@ func (s *Service) ValidateAuthorizationRequest(ctx context.Context, request *typ
 	}
 
 	// Validate client
-	_, err := s.clientProvider.GetClientByID(ctx, request.ClientID)
+	client, err := s.clientProvider.GetClientByID(ctx, request.ClientID)
 	if err != nil {
 		return &types.AuthorizationResponse{
 			Error:            types.ErrorInvalidClient,
 			ErrorDescription: "Invalid client",
 		}
+	}
+	// RFC 6749 allows the server to use a default scope when the client
+	// omits it. Use the scope registered on the client so a pre-registered
+	// desktop public client does not need to duplicate the list in its UI.
+	if request.Scope == "" && client != nil {
+		request.Scope = client.Scope
 	}
 
 	// Validate redirect URI
@@ -460,8 +477,8 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 	}
 
 	// Carry the identity metadata recorded on the authorization code into the
-	// issued tokens. Only auth_source/identity_source are propagated here:
-	// Team/Tenant claims are intentionally not part of OAuth identity.
+	// issued tokens. Team/Tenant claims are propagated so profile/team context
+	// selected during authorization is available on the token.
 	extraClaims := authorizationCodeIdentityClaims(codeInfo)
 
 	// Generate and store access token with proper scope and subject
@@ -478,6 +495,18 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
 		ExpiresIn:   expiresIn,
+	}
+	if s.userProvider != nil && strings.Contains(" "+scope+" ", " openid ") && subject != "" {
+		if userID, idErr := s.UserID(client.ClientID, subject); idErr == nil {
+			if user, userErr := s.userProvider.GetUser(ctx, userID); userErr == nil && user != nil {
+				userInfo := types.MakeOIDCUserInfo(user)
+				userInfo.Sub = subject
+				userInfo.YaoUserID = userID
+				if idToken, signErr := s.SignIDToken(client.ClientID, scope, expiresIn, userInfo); signErr == nil {
+					token.IDToken = idToken
+				}
+			}
+		}
 	}
 
 	// Generate refresh token if supported
@@ -744,7 +773,7 @@ func authorizationCodeIdentityClaims(codeInfo map[string]interface{}) map[string
 	}
 
 	var claims map[string]interface{}
-	for _, key := range []string{types.ClaimAuthSource, types.ClaimIdentitySource} {
+	for _, key := range []string{types.ClaimAuthSource, types.ClaimIdentitySource, "team_id", "tenant_id"} {
 		value, ok := codeInfo[key].(string)
 		if !ok || value == "" {
 			continue

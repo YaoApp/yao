@@ -243,6 +243,7 @@ const (
 // Token represents an OAuth 2.1 access token
 type Token struct {
 	AccessToken  string    `json:"access_token"`
+	IDToken      string    `json:"id_token,omitempty"`
 	TokenType    string    `json:"token_type"`
 	ExpiresIn    int       `json:"expires_in"`
 	RefreshToken string    `json:"refresh_token,omitempty"`
@@ -326,6 +327,8 @@ type AuthorizationServerMetadata struct {
 	UserinfoEndpoint                           string   `json:"userinfo_endpoint,omitempty"`
 	PushedAuthorizationRequestEndpoint         string   `json:"pushed_authorization_request_endpoint,omitempty"`
 	RequirePushedAuthorizationRequests         bool     `json:"require_pushed_authorization_requests,omitempty"`
+	PromptValuesSupported                      []string `json:"prompt_values_supported,omitempty"`
+	EndSessionEndpoint                         string   `json:"end_session_endpoint,omitempty"`
 	DPoPSigningAlgValuesSupported              []string `json:"dpop_signing_alg_values_supported,omitempty"`
 }
 
@@ -364,6 +367,10 @@ type PushedAuthorizationRequest struct {
 	CodeChallenge       string `json:"code_challenge,omitempty"`
 	CodeChallengeMethod string `json:"code_challenge_method,omitempty"`
 	Resource            string `json:"resource,omitempty"`
+	Prompt              string `json:"prompt,omitempty"`
+	LoginHint           string `json:"login_hint,omitempty"`
+	MaxAge              string `json:"max_age,omitempty"`
+	TeamID              string `json:"team_id,omitempty"`
 	RequestURI          string `json:"request_uri,omitempty"`
 	Request             string `json:"request,omitempty"`
 }
@@ -482,11 +489,18 @@ type AuthorizationRequest struct {
 	CodeChallengeMethod string `json:"code_challenge_method,omitempty"`
 	Resource            string `json:"resource,omitempty"`
 	Nonce               string `json:"nonce,omitempty"`
+	RequestURI          string `json:"request_uri,omitempty"`
+	Prompt              string `json:"prompt,omitempty"`
+	LoginHint           string `json:"login_hint,omitempty"`
+	MaxAge              string `json:"max_age,omitempty"`
+	TeamID              string `json:"team_id,omitempty"`
+	TenantID            string `json:"-"`
 
 	// Server-resolved identity of the logged-in Yao user. These fields are
 	// never accepted from client input (json:"-"), they are filled in by the
 	// authorize endpoint after resolving the Yao session.
 	Subject        string `json:"-"`
+	UserID         string `json:"-"` // resolved Yao user ID
 	AuthSource     string `json:"-"` // auth_source claim (tao | password)
 	IdentitySource string `json:"-"` // user.identity_source (tao | local)
 }

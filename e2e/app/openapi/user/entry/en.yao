@@ -1,5 +1,6 @@
 {
   "title": "Yao Agents E2E",
+  "consent_url": "/app/consent",
   "description": "Sign in to continue",
   "default": true,
   "form": {

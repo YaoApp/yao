@@ -673,6 +673,10 @@ func TestValidateRedirectURIForRegistration(t *testing.T) {
 		err = service.validateRedirectURIForRegistration("https://127.0.0.1/callback")
 		assert.NoError(t, err)
 
+		// A loopback URI with an explicit port is the native desktop pattern.
+		err = service.validateRedirectURIForRegistration("http://127.0.0.1:49152/callback")
+		assert.NoError(t, err)
+
 		// Other hosts should be rejected
 		err = service.validateRedirectURIForRegistration("https://example.com/callback")
 		assert.Error(t, err)

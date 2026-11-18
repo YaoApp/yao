@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -390,7 +391,7 @@ func (c *DefaultClient) ValidateRedirectURI(ctx context.Context, clientID string
 	result := &types.ValidationResult{Valid: false}
 
 	for _, uri := range client.RedirectURIs {
-		if uri == redirectURI {
+		if redirectURIsMatch(uri, redirectURI) {
 			result.Valid = true
 			break
 		}
@@ -615,4 +616,36 @@ func (c *DefaultClient) matchesFilters(client *types.ClientInfo, filters map[str
 	}
 
 	return true
+}
+
+// redirectURIsMatch compares a registered redirect URI with a requested one.
+// Loopback HTTP redirects (RFC 8252 §7.3) ignore the port so native desktop
+// clients can bind an ephemeral local port. All other redirects stay exact.
+func redirectURIsMatch(registered, requested string) bool {
+	if registered == requested {
+		return true
+	}
+	reg, err := url.Parse(registered)
+	if err != nil {
+		return false
+	}
+	req, err := url.Parse(requested)
+	if err != nil {
+		return false
+	}
+	if reg.Scheme != "http" || req.Scheme != "http" {
+		return false
+	}
+	if reg.Path != req.Path || !strings.EqualFold(reg.Hostname(), req.Hostname()) {
+		return false
+	}
+	return isLoopbackHost(reg.Hostname()) && isLoopbackHost(req.Hostname())
+}
+
+func isLoopbackHost(host string) bool {
+	switch strings.ToLower(host) {
+	case "127.0.0.1", "::1", "localhost":
+		return true
+	}
+	return false
 }

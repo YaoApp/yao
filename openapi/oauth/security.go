@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -227,6 +228,78 @@ func (s *Service) PushAuthorizationRequest(ctx context.Context, request *types.P
 	return response, nil
 }
 
+// GetPushedAuthorizationRequest retrieves a PAR record without consuming it.
+// The authorize endpoint may pass through Yao's login page before issuing a
+// code, so the record must remain available until authorization succeeds.
+func (s *Service) GetPushedAuthorizationRequest(ctx context.Context, requestURI string) (*types.PushedAuthorizationRequest, error) {
+	if strings.TrimSpace(requestURI) == "" {
+		return nil, &types.ErrorResponse{Code: types.ErrorInvalidRequest, ErrorDescription: "request_uri is required"}
+	}
+	key := s.pushedAuthRequestKey(requestURI)
+	var data interface{}
+	var ok bool
+	if s.cache != nil {
+		data, ok = s.cache.Get(key)
+	}
+	if !ok {
+		data, ok = s.store.Get(key)
+	}
+	if !ok {
+		return nil, &types.ErrorResponse{Code: types.ErrorInvalidRequest, ErrorDescription: "Invalid or expired request_uri"}
+	}
+
+	switch value := data.(type) {
+	case *types.PushedAuthorizationRequest:
+		return value, nil
+	case types.PushedAuthorizationRequest:
+		return &value, nil
+	case map[string]interface{}:
+		request := &types.PushedAuthorizationRequest{}
+		if v, ok := value["client_id"].(string); ok {
+			request.ClientID = v
+		}
+		if v, ok := value["response_type"].(string); ok {
+			request.ResponseType = v
+		}
+		if v, ok := value["redirect_uri"].(string); ok {
+			request.RedirectURI = v
+		}
+		if v, ok := value["scope"].(string); ok {
+			request.Scope = v
+		}
+		if v, ok := value["state"].(string); ok {
+			request.State = v
+		}
+		if v, ok := value["code_challenge"].(string); ok {
+			request.CodeChallenge = v
+		}
+		if v, ok := value["code_challenge_method"].(string); ok {
+			request.CodeChallengeMethod = v
+		}
+		if v, ok := value["resource"].(string); ok {
+			request.Resource = v
+		}
+		return request, nil
+	default:
+		return nil, &types.ErrorResponse{Code: types.ErrorServerError, ErrorDescription: "Invalid request_uri data"}
+	}
+}
+
+// ConsumePushedAuthorizationRequest retrieves a PAR record and deletes it so
+// the request_uri cannot be replayed after a successful authorization.
+func (s *Service) ConsumePushedAuthorizationRequest(ctx context.Context, requestURI string) (*types.PushedAuthorizationRequest, error) {
+	request, err := s.GetPushedAuthorizationRequest(ctx, requestURI)
+	if err != nil {
+		return nil, err
+	}
+	key := s.pushedAuthRequestKey(requestURI)
+	if s.cache != nil {
+		s.cache.Del(key)
+	}
+	_ = s.store.Del(key)
+	return request, nil
+}
+
 // Helper methods
 
 // stateParameterKey generates a key for state parameter storage
@@ -245,4 +318,77 @@ func (s *Service) generateRequestURI() string {
 	rand.Read(bytes)
 	return fmt.Sprintf("urn:ietf:params:oauth:request_uri:%s",
 		base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(bytes))
+}
+
+const consentTokenTTL = 10 * time.Minute
+
+// ConsentRecord is the server-side state bound to a consent form token.
+type ConsentRecord struct {
+	Request        *types.AuthorizationRequest `json:"request"`
+	UserID         string                      `json:"user_id"`
+	Subject        string                      `json:"subject"`
+	AuthSource     string                      `json:"auth_source,omitempty"`
+	IdentitySource string                      `json:"identity_source,omitempty"`
+}
+
+func (s *Service) consentTokenKey(token string) string {
+	return fmt.Sprintf("%soauth:consent:%s", s.prefix, s.hashKey(token))
+}
+
+// CreateConsentToken stores an authorization request for the consent page and
+// returns a one-time CSRF token. The request must be confirmed by POSTing it
+// back to the authorize endpoint.
+func (s *Service) CreateConsentToken(ctx context.Context, record *ConsentRecord) (string, error) {
+	if record == nil || record.Request == nil || record.UserID == "" {
+		return "", fmt.Errorf("invalid consent record")
+	}
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	token := base64.RawURLEncoding.EncodeToString(raw)
+	data, err := json.Marshal(record)
+	if err != nil {
+		return "", err
+	}
+	key := s.consentTokenKey(token)
+	if s.cache != nil {
+		_ = s.cache.Set(key, string(data), consentTokenTTL)
+	}
+	if err := s.store.Set(key, string(data), consentTokenTTL); err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+// ConsumeConsentToken retrieves and deletes a consent form token.
+func (s *Service) ConsumeConsentToken(ctx context.Context, token string) (*ConsentRecord, error) {
+	if strings.TrimSpace(token) == "" {
+		return nil, &types.ErrorResponse{Code: types.ErrorInvalidRequest, ErrorDescription: "consent_token is required"}
+	}
+	key := s.consentTokenKey(token)
+	var raw interface{}
+	var ok bool
+	if s.cache != nil {
+		raw, ok = s.cache.Get(key)
+	}
+	if !ok {
+		raw, ok = s.store.Get(key)
+	}
+	if !ok {
+		return nil, &types.ErrorResponse{Code: types.ErrorInvalidRequest, ErrorDescription: "Invalid or expired consent token"}
+	}
+	if s.cache != nil {
+		s.cache.Del(key)
+	}
+	_ = s.store.Del(key)
+	text, ok := raw.(string)
+	if !ok {
+		return nil, &types.ErrorResponse{Code: types.ErrorInvalidRequest, ErrorDescription: "Invalid or expired consent token"}
+	}
+	var record ConsentRecord
+	if err := json.Unmarshal([]byte(text), &record); err != nil || record.Request == nil || record.UserID == "" {
+		return nil, &types.ErrorResponse{Code: types.ErrorInvalidRequest, ErrorDescription: "Invalid or expired consent token"}
+	}
+	return &record, nil
 }

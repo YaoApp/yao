@@ -66,6 +66,7 @@ func (s *Service) Endpoints(ctx context.Context) (map[string]string, error) {
 		"revocation_endpoint":                   fmt.Sprintf("%s/oauth/revoke", baseURL),
 		"device_authorization_endpoint":         fmt.Sprintf("%s/oauth/device_authorization", baseURL),
 		"pushed_authorization_request_endpoint": fmt.Sprintf("%s/oauth/par", baseURL),
+		"end_session_endpoint":                  fmt.Sprintf("%s/oauth/logout", baseURL),
 	}
 
 	return endpoints, nil
@@ -90,7 +91,7 @@ func (s *Service) GetServerMetadata(ctx context.Context) (*types.AuthorizationSe
 		ResponseTypesSupported:            []string{"code"},
 		ResponseModesSupported:            []string{"query", "fragment", "form_post"},
 		GrantTypesSupported:               []string{"authorization_code", "client_credentials", "refresh_token"},
-		TokenEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post", "client_secret_jwt", "private_key_jwt"},
+		TokenEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post", "client_secret_jwt", "private_key_jwt", "none"},
 		TokenEndpointAuthSigningAlgValuesSupported: []string{"RS256", "HS256"},
 		ServiceDocumentation:                       fmt.Sprintf("%s/docs", s.config.IssuerURL),
 		UILocalesSupported:                         []string{"en-US", "en-GB", "en-CA", "fr-FR", "fr-CA"},
@@ -104,6 +105,8 @@ func (s *Service) GetServerMetadata(ctx context.Context) (*types.AuthorizationSe
 		DeviceAuthorizationEndpoint:                endpoints["device_authorization_endpoint"],
 		PushedAuthorizationRequestEndpoint:         endpoints["pushed_authorization_request_endpoint"],
 		RequirePushedAuthorizationRequests:         false,
+		PromptValuesSupported:                      []string{"none", "consent", "login", "select_account"},
+		EndSessionEndpoint:                         endpoints["end_session_endpoint"],
 		DPoPSigningAlgValuesSupported:              []string{"RS256", "PS256", "ES256"},
 	}
 
@@ -122,8 +125,11 @@ func (s *Service) GetServerMetadata(ctx context.Context) (*types.AuthorizationSe
 	}
 
 	if s.config.Features.PushedAuthorizationEnabled {
+		// PAR is available as an optional hardened flow. The authorize
+		// endpoint still accepts direct parameters, so do not advertise it as
+		// mandatory until enforcement is implemented.
 		metadata.PushedAuthorizationRequestEndpoint = endpoints["pushed_authorization_request_endpoint"]
-		metadata.RequirePushedAuthorizationRequests = true
+		metadata.RequirePushedAuthorizationRequests = false
 	}
 
 	if s.config.Features.DynamicClientRegistrationEnabled {

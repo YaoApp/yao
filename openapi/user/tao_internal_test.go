@@ -1355,3 +1355,20 @@ func TestTaoTxnSessionMatches(t *testing.T) {
 	require.False(t, taoTxnSessionMatches(newCtx("other"), &taoLoginTxn{SID: "sid"}))
 	require.True(t, taoTxnSessionMatches(newCtx(""), &taoLoginTxn{}))
 }
+
+func TestTaoReturnURL(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx := func(query string) *gin.Context {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodGet, "http://yao.example/v1/user/oauth/tao/authorize?"+query, nil)
+		return c
+	}
+	t.Setenv("YAO_SERVER_URL", "")
+	require.Equal(t, "http://yao.example/v1/oauth/authorize?client_id=abc", taoReturnURL(ctx("return_to="+url.QueryEscape("http://yao.example/v1/oauth/authorize?client_id=abc"))))
+	require.Equal(t, "/v1/oauth/authorize?client_id=abc", taoReturnURL(ctx("return_to="+url.QueryEscape("/v1/oauth/authorize?client_id=abc"))))
+	require.Empty(t, taoReturnURL(ctx("return_to="+url.QueryEscape("https://evil.example/v1/oauth/authorize"))))
+	require.Empty(t, taoReturnURL(ctx("return_to="+url.QueryEscape("http://yao.example/auth/entry"))))
+	require.Empty(t, taoReturnURL(ctx("return_to="+url.QueryEscape("//evil.example/v1/oauth/authorize"))))
+	require.Empty(t, taoReturnURL(ctx("")))
+}

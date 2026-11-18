@@ -5,6 +5,7 @@ package user_test
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -185,7 +186,8 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	resp, body, err = httpClient.Get("/.well-known/openid-configuration")
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode, string(body))
-	require.NotContains(t, string(body), "end_session_endpoint")
+	require.Contains(t, string(body), "end_session_endpoint")
+	require.Contains(t, string(body), "prompt_values_supported")
 	require.Contains(t, string(body), "authorization_endpoint")
 
 	// First-party preset client: PKCE authorize without a session goes to login.
@@ -308,6 +310,305 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	require.Contains(t, resp.Header.Get("Location"), "server_error")
 	fake.badToken = false
 
+	// prompt=login must be forwarded to Tao so Tao can force reauthentication;
+	// login_hint / max_age are forwarded too.
+	reauthClient := &http.Client{
+		Timeout:       20 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	reauthURL := environment.BaseURL + "/v1/oauth/authorize?client_id=yao_e2e_desktop_tao" +
+		"&redirect_uri=" + url.QueryEscape("http://127.0.0.1:49152/callback") +
+		"&response_type=code&state=reauth-state&prompt=login" +
+		"&login_hint=" + url.QueryEscape("another@example.com") + "&max_age=0" +
+		"&code_challenge=reauth&code_challenge_method=S256"
+	reauthResp, reauthErr := reauthClient.Get(reauthURL)
+	require.NoError(t, reauthErr)
+	_ = reauthResp.Body.Close()
+	require.Equal(t, http.StatusFound, reauthResp.StatusCode)
+	taoStartURL := reauthResp.Header.Get("Location")
+	require.Contains(t, taoStartURL, "/v1/user/oauth/tao/authorize")
+
+	taoResp, taoErr := reauthClient.Get(environment.BaseURL + taoStartURL)
+	require.NoError(t, taoErr)
+	_ = taoResp.Body.Close()
+	require.Equal(t, http.StatusFound, taoResp.StatusCode)
+	taoParsedURL, taoParseErr := url.Parse(taoResp.Header.Get("Location"))
+	require.NoError(t, taoParseErr)
+	require.Equal(t, "login", taoParsedURL.Query().Get("prompt"))
+	require.Equal(t, "another@example.com", taoParsedURL.Query().Get("login_hint"))
+	require.Equal(t, "0", taoParsedURL.Query().Get("max_age"))
+
+	// RFC 8252 loopback ignores the port, and the celadon custom scheme is
+	// accepted by the registered mobile client.
+	noRedirectProbe := &http.Client{
+		Timeout:       20 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	loopbackProbe := environment.BaseURL + "/v1/oauth/authorize?client_id=yao_e2e_desktop_tao" +
+		"&redirect_uri=" + url.QueryEscape("http://127.0.0.1:52341/callback") +
+		"&response_type=code&state=loopback-probe&code_challenge=probe&code_challenge_method=S256"
+	loopbackProbeResp, loopbackProbeErr := noRedirectProbe.Get(loopbackProbe)
+	require.NoError(t, loopbackProbeErr)
+	_ = loopbackProbeResp.Body.Close()
+	require.Equal(t, http.StatusFound, loopbackProbeResp.StatusCode)
+
+	customSchemeProbe := environment.BaseURL + "/v1/oauth/authorize?client_id=yao_e2e_mobile_client_0123456789" +
+		"&redirect_uri=" + url.QueryEscape("celadon://callback") +
+		"&response_type=code&state=scheme-probe&code_challenge=probe&code_challenge_method=S256"
+	customSchemeResp, customSchemeErr := noRedirectProbe.Get(customSchemeProbe)
+	require.NoError(t, customSchemeErr)
+	_ = customSchemeResp.Body.Close()
+	require.Equal(t, http.StatusFound, customSchemeResp.StatusCode)
+
+	// Tao-only native flow: no login page, cookie-less handoff.
+	nativeNoRedirect := &http.Client{
+		Timeout:       20 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	nativeVerifier := "test-verifier"
+	nativeSum := sha256.Sum256([]byte(nativeVerifier))
+	nativeChallenge := base64.RawURLEncoding.EncodeToString(nativeSum[:])
+	nativeAuthorizeURL := environment.BaseURL + "/v1/oauth/authorize?client_id=yao_e2e_desktop_tao" +
+		"&redirect_uri=" + url.QueryEscape("http://127.0.0.1:49152/callback") +
+		"&response_type=code&state=native-direct-state" +
+		"&code_challenge=" + url.QueryEscape(nativeChallenge) + "&code_challenge_method=S256"
+	nativeResp, nativeErr := nativeNoRedirect.Get(nativeAuthorizeURL)
+	require.NoError(t, nativeErr)
+	_ = nativeResp.Body.Close()
+	require.Equal(t, http.StatusFound, nativeResp.StatusCode)
+	nativeTaoLoginURL := nativeResp.Header.Get("Location")
+	require.Contains(t, nativeTaoLoginURL, "/v1/user/oauth/tao/authorize?redirect=1")
+
+	nativeResp, nativeErr = nativeNoRedirect.Get(environment.BaseURL + nativeTaoLoginURL)
+	require.NoError(t, nativeErr)
+	_ = nativeResp.Body.Close()
+	require.Equal(t, http.StatusFound, nativeResp.StatusCode)
+	nativeTaoURL := nativeResp.Header.Get("Location")
+	nativeParsed, nativeErr := url.Parse(nativeTaoURL)
+	require.NoError(t, nativeErr)
+	nativeState := nativeParsed.Query().Get("state")
+	require.NotEmpty(t, nativeState)
+	fake.nonce = nativeParsed.Query().Get("nonce")
+
+	nativeCallback := environment.BaseURL + "/v1/user/oauth/tao/callback?code=native-code&state=" + url.QueryEscape(nativeState)
+	nativeResp, nativeErr = nativeNoRedirect.Get(nativeCallback)
+	require.NoError(t, nativeErr)
+	_ = nativeResp.Body.Close()
+	require.Equal(t, http.StatusFound, nativeResp.StatusCode)
+	nativeResumeURL := nativeResp.Header.Get("Location")
+	require.Contains(t, nativeResumeURL, "login_handoff=")
+
+	// Deliberately use a cookie-less client: the server-side handoff must
+	// establish the session for this one authorize request. The request must
+	// now stop at the consent page before issuing a code.
+	nativeResp, nativeErr = nativeNoRedirect.Get(nativeResumeURL)
+	require.NoError(t, nativeErr)
+	_ = nativeResp.Body.Close()
+	require.Equal(t, http.StatusFound, nativeResp.StatusCode)
+	nativeConsentURL := nativeResp.Header.Get("Location")
+	require.Contains(t, nativeConsentURL, "/app/consent")
+	nativeParsedConsent, nativeErr := url.Parse(nativeConsentURL)
+	require.NoError(t, nativeErr)
+	nativeConsentToken := nativeParsedConsent.Query().Get("consent_token")
+	require.NotEmpty(t, nativeConsentToken)
+
+	nativeConfirmForm := url.Values{
+		"client_id":             {"yao_e2e_desktop_tao"},
+		"redirect_uri":          {"http://127.0.0.1:49152/callback"},
+		"response_type":         {"code"},
+		"state":                 {"native-direct-state"},
+		"code_challenge":        {nativeChallenge},
+		"code_challenge_method": {"S256"},
+		"consent_token":         {nativeConsentToken},
+	}
+	nativeConfirmReq, nativeErr := http.NewRequest(http.MethodPost, environment.BaseURL+"/v1/oauth/authorize", strings.NewReader(nativeConfirmForm.Encode()))
+	require.NoError(t, nativeErr)
+	nativeConfirmReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	nativeConfirmResp, nativeErr := nativeNoRedirect.Do(nativeConfirmReq)
+	require.NoError(t, nativeErr)
+	_ = nativeConfirmResp.Body.Close()
+	require.Equal(t, http.StatusFound, nativeConfirmResp.StatusCode)
+	nativeLoopback := nativeConfirmResp.Header.Get("Location")
+	require.Contains(t, nativeLoopback, "127.0.0.1:49152/callback")
+	require.Contains(t, nativeLoopback, "code=")
+	nativeParsedLoopback, nativeErr := url.Parse(nativeLoopback)
+	require.NoError(t, nativeErr)
+	nativeCode := nativeParsedLoopback.Query().Get("code")
+	require.NotEmpty(t, nativeCode)
+	require.Equal(t, "native-direct-state", nativeParsedLoopback.Query().Get("state"))
+
+	// The official desktop client scope must be applied when the authorize
+	// request omits scope, and the public client must exchange the code without
+	// a secret.
+	nativeTokenResp, nativeErr := http.PostForm(environment.BaseURL+"/v1/oauth/token", url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {nativeCode},
+		"redirect_uri":  {"http://127.0.0.1:49152/callback"},
+		"client_id":     {"yao_e2e_desktop_tao"},
+		"code_verifier": {nativeVerifier},
+	})
+	require.NoError(t, nativeErr)
+	var nativeTokenBody struct {
+		AccessToken  string `json:"access_token"`
+		IDToken      string `json:"id_token"`
+		RefreshToken string `json:"refresh_token"`
+	}
+	require.NoError(t, json.NewDecoder(nativeTokenResp.Body).Decode(&nativeTokenBody))
+	_ = nativeTokenResp.Body.Close()
+	require.Equal(t, http.StatusOK, nativeTokenResp.StatusCode)
+	require.NotEmpty(t, nativeTokenBody.AccessToken)
+	require.NotEmpty(t, nativeTokenBody.IDToken)
+	require.NotEmpty(t, nativeTokenBody.RefreshToken)
+
+	nativeProfileReq, nativeErr := http.NewRequest(http.MethodGet, environment.BaseURL+"/v1/user/profile", nil)
+	require.NoError(t, nativeErr)
+	nativeProfileReq.Header.Set("Authorization", "Bearer "+nativeTokenBody.AccessToken)
+	nativeProfileResp, nativeErr := nativeNoRedirect.Do(nativeProfileReq)
+	require.NoError(t, nativeErr)
+	nativeProfileBody, _ := io.ReadAll(nativeProfileResp.Body)
+	_ = nativeProfileResp.Body.Close()
+	require.Equal(t, http.StatusOK, nativeProfileResp.StatusCode, string(nativeProfileBody))
+
+	// Team selection through the authorize extension + consent page.
+	teamsReq, teamsErr := http.NewRequest(http.MethodGet, environment.BaseURL+"/v1/user/teams", nil)
+	require.NoError(t, teamsErr)
+	teamsReq.Header.Set("Authorization", "Bearer "+nativeTokenBody.AccessToken)
+	teamsResp, teamsErr := nativeNoRedirect.Do(teamsReq)
+	require.NoError(t, teamsErr)
+	teamsBody, _ := io.ReadAll(teamsResp.Body)
+	_ = teamsResp.Body.Close()
+	require.Equal(t, http.StatusOK, teamsResp.StatusCode, string(teamsBody))
+	var nativeTeams []map[string]interface{}
+	require.NoError(t, json.Unmarshal(teamsBody, &nativeTeams))
+	require.NotEmpty(t, nativeTeams)
+	nativeTeamID, _ := nativeTeams[0]["team_id"].(string)
+	require.NotEmpty(t, nativeTeamID)
+
+	teamVerifier := "team-verifier"
+	teamSum := sha256.Sum256([]byte(teamVerifier))
+	teamChallenge := base64.RawURLEncoding.EncodeToString(teamSum[:])
+	teamAuthorizeURL := environment.BaseURL + "/v1/oauth/authorize?client_id=yao_e2e_desktop_tao" +
+		"&redirect_uri=" + url.QueryEscape("http://127.0.0.1:49152/callback") +
+		"&response_type=code&state=team-state" +
+		"&code_challenge=" + url.QueryEscape(teamChallenge) + "&code_challenge_method=S256"
+	teamAuthResp, teamAuthErr := authClient.Get(teamAuthorizeURL)
+	require.NoError(t, teamAuthErr)
+	_ = teamAuthResp.Body.Close()
+	require.Equal(t, http.StatusFound, teamAuthResp.StatusCode)
+	teamConsentURL := teamAuthResp.Header.Get("Location")
+	require.Contains(t, teamConsentURL, "/app/consent")
+	teamParsedConsent, teamParseErr := url.Parse(teamConsentURL)
+	require.NoError(t, teamParseErr)
+	teamConsentToken := teamParsedConsent.Query().Get("consent_token")
+	require.NotEmpty(t, teamConsentToken)
+
+	teamConfirmForm := url.Values{
+		"client_id":             {"yao_e2e_desktop_tao"},
+		"redirect_uri":          {"http://127.0.0.1:49152/callback"},
+		"response_type":         {"code"},
+		"state":                 {"team-state"},
+		"team_id":               {nativeTeamID},
+		"code_challenge":        {teamChallenge},
+		"code_challenge_method": {"S256"},
+		"consent_token":         {teamConsentToken},
+	}
+	teamConfirmReq, teamConfirmErr := http.NewRequest(http.MethodPost, environment.BaseURL+"/v1/oauth/authorize", strings.NewReader(teamConfirmForm.Encode()))
+	require.NoError(t, teamConfirmErr)
+	teamConfirmReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	teamConfirmResp, teamConfirmErr := authClient.Do(teamConfirmReq)
+	require.NoError(t, teamConfirmErr)
+	_ = teamConfirmResp.Body.Close()
+	require.Equal(t, http.StatusFound, teamConfirmResp.StatusCode)
+	teamLoopback := teamConfirmResp.Header.Get("Location")
+	teamParsedLoopback, teamLoopbackErr := url.Parse(teamLoopback)
+	require.NoError(t, teamLoopbackErr)
+	teamCode := teamParsedLoopback.Query().Get("code")
+	require.NotEmpty(t, teamCode)
+
+	teamTokenResp, teamTokenErr := http.PostForm(environment.BaseURL+"/v1/oauth/token", url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {teamCode},
+		"redirect_uri":  {"http://127.0.0.1:49152/callback"},
+		"client_id":     {"yao_e2e_desktop_tao"},
+		"code_verifier": {teamVerifier},
+	})
+	require.NoError(t, teamTokenErr)
+	var teamTokenBody struct {
+		AccessToken string `json:"access_token"`
+	}
+	require.NoError(t, json.NewDecoder(teamTokenResp.Body).Decode(&teamTokenBody))
+	_ = teamTokenResp.Body.Close()
+	require.Equal(t, http.StatusOK, teamTokenResp.StatusCode)
+	require.NotEmpty(t, teamTokenBody.AccessToken)
+	teamParts := strings.Split(teamTokenBody.AccessToken, ".")
+	require.Len(t, teamParts, 3)
+	teamPayload, teamPayloadErr := base64.RawURLEncoding.DecodeString(teamParts[1])
+	require.NoError(t, teamPayloadErr)
+	var teamClaims map[string]interface{}
+	require.NoError(t, json.Unmarshal(teamPayload, &teamClaims))
+	require.Equal(t, nativeTeamID, teamClaims["team_id"])
+
+	teamProfileReq, teamProfileErr := http.NewRequest(http.MethodGet, environment.BaseURL+"/v1/user/profile?team=true", nil)
+	require.NoError(t, teamProfileErr)
+	teamProfileReq.Header.Set("Authorization", "Bearer "+teamTokenBody.AccessToken)
+	teamProfileResp, teamProfileErr := nativeNoRedirect.Do(teamProfileReq)
+	require.NoError(t, teamProfileErr)
+	teamProfileBody, _ := io.ReadAll(teamProfileResp.Body)
+	_ = teamProfileResp.Body.Close()
+	require.Equal(t, http.StatusOK, teamProfileResp.StatusCode, string(teamProfileBody))
+	require.Contains(t, string(teamProfileBody), "yao:team")
+
+	// A POSTed team_id that does not belong to the user must fail with
+	// access_denied before any code is issued.
+	badTeamVerifier := "bad-team-verifier"
+	badTeamSum := sha256.Sum256([]byte(badTeamVerifier))
+	badTeamChallenge := base64.RawURLEncoding.EncodeToString(badTeamSum[:])
+	badTeamAuthorizeURL := environment.BaseURL + "/v1/oauth/authorize?client_id=yao_e2e_desktop_tao" +
+		"&redirect_uri=" + url.QueryEscape("http://127.0.0.1:49152/callback") +
+		"&response_type=code&state=bad-team-state" +
+		"&code_challenge=" + url.QueryEscape(badTeamChallenge) + "&code_challenge_method=S256"
+	badTeamAuthResp, badTeamAuthErr := authClient.Get(badTeamAuthorizeURL)
+	require.NoError(t, badTeamAuthErr)
+	_ = badTeamAuthResp.Body.Close()
+	require.Equal(t, http.StatusFound, badTeamAuthResp.StatusCode)
+	badTeamConsentURL := badTeamAuthResp.Header.Get("Location")
+	badTeamParsedConsent, badTeamParseErr := url.Parse(badTeamConsentURL)
+	require.NoError(t, badTeamParseErr)
+	badTeamConsentToken := badTeamParsedConsent.Query().Get("consent_token")
+	require.NotEmpty(t, badTeamConsentToken)
+
+	badTeamConfirmForm := url.Values{
+		"client_id":             {"yao_e2e_desktop_tao"},
+		"redirect_uri":          {"http://127.0.0.1:49152/callback"},
+		"response_type":         {"code"},
+		"state":                 {"bad-team-state"},
+		"team_id":               {"999999999999"},
+		"code_challenge":        {badTeamChallenge},
+		"code_challenge_method": {"S256"},
+		"consent_token":         {badTeamConsentToken},
+	}
+	badTeamConfirmReq, badTeamConfirmErr := http.NewRequest(http.MethodPost, environment.BaseURL+"/v1/oauth/authorize", strings.NewReader(badTeamConfirmForm.Encode()))
+	require.NoError(t, badTeamConfirmErr)
+	badTeamConfirmReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	badTeamConfirmResp, badTeamConfirmErr := authClient.Do(badTeamConfirmReq)
+	require.NoError(t, badTeamConfirmErr)
+	_ = badTeamConfirmResp.Body.Close()
+	require.Equal(t, http.StatusFound, badTeamConfirmResp.StatusCode)
+	badTeamLocation := badTeamConfirmResp.Header.Get("Location")
+	require.Contains(t, badTeamLocation, "error=access_denied")
+	require.NotContains(t, badTeamLocation, "code=")
+
+	teamSelectBody := `{"team_id":"` + nativeTeamID + `"}`
+	teamSelectReq, teamSelectErr := http.NewRequest(http.MethodPost, environment.BaseURL+"/v1/user/teams/select", strings.NewReader(teamSelectBody))
+	require.NoError(t, teamSelectErr)
+	teamSelectReq.Header.Set("Authorization", "Bearer "+teamTokenBody.AccessToken)
+	teamSelectReq.Header.Set("Content-Type", "application/json")
+	teamSelectResp, teamSelectErr := nativeNoRedirect.Do(teamSelectReq)
+	require.NoError(t, teamSelectErr)
+	teamSelectBodyResp, _ := io.ReadAll(teamSelectResp.Body)
+	_ = teamSelectResp.Body.Close()
+	require.Equal(t, http.StatusOK, teamSelectResp.StatusCode, string(teamSelectBodyResp))
+
 	// Activation exchange failure is surfaced without leaving a partial client.
 	require.NoError(t, os.Remove(filepath.Join(environment.Root, "app", ".tao", "client.json")))
 	fake.activationError = true
@@ -402,6 +703,15 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	scope, _ := tokenClaims["scope"].(string)
 	require.Contains(t, scope, "user:entry:write:own")
 
+	// A session cookie with a team claim must be able to list teams for the
+	// consent team picker; the team-selection endpoints bypass team-role scope
+	// enforcement after the token scope check.
+	teamsCookieResp, teamsCookieErr := authClient.Get(environment.BaseURL + "/v1/user/teams")
+	require.NoError(t, teamsCookieErr)
+	teamsCookieBody, _ := io.ReadAll(teamsCookieResp.Body)
+	_ = teamsCookieResp.Body.Close()
+	require.Equal(t, http.StatusOK, teamsCookieResp.StatusCode, string(teamsCookieBody))
+
 	logoutReq, err := http.NewRequest(http.MethodPost, environment.BaseURL+"/v1/user/logout", strings.NewReader("{}"))
 	require.NoError(t, err)
 	logoutReq.Header.Set("Content-Type", "application/json")
@@ -416,5 +726,20 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	_ = resp.Body.Close()
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	require.True(t, strings.HasPrefix(fmt.Sprint(authUser["tao_api_key"]), "sk-tao-"))
+
+	// OIDC RP-Initiated Logout must redirect to the registered post-logout URI.
+	endSessionClient := &http.Client{
+		Timeout:       20 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	endSessionURL := environment.BaseURL + "/v1/oauth/logout?client_id=yao_e2e_desktop_tao" +
+		"&post_logout_redirect_uri=" + url.QueryEscape("http://127.0.0.1:49152/callback") +
+		"&state=end-session-state"
+	endSessionResp, endSessionErr := endSessionClient.Get(endSessionURL)
+	require.NoError(t, endSessionErr)
+	_ = endSessionResp.Body.Close()
+	require.Equal(t, http.StatusFound, endSessionResp.StatusCode)
+	require.Contains(t, endSessionResp.Header.Get("Location"), "127.0.0.1:49152/callback")
+	require.Contains(t, endSessionResp.Header.Get("Location"), "state=end-session-state")
 
 }

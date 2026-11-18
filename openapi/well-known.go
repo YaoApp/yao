@@ -264,6 +264,8 @@ func (openapi *OpenAPI) oauthOpenIDConfiguration(c *gin.Context) {
 		"scopes_supported":                      server.ScopesSupported,
 		"token_endpoint_auth_methods_supported": server.TokenEndpointAuthMethodsSupported,
 		"code_challenge_methods_supported":      []string{"S256"},
+		"prompt_values_supported":               server.PromptValuesSupported,
+		"end_session_endpoint":                  endpoints["end_session_endpoint"],
 	})
 }
 

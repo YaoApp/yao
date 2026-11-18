@@ -120,6 +120,42 @@ func taoLoginRedirectURIs(c *gin.Context) []string {
 	return result
 }
 
+// taoReturnURL accepts only the same-origin OAuth authorize endpoint as a
+// login continuation target. It prevents open redirects while allowing the
+// browser to resume an authorization request after Tao login.
+func taoReturnURL(c *gin.Context) string {
+	raw := strings.TrimSpace(c.Query("return_to"))
+	if raw == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || !strings.HasSuffix(parsed.Path, "/oauth/authorize") {
+		return ""
+	}
+	if parsed.Scheme == "" && parsed.Host == "" {
+		if !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") {
+			return ""
+		}
+		return raw
+	}
+	base, err := url.Parse(taoBaseURL(c))
+	if err != nil || base.Scheme != parsed.Scheme || base.Host != parsed.Host {
+		return ""
+	}
+	return raw
+}
+
+func taoAppendQuery(raw, key, value string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	q := parsed.Query()
+	q.Set(key, value)
+	parsed.RawQuery = q.Encode()
+	return parsed.String()
+}
+
 func taoRandom(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
@@ -159,6 +195,9 @@ func taoStartLogin(c *gin.Context) (authURL, state string, err error) {
 	if locale == "" {
 		locale = "en"
 	}
+	prompt := strings.TrimSpace(c.Query("prompt"))
+	loginHint := strings.TrimSpace(c.Query("login_hint"))
+	maxAge := strings.TrimSpace(c.Query("max_age"))
 	verifier, challenge, err := taoPKCE()
 	if err != nil {
 		return "", "", err
@@ -200,6 +239,15 @@ func taoStartLogin(c *gin.Context) (authURL, state string, err error) {
 		params.Set("scope", strings.Join(provider.Scopes, " "))
 		params.Set("state", state)
 		params.Set("nonce", nonce)
+		if prompt != "" {
+			params.Set("prompt", prompt)
+		}
+		if loginHint != "" {
+			params.Set("login_hint", loginHint)
+		}
+		if maxAge != "" {
+			params.Set("max_age", maxAge)
+		}
 		params.Set("code_challenge", challenge)
 		params.Set("code_challenge_method", "S256")
 		authorizationURL = strings.TrimRight(provider.Issuer, "/") + "/oauth/authorize?" + params.Encode()
@@ -207,6 +255,8 @@ func taoStartLogin(c *gin.Context) (authURL, state string, err error) {
 	txn := &taoLoginTxn{
 		State: state, Nonce: nonce, Verifier: verifier, Challenge: challenge,
 		RedirectURI: redirectURI, SID: sid, Mode: mode, Locale: locale,
+		Prompt: prompt, LoginHint: loginHint, MaxAge: maxAge,
+		ReturnURL: taoReturnURL(c),
 	}
 	if err := saveTaoTxn(txn); err != nil {
 		return "", "", err
@@ -221,6 +271,10 @@ func getTaoAuthorizationURL(c *gin.Context) {
 			Code:             "tao_not_configured",
 			ErrorDescription: err.Error(),
 		})
+		return
+	}
+	if c.Query("redirect") == "1" {
+		c.Redirect(http.StatusFound, authorizationURL)
 		return
 	}
 	response.RespondWithSuccess(c, http.StatusOK, &OAuthAuthorizationURLResponse{
@@ -260,6 +314,18 @@ func taoActivateCallback(c *gin.Context) {
 	// Preserve the caller's locale through the activation continuation.
 	q := c.Request.URL.Query()
 	q.Set("locale", txn.Locale)
+	if txn.ReturnURL != "" {
+		q.Set("return_to", txn.ReturnURL)
+	}
+	if txn.Prompt != "" {
+		q.Set("prompt", txn.Prompt)
+	}
+	if txn.LoginHint != "" {
+		q.Set("login_hint", txn.LoginHint)
+	}
+	if txn.MaxAge != "" {
+		q.Set("max_age", txn.MaxAge)
+	}
 	c.Request.URL.RawQuery = q.Encode()
 	deleteTaoTxn(state)
 	if activeCode == "" {
@@ -376,6 +442,11 @@ func taoLoginCallback(c *gin.Context) {
 	target := txn.ReturnURL
 	if target == "" {
 		target = taoLoginSuccessURL(txn.Locale)
+	} else if handoffID, err := saveTaoLoginHandoff(loginResponse.AccessToken, loginResponse.RefreshToken, sid); err == nil {
+		// The redirect from Tao to /v1/oauth/authorize is cross-site. Access
+		// token cookies are SameSite=Strict and may be dropped on that hop, so
+		// let authorize consume a one-time server-side handoff instead.
+		target = taoAppendQuery(target, "login_handoff", handoffID)
 	}
 	c.Redirect(http.StatusFound, target)
 }

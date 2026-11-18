@@ -368,8 +368,16 @@ func GinTeamSelection(c *gin.Context) {
 		return
 	}
 
-	// Verify the current token has team_selection scope
-	if authInfo.Scope != ScopeTeamSelection {
+	// The temporary team-selection token carries the scope alone, while a
+	// normal full token carries a space-delimited scope list. Accept both.
+	hasTeamSelectionScope := false
+	for _, scope := range strings.Fields(authInfo.Scope) {
+		if scope == ScopeTeamSelection {
+			hasTeamSelectionScope = true
+			break
+		}
+	}
+	if !hasTeamSelectionScope {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrAccessDenied.Code,
 			ErrorDescription: "Invalid scope: team_selection scope required",

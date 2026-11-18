@@ -97,8 +97,8 @@ unit-test-core-windows: deps
 		$(TESTFOLDER_CORE)
 
 # Agent functional test scope. Extend these variables when a new module is added.
-AGENT_TEST_PKGS ?= ./openapi/oauth ./openapi/oauth/types ./openapi/user ./openapi/auth ./tai/auth
-AGENT_TEST_RUN ?= ^(TestIdentityClaimConstants|TestAuthorizationRequestServerResolvedIdentityNotSerialized|TestOIDCUserInfoIdentityClaimsJSON|TestNodeToken.*|TestProvider|TestTao.*|TestLocal.*|TestPublic.*|TestRegisterBuiltinTaoProvider|TestGetAvailableProvidersHandler|TestBuildLoginRedirectURL|TestBuildAuthorizeReturnTo|TestShouldRedirectToLogin|TestResolveAuthorizeSession|TestAuthorizeLoginFlow|TestAuthorizationCodeIdentityClaims|TestValidateAuthorizationRequest|TestBootstrapClients|TestDiscoveryOmitsClientLogout|TestRecordDynamicClientRegistrationAudit|TestBuildUserInfo)$$
+AGENT_TEST_PKGS ?= ./openapi ./openapi/oauth ./openapi/oauth/acl ./openapi/oauth/providers/client ./openapi/oauth/types ./openapi/user ./openapi/auth ./tai/auth
+AGENT_TEST_RUN ?= ^(TestIdentityClaimConstants|TestAuthorizationRequestServerResolvedIdentityNotSerialized|TestOIDCUserInfoIdentityClaimsJSON|TestNodeToken.*|TestProvider|TestTao.*|TestLocal.*|TestPublic.*|TestRegisterBuiltinTaoProvider|TestGetAvailableProvidersHandler|TestBuildLoginRedirectURL|TestBuildAuthorizeReturnTo|TestShouldRedirectToLogin|TestResolveAuthorizeSession|TestAuthorizeLoginFlow|TestAuthorizationCodeIdentityClaims|TestValidateAuthorizationRequest|TestBootstrapClients|TestDiscoveryAdvertisesRPInitiatedLogout|TestConsentToken|TestParsePromptValues|TestTeamSelectionBypassHelpers|TestRedirectURIsMatchLoopback|TestRecordDynamicClientRegistrationAudit|TestBuildUserInfo)$$
 AGENT_COMPUTER_PKGS ?= ./modules/computer ./modules/tao/computer ./tai
 AGENT_COMPUTER_RUN ?= ^Test
 TAO_MOCK_PKGS ?= ./e2e/taocloud

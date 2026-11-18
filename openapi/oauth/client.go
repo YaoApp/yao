@@ -348,11 +348,13 @@ func (s *Service) validateRedirectURIForRegistration(uri string) error {
 		}
 	}
 
-	// Check allowed hosts
+	// Check allowed hosts. Use Hostname so loopback redirects with a port
+	// (http://127.0.0.1:49152/callback) match the configured host.
 	if len(s.config.Client.AllowedRedirectURIHosts) > 0 {
+		hostname := parsedURI.Hostname()
 		hostAllowed := false
 		for _, host := range s.config.Client.AllowedRedirectURIHosts {
-			if parsedURI.Host == host {
+			if hostname == host {
 				hostAllowed = true
 				break
 			}
@@ -360,7 +362,7 @@ func (s *Service) validateRedirectURIForRegistration(uri string) error {
 		if !hostAllowed {
 			return &types.ErrorResponse{
 				Code:             types.ErrorInvalidRequest,
-				ErrorDescription: fmt.Sprintf("Redirect URI host '%s' is not allowed", parsedURI.Host),
+				ErrorDescription: fmt.Sprintf("Redirect URI host '%s' is not allowed", hostname),
 			}
 		}
 	}

@@ -99,6 +99,7 @@ type EntryConfig struct {
 	Default                  bool              `json:"default,omitempty"`
 	SuccessURL               string            `json:"success_url,omitempty"`
 	FailureURL               string            `json:"failure_url,omitempty"`
+	ConsentURL               string            `json:"consent_url,omitempty"`
 	LogoutRedirect           string            `json:"logout_redirect,omitempty"` // From signin config
 	ClientID                 string            `json:"client_id,omitempty"`       // From signin config
 	ClientSecret             string            `json:"client_secret,omitempty"`   // From signin config (not exposed to frontend)

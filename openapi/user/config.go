@@ -636,6 +636,14 @@ func processEntryConfigENVVariables(config *EntryConfig) {
 	}
 	config.FailureURL = replaceENVVar(config.FailureURL)
 
+	if strings.HasPrefix(config.ConsentURL, "$ENV.") {
+		envVar := strings.TrimPrefix(config.ConsentURL, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	config.ConsentURL = replaceENVVar(config.ConsentURL)
+
 	if strings.HasPrefix(config.LogoutRedirect, "$ENV.") {
 		envVar := strings.TrimPrefix(config.LogoutRedirect, "$ENV.")
 		if _, exists := os.LookupEnv(envVar); !exists {
@@ -680,4 +688,15 @@ func GetEntryConfig(locale string) *EntryConfig {
 	}
 
 	return nil
+}
+
+// GetConsentURL returns the configured consent page URL, defaulting to the
+// same-origin CUI consent route.
+func GetConsentURL(locale string) string {
+	if cfg := GetEntryConfig(locale); cfg != nil {
+		if value := strings.TrimSpace(cfg.ConsentURL); value != "" {
+			return value
+		}
+	}
+	return "/app/consent"
 }

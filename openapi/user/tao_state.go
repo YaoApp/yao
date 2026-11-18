@@ -29,6 +29,9 @@ type taoLoginTxn struct {
 	SID         string `json:"sid,omitempty"`
 	Mode        string `json:"mode"`
 	Locale      string `json:"locale,omitempty"`
+	Prompt      string `json:"prompt,omitempty"`
+	LoginHint   string `json:"login_hint,omitempty"`
+	MaxAge      string `json:"max_age,omitempty"`
 }
 
 func taoTxnKey(state string) string { return "signin:tao:txn:" + state }
@@ -78,4 +81,66 @@ func deleteTaoTxn(state string) {
 	if cache := taoCache(); cache != nil {
 		_ = cache.Del(taoTxnKey(state))
 	}
+}
+
+const taoHandoffTTL = 2 * time.Minute
+
+// TaoLoginHandoff carries a freshly established Yao login through the
+// cross-site redirect from Tao back to /v1/oauth/authorize. The browser may
+// drop SameSite=Strict access-token cookies on that redirect, so the authorize
+// handler consumes this one-time server-side handoff instead of relying on a
+// cookie.
+type TaoLoginHandoff struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	SessionID    string `json:"session_id,omitempty"`
+}
+
+func taoHandoffKey(id string) string { return "signin:tao:handoff:" + id }
+
+func saveTaoLoginHandoff(accessToken, refreshToken, sessionID string) (string, error) {
+	if accessToken == "" {
+		return "", fmt.Errorf("login handoff access token is empty")
+	}
+	id, err := taoRandom(32)
+	if err != nil {
+		return "", err
+	}
+	cache := taoCache()
+	if cache == nil {
+		return "", fmt.Errorf("oauth cache is not available")
+	}
+	data, err := json.Marshal(&TaoLoginHandoff{AccessToken: accessToken, RefreshToken: refreshToken, SessionID: sessionID})
+	if err != nil {
+		return "", err
+	}
+	if err := cache.Set(taoHandoffKey(id), string(data), taoHandoffTTL); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+// ConsumeTaoLoginHandoff retrieves and deletes a one-time login handoff.
+func ConsumeTaoLoginHandoff(id string) (*TaoLoginHandoff, bool) {
+	if id == "" {
+		return nil, false
+	}
+	cache := taoCache()
+	if cache == nil {
+		return nil, false
+	}
+	raw, ok := cache.Get(taoHandoffKey(id))
+	if !ok || raw == nil {
+		return nil, false
+	}
+	_ = cache.Del(taoHandoffKey(id))
+	text, ok := raw.(string)
+	if !ok {
+		return nil, false
+	}
+	var handoff TaoLoginHandoff
+	if err := json.Unmarshal([]byte(text), &handoff); err != nil || handoff.AccessToken == "" {
+		return nil, false
+	}
+	return &handoff, true
 }

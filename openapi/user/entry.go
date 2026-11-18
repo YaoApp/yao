@@ -445,6 +445,7 @@ func createPublicEntryConfig(config *EntryConfig) *EntryConfig {
 		Default:                  config.Default,
 		SuccessURL:               config.SuccessURL,
 		FailureURL:               config.FailureURL,
+		ConsentURL:               config.ConsentURL,
 		LogoutRedirect:           config.LogoutRedirect,
 		ClientID:                 config.ClientID,
 		ClientSecret:             "", // Remove sensitive data

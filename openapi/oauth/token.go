@@ -483,13 +483,17 @@ func (s *Service) generateAuthorizationCodeWithInfo(clientID, state, scope, code
 // with the resolved user identity: opaque subject, auth_source and
 // identity_source. The identity metadata is carried into the issued tokens.
 func (s *Service) generateAuthorizationCode(clientID, state, scope, codeChallenge, codeChallengeMethod, subject, authSource, identitySource string) (string, error) {
+	return s.generateAuthorizationCodeWithExtra(clientID, state, scope, codeChallenge, codeChallengeMethod, subject, authSource, identitySource, nil)
+}
+
+func (s *Service) generateAuthorizationCodeWithExtra(clientID, state, scope, codeChallenge, codeChallengeMethod, subject, authSource, identitySource string, extraClaims map[string]interface{}) (string, error) {
 	authCode, err := s.generateToken("ac", clientID)
 	if err != nil {
 		return "", err
 	}
 
 	// Store authorization code with metadata for later validation
-	err = s.storeAuthorizationCode(authCode, clientID, state, scope, codeChallenge, codeChallengeMethod, subject, authSource, identitySource)
+	err = s.storeAuthorizationCode(authCode, clientID, state, scope, codeChallenge, codeChallengeMethod, subject, authSource, identitySource, extraClaims)
 	if err != nil {
 		return "", fmt.Errorf("failed to store authorization code: %w", err)
 	}
@@ -498,7 +502,7 @@ func (s *Service) generateAuthorizationCode(clientID, state, scope, codeChalleng
 }
 
 // storeAuthorizationCode stores authorization code with metadata
-func (s *Service) storeAuthorizationCode(code, clientID, state, scope, codeChallenge, codeChallengeMethod, subject, authSource, identitySource string) error {
+func (s *Service) storeAuthorizationCode(code, clientID, state, scope, codeChallenge, codeChallengeMethod, subject, authSource, identitySource string, extraClaims map[string]interface{}) error {
 	codeData := map[string]interface{}{
 		"client_id":  clientID,
 		"state":      state,
@@ -523,6 +527,12 @@ func (s *Service) storeAuthorizationCode(code, clientID, state, scope, codeChall
 	}
 	if identitySource != "" {
 		codeData[types.ClaimIdentitySource] = identitySource
+	}
+
+	for key, value := range extraClaims {
+		if value != nil {
+			codeData[key] = value
+		}
 	}
 
 	// Add PKCE information if provided

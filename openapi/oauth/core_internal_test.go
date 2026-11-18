@@ -2,7 +2,6 @@ package oauth
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,10 +72,8 @@ func TestAuthorizationCodeIdentityClaims(t *testing.T) {
 		assert.NotEmpty(t, token.AccessToken)
 		assert.NotEmpty(t, token.RefreshToken)
 
-		// No ID token is ever issued by the Yao OAuth Server.
-		rawToken, err := json.Marshal(token)
-		require.NoError(t, err)
-		assert.NotContains(t, string(rawToken), "id_token")
+		// Unit service has no user provider, so ID token may be absent here;
+		// the full E2E flow verifies its issuance.
 
 		claims, err := service.VerifyToken(token.AccessToken)
 		require.NoError(t, err)

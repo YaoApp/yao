@@ -1,8 +1,11 @@
 package openapi
 
 import (
+	"context"
 	"encoding/base64"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -11,6 +14,7 @@ import (
 	oauthpkg "github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/user"
 )
 
 // OAuth handlers
@@ -65,6 +69,10 @@ func (openapi *OpenAPI) attachOAuth(base *gin.RouterGroup) {
 	// Pushed Authorization Request - RFC 9126
 	oauth.POST("/par", openapi.oauthPushedAuthorizationRequest)
 
+	// OIDC RP-Initiated Logout
+	oauth.GET("/logout", openapi.oauthEndSession)
+	oauth.POST("/logout", openapi.oauthEndSession)
+
 	// Token Exchange - RFC 8693
 	oauth.POST("/token_exchange", openapi.oauthTokenExchange)
 
@@ -74,6 +82,146 @@ func (openapi *OpenAPI) attachOAuth(base *gin.RouterGroup) {
 }
 
 // OAuth Core Endpoints Implementation
+
+// canUseDirectTaoLogin reports whether an unauthenticated authorization
+// request can skip the deployment login page and go straight to Tao. This is
+// limited to native (desktop/mobile) clients and only when Tao is configured.
+func (openapi *OpenAPI) canUseDirectTaoLogin(c *gin.Context, clientID string) bool {
+	if clientID == "" || !user.TaoConfigured() {
+		return false
+	}
+	service, ok := openapi.OAuth.(*oauthpkg.Service)
+	if !ok {
+		return false
+	}
+	client, err := service.GetClientProvider().GetClientByID(c.Request.Context(), clientID)
+	if err != nil || client == nil {
+		return false
+	}
+	return client.ApplicationType == types.ApplicationTypeNative
+}
+
+// parsePromptValues parses OIDC prompt values. Unknown values are rejected;
+// prompt=none cannot be combined with other values.
+func parsePromptValues(raw string) ([]string, error) {
+	values := strings.Fields(raw)
+	if len(values) == 0 {
+		return nil, nil
+	}
+	allowed := map[string]bool{"none": true, "login": true, "consent": true, "select_account": true}
+	hasNone := false
+	for _, value := range values {
+		if !allowed[value] {
+			return nil, fmt.Errorf("unsupported prompt value: %s", value)
+		}
+		if value == "none" {
+			hasNone = true
+		}
+	}
+	if hasNone && len(values) > 1 {
+		return nil, fmt.Errorf("prompt=none cannot be combined with other values")
+	}
+	return values, nil
+}
+
+func promptHas(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+// authorizeReturnToWithPrompt rebuilds the current authorize return URL with a
+// replacement prompt value, without mutating the incoming request.
+func authorizeReturnToWithPrompt(c *gin.Context, prompt string) string {
+	if c == nil || c.Request == nil {
+		return ""
+	}
+	original := c.Request.URL.RawQuery
+	q := c.Request.URL.Query()
+	if prompt == "" {
+		q.Del("prompt")
+	} else {
+		q.Set("prompt", prompt)
+	}
+	c.Request.URL.RawQuery = q.Encode()
+	result := oauthpkg.BuildAuthorizeReturnTo(c)
+	c.Request.URL.RawQuery = original
+	return result
+}
+
+func (openapi *OpenAPI) redirectAuthorizeLogin(c *gin.Context, authReq *types.AuthorizationRequest, prompt string, forceTao bool) {
+	returnTo := authorizeReturnToWithPrompt(c, prompt)
+	direct := (forceTao && user.TaoConfigured()) || openapi.canUseDirectTaoLogin(c, authReq.ClientID)
+	if direct {
+		q := url.Values{}
+		q.Set("redirect", "1")
+		q.Set("return_to", returnTo)
+		if forceTao && strings.TrimSpace(authReq.Prompt) != "" {
+			q.Set("prompt", authReq.Prompt)
+		}
+		if strings.TrimSpace(authReq.LoginHint) != "" {
+			q.Set("login_hint", authReq.LoginHint)
+		}
+		if strings.TrimSpace(authReq.MaxAge) != "" {
+			q.Set("max_age", authReq.MaxAge)
+		}
+		c.Redirect(http.StatusFound, "/v1/user/oauth/tao/authorize?"+q.Encode())
+		return
+	}
+	c.Redirect(http.StatusFound, oauthpkg.BuildLoginRedirectURL(oauthpkg.DefaultLoginEntryPath, returnTo))
+}
+
+func (openapi *OpenAPI) buildConsentURL(c *gin.Context, token string) string {
+	raw := user.GetConsentURL(strings.TrimSpace(c.Query("locale")))
+	parsed, err := url.Parse(raw)
+	if err != nil || raw == "" {
+		parsed = &url.URL{Path: "/app/consent"}
+	}
+	q := c.Request.URL.Query()
+	q.Set("consent_token", token)
+	parsed.RawQuery = q.Encode()
+	return parsed.String()
+}
+
+func validateAuthorizeTeam(ctx context.Context, service *oauthpkg.Service, authReq *types.AuthorizationRequest, userID string) error {
+	if authReq == nil || authReq.TeamID == "" {
+		return nil
+	}
+	provider, err := service.GetUserProvider()
+	if err != nil || provider == nil {
+		return fmt.Errorf("user provider is not available")
+	}
+	team, err := provider.GetTeamByMember(ctx, authReq.TeamID, userID)
+	if err != nil {
+		return fmt.Errorf("user is not a member of team %s", authReq.TeamID)
+	}
+	if tenantID, ok := team["tenant_id"].(string); ok {
+		authReq.TenantID = tenantID
+	}
+	return nil
+}
+
+func consentRequestMatches(submitted, stored *types.AuthorizationRequest) bool {
+	if submitted == nil || stored == nil {
+		return false
+	}
+	checks := []struct{ a, b string }{
+		{submitted.ClientID, stored.ClientID},
+		{submitted.RedirectURI, stored.RedirectURI},
+		{submitted.State, stored.State},
+		{submitted.CodeChallenge, stored.CodeChallenge},
+		{submitted.CodeChallengeMethod, stored.CodeChallengeMethod},
+	}
+	for _, check := range checks {
+		if check.a != "" && check.a != check.b {
+			return false
+		}
+	}
+	return true
+}
 
 // oauthAuthorize handles authorization requests - RFC 6749 Section 3.1
 func (openapi *OpenAPI) oauthAuthorize(c *gin.Context) {
@@ -85,6 +233,15 @@ func (openapi *OpenAPI) oauthAuthorize(c *gin.Context) {
 			return
 		}
 		response.RespondWithAuthorizationError(c, authReq.RedirectURI, parseErr, authReq.State)
+		return
+	}
+
+	promptValues, promptErr := parsePromptValues(authReq.Prompt)
+	if promptErr != nil {
+		response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{
+			Code:             types.ErrorInvalidRequest,
+			ErrorDescription: promptErr.Error(),
+		})
 		return
 	}
 
@@ -116,36 +273,153 @@ func (openapi *OpenAPI) oauthAuthorize(c *gin.Context) {
 			return
 		}
 
-		session, err := oauthService.ResolveAuthorizeSession(c, authReq.ClientID)
-		if err != nil {
-			response.RespondWithAuthorizationError(c, authReq.RedirectURI, response.ErrServerError, authReq.State)
-			return
+		// The Tao callback may have arrived from a cross-site redirect where the
+		// browser dropped the SameSite=Strict session cookies. Consume the
+		// one-time handoff and use its access token for this request only.
+		isPOST := c.Request.Method == http.MethodPost
+		var consentRecord *oauthpkg.ConsentRecord
+		postedTeamID := ""
+		if isPOST {
+			postedTeamID = strings.TrimSpace(openapi.getParam(c, "team_id"))
+			consentToken := openapi.getParam(c, "consent_token")
+			if consentToken == "" {
+				response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{
+					Code:             types.ErrorInvalidRequest,
+					ErrorDescription: "consent_token is required",
+				})
+				return
+			}
+			record, err := oauthService.ConsumeConsentToken(c, consentToken)
+			if err != nil {
+				response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{
+					Code:             types.ErrorInvalidRequest,
+					ErrorDescription: "Invalid or expired consent token",
+				})
+				return
+			}
+			if !consentRequestMatches(authReq, record.Request) {
+				response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{
+					Code:             types.ErrorInvalidRequest,
+					ErrorDescription: "Authorization request does not match consent token",
+				})
+				return
+			}
+			authReq = record.Request
+			// The team is the user's choice on the consent page. It is not part
+			// of consentRequestMatches (and need not be present on the original
+			// GET), so merge the POSTed value before membership validation.
+			if postedTeamID != "" {
+				authReq.TeamID = postedTeamID
+			}
+			consentRecord = record
+		}
+
+		handoffUsed := false
+		if !isPOST {
+			if handoffID := openapi.getParam(c, "login_handoff"); handoffID != "" {
+				handoff, ok := user.ConsumeTaoLoginHandoff(handoffID)
+				if !ok || handoff.AccessToken == "" {
+					response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{
+						Code:             types.ErrorInvalidRequest,
+						ErrorDescription: "Invalid or expired login handoff",
+					})
+					return
+				}
+				c.Request.Header.Set("Authorization", "Bearer "+handoff.AccessToken)
+				handoffUsed = true
+			}
+		}
+
+		var session *oauthpkg.AuthorizeSession
+		if consentRecord != nil {
+			session = &oauthpkg.AuthorizeSession{
+				UserID:         consentRecord.UserID,
+				Subject:        consentRecord.Subject,
+				AuthSource:     consentRecord.AuthSource,
+				IdentitySource: consentRecord.IdentitySource,
+			}
+		} else {
+			var err error
+			session, err = oauthService.ResolveAuthorizeSession(c, authReq.ClientID)
+			if err != nil {
+				response.RespondWithAuthorizationError(c, authReq.RedirectURI, response.ErrServerError, authReq.State)
+				return
+			}
 		}
 
 		if session == nil {
-			// No Yao session: prompt=none must fail without user interaction.
-			if !oauthpkg.ShouldRedirectToLogin(openapi.getParam(c, "prompt")) {
+			if isPOST {
 				response.RespondWithAuthorizationError(c, authReq.RedirectURI, &response.ErrorResponse{
 					Code:             types.ErrorLoginRequired,
 					ErrorDescription: "Login required",
 				}, authReq.State)
 				return
 			}
-
-			// Redirect to the Yao login page, preserving the original
-			// same-origin authorize request as return_to.
-			loginURL := oauthpkg.BuildLoginRedirectURL(
-				oauthpkg.DefaultLoginEntryPath,
-				oauthpkg.BuildAuthorizeReturnTo(c),
-			)
-			c.Redirect(http.StatusFound, loginURL)
+			if handoffUsed {
+				response.RespondWithAuthorizationError(c, authReq.RedirectURI, &response.ErrorResponse{
+					Code:             types.ErrorLoginRequired,
+					ErrorDescription: "Login handoff could not establish a session",
+				}, authReq.State)
+				return
+			}
+			if promptHas(promptValues, "none") {
+				response.RespondWithAuthorizationError(c, authReq.RedirectURI, &response.ErrorResponse{
+					Code:             types.ErrorLoginRequired,
+					ErrorDescription: "Login required",
+				}, authReq.State)
+				return
+			}
+			// Interactive login: preserve prompt=consent so the next request
+			// reaches the consent page rather than looping through login again.
+			// login/select_account/max_age=0 must force the Tao OP to reauthenticate.
+			forceReauth := promptHas(promptValues, "login") || promptHas(promptValues, "select_account") || strings.TrimSpace(authReq.MaxAge) == "0"
+			openapi.redirectAuthorizeLogin(c, authReq, "consent", forceReauth)
 			return
 		}
 
-		// Logged in: issue the code for the opaque subject of this client.
+		// The consent record is authoritative for identity after the page POSTs.
 		authReq.Subject = session.Subject
+		authReq.UserID = session.UserID
 		authReq.AuthSource = session.AuthSource
 		authReq.IdentitySource = session.IdentitySource
+
+		if err := validateAuthorizeTeam(c.Request.Context(), oauthService, authReq, session.UserID); err != nil {
+			response.RespondWithAuthorizationError(c, authReq.RedirectURI, &response.ErrorResponse{
+				Code:             types.ErrorAccessDenied,
+				ErrorDescription: err.Error(),
+			}, authReq.State)
+			return
+		}
+
+		if isPOST {
+			// The consent POST is the confirmation step; issue the code.
+			authReq.Prompt = ""
+		} else {
+			if promptHas(promptValues, "none") {
+				// Already authenticated: no page and no code? OIDC prompt=none
+				// issues the code directly when the session is valid.
+				authReq.Prompt = ""
+			} else if promptHas(promptValues, "login") || promptHas(promptValues, "select_account") || strings.TrimSpace(authReq.MaxAge) == "0" {
+				response.DeleteAllAuthCookies(c)
+				openapi.redirectAuthorizeLogin(c, authReq, "consent", true)
+				return
+			} else {
+				record := &oauthpkg.ConsentRecord{
+					Request:        authReq,
+					UserID:         session.UserID,
+					Subject:        session.Subject,
+					AuthSource:     session.AuthSource,
+					IdentitySource: session.IdentitySource,
+				}
+				token, err := oauthService.CreateConsentToken(c.Request.Context(), record)
+				if err != nil {
+					response.RespondWithAuthorizationError(c, authReq.RedirectURI, response.ErrServerError, authReq.State)
+					return
+				}
+				c.Redirect(http.StatusFound, openapi.buildConsentURL(c, token))
+				return
+			}
+		}
 	}
 
 	// Call OAuth service to process authorization request
@@ -165,6 +439,14 @@ func (openapi *OpenAPI) oauthAuthorize(c *gin.Context) {
 		}
 		response.RespondWithAuthorizationError(c, authReq.RedirectURI, oauthError, authReq.State)
 		return
+	}
+
+	// The request_uri is one-time after successful authorization. It is kept
+	// through the login redirect and consumed only when a code is issued.
+	if authReq.RequestURI != "" {
+		if service, ok := openapi.OAuth.(*oauthpkg.Service); ok {
+			_, _ = service.ConsumePushedAuthorizationRequest(c, authReq.RequestURI)
+		}
 	}
 
 	// Success: redirect to client with authorization code
@@ -637,6 +919,10 @@ func (openapi *OpenAPI) oauthRegister(c *gin.Context) {
 			errorCode = oauthErr.Code
 		}
 		oauthpkg.RecordDynamicClientRegistrationAudit(&req, nil, errorCode, remoteIP, userAgent)
+		if oauthErr, ok := err.(*response.ErrorResponse); ok {
+			response.RespondWithSecureError(c, response.StatusBadRequest, oauthErr)
+			return
+		}
 		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidClientMetadata)
 		return
 	}
@@ -841,25 +1127,114 @@ func (openapi *OpenAPI) oauthDeviceAuthorize(c *gin.Context) {
 // oauthPushedAuthorizationRequest handles PAR - RFC 9126
 func (openapi *OpenAPI) oauthPushedAuthorizationRequest(c *gin.Context) {
 	var req response.PushedAuthorizationRequest
-
-	if err := c.ShouldBind(&req); err != nil {
-		response.RespondWithError(c, response.StatusBadRequest, response.ErrInvalidRequest)
-		return
+	if strings.HasPrefix(c.ContentType(), "application/json") {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.RespondWithError(c, response.StatusBadRequest, response.ErrInvalidRequest)
+			return
+		}
+	} else {
+		req = response.PushedAuthorizationRequest{
+			ClientID:            c.PostForm("client_id"),
+			ResponseType:        c.PostForm("response_type"),
+			RedirectURI:         c.PostForm("redirect_uri"),
+			Scope:               c.PostForm("scope"),
+			State:               c.PostForm("state"),
+			CodeChallenge:       c.PostForm("code_challenge"),
+			CodeChallengeMethod: c.PostForm("code_challenge_method"),
+			Resource:            c.PostForm("resource"),
+			Prompt:              c.PostForm("prompt"),
+			LoginHint:           c.PostForm("login_hint"),
+			MaxAge:              c.PostForm("max_age"),
+			TeamID:              c.PostForm("team_id"),
+		}
 	}
-
-	// Basic validation
 	if req.ClientID == "" {
 		response.RespondWithError(c, response.StatusBadRequest, response.ErrInvalidRequest)
 		return
 	}
+	service, ok := openapi.OAuth.(*oauthpkg.Service)
+	if !ok {
+		response.RespondWithError(c, response.StatusBadRequest, response.ErrInvalidRequest)
+		return
+	}
+	parResponse, err := service.PushAuthorizationRequest(c, &req)
+	if err != nil {
+		if oauthErr, ok := err.(*response.ErrorResponse); ok {
+			response.RespondWithSecureError(c, response.StatusBadRequest, oauthErr)
+			return
+		}
+		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidRequest)
+		return
+	}
+	response.RespondWithSecureSuccess(c, response.StatusCreated, parResponse)
+}
 
-	// TODO: Implement PAR logic
-	parResponse := &response.PushedAuthorizationResponse{
-		RequestURI: "urn:example:bwc4JK-ESC0w8acc191e-Y1LTC2",
-		ExpiresIn:  60, // 60 seconds
+// oauthEndSession handles OIDC RP-Initiated Logout. The minimum supported
+// form is client_id + post_logout_redirect_uri + state; id_token_hint is
+// accepted but not required.
+func (openapi *OpenAPI) oauthEndSession(c *gin.Context) {
+	clientID := openapi.getParam(c, "client_id")
+	redirectURI := openapi.getParam(c, "post_logout_redirect_uri")
+	state := openapi.getParam(c, "state")
+	service, ok := openapi.OAuth.(*oauthpkg.Service)
+	if !ok {
+		response.RespondWithError(c, http.StatusInternalServerError, response.ErrServerError)
+		return
 	}
 
-	response.RespondWithSuccess(c, response.StatusCreated, parResponse)
+	if redirectURI != "" {
+		if clientID == "" {
+			response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{
+				Code:             types.ErrorInvalidRequest,
+				ErrorDescription: "client_id is required with post_logout_redirect_uri",
+			})
+			return
+		}
+		client, err := service.GetClientProvider().GetClientByID(c.Request.Context(), clientID)
+		if err != nil || client == nil {
+			response.RespondWithError(c, http.StatusBadRequest, response.ErrInvalidClient)
+			return
+		}
+		valid := false
+		for _, registered := range client.RedirectURIs {
+			if registered == redirectURI {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{
+				Code:             types.ErrorInvalidRequest,
+				ErrorDescription: "post_logout_redirect_uri is not registered for this client",
+			})
+			return
+		}
+	}
+
+	ctx := c.Request.Context()
+	if accessToken := service.GetAccessToken(c); accessToken != "" {
+		_ = service.Revoke(ctx, accessToken, "access_token")
+	}
+	if refreshToken := service.GetRefreshToken(c); refreshToken != "" {
+		_ = service.Revoke(ctx, refreshToken, "refresh_token")
+	}
+	response.DeleteAllAuthCookies(c)
+
+	if redirectURI != "" {
+		target, err := url.Parse(redirectURI)
+		if err != nil {
+			response.RespondWithError(c, http.StatusBadRequest, response.ErrInvalidRequest)
+			return
+		}
+		if state != "" {
+			q := target.Query()
+			q.Set("state", state)
+			target.RawQuery = q.Encode()
+		}
+		c.Redirect(http.StatusFound, target.String())
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, map[string]interface{}{"message": "Logout successful"})
 }
 
 // oauthTokenExchange handles token exchange - RFC 8693
@@ -924,6 +1299,37 @@ func (openapi *OpenAPI) authorizationErrorRedirectSafe(c *gin.Context, authReq *
 }
 
 func (openapi *OpenAPI) parseAuthorizationRequest(c *gin.Context) (*types.AuthorizationRequest, *response.ErrorResponse) {
+	// RFC 9126: when request_uri is present, resolve the stored PAR and use its
+	// parameters. It is retrieved here and consumed only after authorization
+	// succeeds, because the browser may pass through the Yao login page first.
+	if requestURI := openapi.getParam(c, "request_uri"); requestURI != "" {
+		service, ok := openapi.OAuth.(*oauthpkg.Service)
+		if !ok {
+			return nil, response.ErrInvalidRequest
+		}
+		pushed, err := service.GetPushedAuthorizationRequest(c, requestURI)
+		if err != nil {
+			return nil, response.ErrInvalidRequest
+		}
+		if clientID := openapi.getParam(c, "client_id"); clientID != "" && clientID != pushed.ClientID {
+			return nil, response.ErrInvalidClient
+		}
+		return &types.AuthorizationRequest{
+			ClientID:            pushed.ClientID,
+			ResponseType:        pushed.ResponseType,
+			RedirectURI:         pushed.RedirectURI,
+			Scope:               pushed.Scope,
+			State:               pushed.State,
+			CodeChallenge:       pushed.CodeChallenge,
+			CodeChallengeMethod: pushed.CodeChallengeMethod,
+			Resource:            pushed.Resource,
+			Prompt:              pushed.Prompt,
+			LoginHint:           pushed.LoginHint,
+			MaxAge:              pushed.MaxAge,
+			TeamID:              pushed.TeamID,
+			RequestURI:          requestURI,
+		}, nil
+	}
 	// Parse authorization request parameters from both GET (query) and POST (form) methods
 	authReq := &types.AuthorizationRequest{
 		ClientID:            openapi.getParam(c, "client_id"),
@@ -935,6 +1341,10 @@ func (openapi *OpenAPI) parseAuthorizationRequest(c *gin.Context) (*types.Author
 		CodeChallengeMethod: openapi.getParam(c, "code_challenge_method"),
 		Resource:            openapi.getParam(c, "resource"),
 		Nonce:               openapi.getParam(c, "nonce"),
+		Prompt:              openapi.getParam(c, "prompt"),
+		LoginHint:           openapi.getParam(c, "login_hint"),
+		MaxAge:              openapi.getParam(c, "max_age"),
+		TeamID:              openapi.getParam(c, "team_id"),
 	}
 
 	// Basic validation

@@ -522,3 +522,13 @@ func TestCacheConsistency(t *testing.T) {
 		})
 	}
 }
+
+func TestRedirectURIsMatchLoopback(t *testing.T) {
+	require.True(t, redirectURIsMatch("http://127.0.0.1/callback", "http://127.0.0.1:52341/callback"))
+	require.True(t, redirectURIsMatch("http://[::1]/callback", "http://[::1]:52341/callback"))
+	require.True(t, redirectURIsMatch("http://localhost/callback", "http://localhost:19000/callback"))
+	require.False(t, redirectURIsMatch("http://127.0.0.1/callback", "http://127.0.0.1:52341/other"))
+	require.False(t, redirectURIsMatch("http://127.0.0.1:5173/callback", "http://localhost:5173/callback"))
+	require.False(t, redirectURIsMatch("https://127.0.0.1/callback", "https://127.0.0.1:52341/callback"))
+	require.False(t, redirectURIsMatch("https://app.example.com/callback", "https://app.example.com:8443/callback"))
+}

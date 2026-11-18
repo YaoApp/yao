@@ -694,3 +694,28 @@ func TestTokenKeyHashing(t *testing.T) {
 		assert.NotNil(t, got)
 	})
 }
+
+func TestConsentToken(t *testing.T) {
+	service := newUnitTestService(t)
+	ctx := context.Background()
+	request := &types.AuthorizationRequest{
+		ClientID:            "client-consent",
+		RedirectURI:         "http://127.0.0.1:49152/callback",
+		ResponseType:        types.ResponseTypeCode,
+		Scope:               "openid profile",
+		State:               "consent-state",
+		CodeChallenge:       "challenge",
+		CodeChallengeMethod: types.CodeChallengeMethodS256,
+	}
+	token, err := service.CreateConsentToken(ctx, &ConsentRecord{
+		Request: request, UserID: "user-1", Subject: "subject-1", AuthSource: "tao",
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+	record, err := service.ConsumeConsentToken(ctx, token)
+	require.NoError(t, err)
+	require.Equal(t, "user-1", record.UserID)
+	require.Equal(t, "consent-state", record.Request.State)
+	_, err = service.ConsumeConsentToken(ctx, token)
+	require.Error(t, err)
+}
