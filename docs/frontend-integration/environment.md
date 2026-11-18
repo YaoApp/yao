@@ -19,7 +19,7 @@ The guides assume:
 - Yao 2.0 with the OpenAPI mounted under `/v1`.
 - Browser clients that can use first-party cookies, directly or behind a same-origin proxy/BFF.
 - Native desktop/mobile clients that can open a system browser and receive an OAuth authorization-code callback.
-- A Web frontend that serves the Yao login route `/auth/entry` and honors its `return_to` query when continuing an OAuth authorization request. It should also serve `/auth/entry/success` and `/auth/entry/failure` or configure equivalent success/failure routes in the OpenAPI entry config. The Yao API redirects here; it does not ship these HTML pages itself.
+- A Web frontend that serves the Yao login route `/auth/entry` and honors its `return_to` query when continuing an OAuth authorization request. Native clients with Tao configured skip this page and go directly to Tao; the page remains the fallback for Web clients and for local login. It must also serve the consent route, configured by `consent_url` in the OpenAPI entry config (default `/app/consent`), and `/auth/entry/success` / `/auth/entry/failure` or equivalent configured routes. The Yao API redirects to these routes; it does not ship the HTML pages itself.
 - A Tao OAuth provider configured by the operator for Tao login.
 - A Tai transport reachable by the host that runs a local Tai node; its port is published at `/.well-known/yao-transport`.
 - HTTPS in production. Plain HTTP is only appropriate for controlled local development.

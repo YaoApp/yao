@@ -14,16 +14,17 @@
 
 ## 1. Flow at a glance
 
-The app opens Yao's Web authorization page in the system browser. The user signs in there (Tao, local password, or another configured method), and Yao redirects the authorization code back to the app through a registered callback URI.
+The app opens the Yao authorization endpoint in the system browser. For a native client with Tao configured, the user signs in directly with Tao; otherwise the deployment's Web login UI handles the configured methods. Yao then redirects the authorization code back to the app through a registered callback URI.
 
 ```text
 iOS / Android app                  System browser / Yao
        |                                  |
        |-- 1. PKCE + state --------------->|
        |-- 2. open /v1/oauth/authorize --->|
-       |                                  | no session:
-       |                                  |  /auth/entry?return_to=...
-       |                                  | user signs in
+       |                                  | no session, native:
+       |                                  |  302 Tao login (no page)
+       |                                  |  consent page
+       |                                  |  POST /v1/oauth/authorize
        |<-- 3. redirect to app callback --|
        |        ?code=...&state=...       |
        |                                  |
@@ -33,7 +34,7 @@ iOS / Android app                  System browser / Yao
        |-- 5. Bearer API calls ---------->|
 ```
 
-The app must not render Yao's login form in an embedded `WebView`. The system browser is the authorization user-agent; it also supports existing browser SSO cookies. When no Yao session exists, `/v1/oauth/authorize` redirects to `/auth/entry?return_to=...`; the deployment's Web frontend must serve that route and return to the authorization request after login.
+The app must not render Yao's login form in an embedded `WebView`. The system browser is the authorization user-agent; it also supports existing browser SSO cookies. For a native client with Tao configured, a missing Yao session is handled by Yao: the browser goes directly to Tao, then back to the original authorization request and on to the app callback. No deployment **login** page is required for the Tao-only mobile flow; the consent page still follows. If Tao is not configured, Yao falls back to `/auth/entry?return_to=...` for the deployment's Web login UI. The continuation uses a one-time server-side login handoff, so it does not depend on `SameSite=Strict` cookies surviving the cross-site redirect from Tao.
 
 ---
 
@@ -42,10 +43,12 @@ The app must not render Yao's login form in an embedded `WebView`. The system br
 | Purpose | Method | Endpoint |
 | --- | --- | --- |
 | Authorization | `GET` / `POST` | `/v1/oauth/authorize` |
+| Pushed authorization request (optional) | `POST` | `/v1/oauth/par` |
 | Token exchange and refresh | `POST` | `/v1/oauth/token` |
 | UserInfo | `GET` / `POST` | `/v1/oauth/userinfo` |
 | Revoke | `POST` | `/v1/oauth/revoke` |
 | Dynamic client registration (optional) | `POST` | `/v1/oauth/register` |
+| RP-initiated logout | `GET` / `POST` | `/v1/oauth/logout` |
 
 ---
 
@@ -54,11 +57,11 @@ The app must not render Yao's login form in an embedded `WebView`. The system br
 Ask the Yao operator for a **public** client with:
 
 - `client_type`: public
-- `redirect_uris`: a custom scheme such as `yaosso://callback`, and/or a verified HTTPS callback such as `https://app.example.com/mobile/callback`
+- `redirect_uris`: a custom scheme such as `celadon://callback`, and/or a verified HTTPS callback such as `https://app.example.com/mobile/callback`
 - `grant_types`: `authorization_code`, `refresh_token`
 - `response_types`: `code`
 - `token_endpoint_auth_method`: `none`
-- `scope`: `openid profile email offline_access`
+- `scope`: the business scope set described in [desktop §3.1](desktop.md#31-desktop-scope-set); OIDC scopes alone do not authorize business APIs
 - `require_pkce`: `true`
 
 Example dynamic registration for a mobile public client:
@@ -70,20 +73,28 @@ Content-Type: application/json
 {
   "client_name": "My Mobile App",
   "application_type": "native",
-  "redirect_uris": ["yaosso://callback"],
+  "redirect_uris": ["celadon://callback"],
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
   "token_endpoint_auth_method": "none",
   "require_pkce": true,
-  "scope": "openid profile email offline_access"
+  "scope": "openid profile email offline_access user:profile:read:own builtin:teams:selection"
 }
 ```
 
-Response includes a `client_id`. A public client has no client secret.
+Response includes a `client_id`. A public client has no client secret. If registration fails, read `error` and `error_description`; the server now returns the specific validation reason instead of only `invalid_client_metadata`.
 
-The server must allow the redirect scheme and host used by the client. For custom schemes this is controlled by the OAuth client policy (`allowed_redirect_uri_schemes`); the host portion is also validated against `allowed_redirect_uri_hosts`, so a URI like `yaosso://callback` has host `callback`. Some deployments allow the scheme but not that host; in that case dynamic registration is rejected and the operator must pre-register the client. `yaosso` is a supported example, but the deployment may use a different scheme or require an HTTPS universal/app link. Confirm the exact callback URI with the operator before shipping.
+Only requesting `openid profile email offline_access` produces a token that
+cannot call Yao business APIs. The desktop and mobile clients share the same
+ACL scope inventory; use [desktop §3.1](desktop.md#31-desktop-scope-set) as the
+canonical list and request only the subset your build needs. A pre-registered
+public client can omit `scope` at authorize time, in which case Yao uses the
+client's registered scope as the default; explicitly sending the same list is
+also supported.
 
-> `yaosso://callback` is an example. The scheme must be registered in the app, in the Yao client, and allowed by the Yao deployment.
+The server must allow the redirect scheme and host used by the client. For custom schemes this is controlled by the OAuth client policy (`allowed_redirect_uri_schemes`); the host portion is also validated against `allowed_redirect_uri_hosts`, so a URI like `celadon://callback` has host `callback`. Some deployments allow the scheme but not that host; in that case dynamic registration is rejected and the operator must pre-register the client. `celadon` is the CUI mobile scheme; another first-party app may use a different scheme or an HTTPS universal/app link. Confirm the exact callback URI with the operator before shipping.
+
+> `celadon://callback` is the CUI example. The scheme must be registered in the app, in the Yao client, and allowed by the Yao deployment.
 
 ---
 
@@ -109,8 +120,8 @@ Build and open:
 GET https://<your-yao-host>/v1/oauth/authorize
   ?response_type=code
   &client_id=<client-id>
-  &redirect_uri=yaosso%3A%2F%2Fcallback
-  &scope=openid%20profile%20email%20offline_access
+  &redirect_uri=celadon%3A%2F%2Fcallback
+  &scope=openid%20profile%20email%20offline_access%20user%3Aprofile%3Aread%3Aown%20builtin%3Ateams%3Aselection
   &state=<random-state>
   &code_challenge=<challenge>
   &code_challenge_method=S256
@@ -118,23 +129,82 @@ GET https://<your-yao-host>/v1/oauth/authorize
 
 Behavior:
 
-- Without a Yao browser session, Yao redirects to `/auth/entry?return_to=<encoded-authorize-request>`. The user signs in on the Web page, and Yao returns to the authorization request.
-- With a session, Yao immediately redirects to the registered callback with `code` and `state`.
+- Without a Yao browser session, a native client with Tao configured is redirected directly to Tao; after login Yao returns to the authorization request and then to the app callback.
+- Without Tao, Yao redirects to `/auth/entry?return_to=<encoded-authorize-request>`; the deployment's Web login UI completes login and returns to the request.
+- With a session and no `prompt` (or `prompt=consent`), Yao redirects to the deployment consent page (default `/app/consent`) instead of issuing a code. The page submits the original parameters plus a one-time `consent_token` to `POST /v1/oauth/authorize`; only then does Yao redirect to the app callback.
+- `prompt=none` never shows a page: it issues a code when a session exists, otherwise redirects `error=login_required&state=...` to the app callback.
+- `prompt=login` / `select_account` force reauthentication before the consent page.
 - Invalid client/redirect URI or missing PKCE S256 is rejected with an HTTP 400 response (not an app callback). Invalid scope and other authorization errors may redirect to the registered callback with `error=...&state=...`; handle both cases.
+- Optional team selection uses the RFC 6749 extension parameter `team_id`; the token then carries `team_id` / `tenant_id`, and profile `team=true` returns `yao:team`.
 
 On success the app callback receives:
 
 ```text
-yaosso://callback?code=<authorization-code>&state=<state>
+celadon://callback?code=<authorization-code>&state=<state>
 ```
 
 On error:
 
 ```text
-yaosso://callback?error=access_denied&error_description=...&state=<state>
+celadon://callback?error=access_denied&error_description=...&state=<state>
 ```
 
 Validate `state` before doing anything else.
+
+### 5.1 Pushed authorization request (PAR)
+
+If the deployment advertises:
+
+```json
+{"require_pushed_authorization_requests": true}
+```
+
+or if you choose PAR for hardening, send the authorization parameters to:
+
+```http
+POST /v1/oauth/par
+Content-Type: application/x-www-form-urlencoded
+
+client_id=<client-id>
+&response_type=code
+&redirect_uri=celadon%3A%2F%2Fcallback
+&scope=openid%20profile%20email%20offline_access%20user%3Aprofile%3Aread%3Aown%20builtin%3Ateams%3Aselection
+&state=<random-state>
+&code_challenge=<S256-challenge>
+&code_challenge_method=S256
+```
+
+The response is:
+
+```json
+{"request_uri":"urn:ietf:params:oauth:request_uri:...","expires_in":600}
+```
+
+Then open only:
+
+```text
+GET /v1/oauth/authorize?client_id=<client-id>&request_uri=<encoded-request-uri>
+```
+
+Yao resolves the stored parameters and opens the login page if needed. The `request_uri` remains valid through the login redirect and is consumed only after a code is successfully issued; an expired or reused request URI is rejected.
+
+The current server exposes PAR as an optional endpoint and does not require it when `require_pushed_authorization_requests` is absent or false. If a deployment sets that metadata to true, always use PAR.
+
+For an HTTPS universal link, use the exact registered HTTPS callback in both the PAR request and the token request instead of the `celadon` example.
+
+### 5.2 Consent page and prompt
+
+The deployment Web route `consent_url` (default `/app/consent`) receives the
+original authorization parameters plus a one-time `consent_token`. The page
+POSTs them back to `/v1/oauth/authorize`; only then is the authorization code
+redirected to the mobile callback. `team_id` may be chosen in this POST even if
+the initial authorize request did not include it; Yao validates membership and
+adds the team claim to the token.
+
+`prompt=none` never opens a page (code with an existing session, otherwise
+`error=login_required`); `prompt=login`/`select_account` force reauthentication
+before consent. Yao forwards `prompt`, `login_hint`, and `max_age` to Tao; Tao
+honors them or returns `error=login_required`.
 
 ---
 
@@ -150,7 +220,7 @@ Add a URL type to `Info.plist`:
   <dict>
     <key>CFBundleURLSchemes</key>
     <array>
-      <string>yaosso</string>
+      <string>celadon</string>
     </array>
   </dict>
 </array>
@@ -171,7 +241,7 @@ final class AuthSession: NSObject, ASWebAuthenticationPresentationContextProvidi
     func start(authURL: URL) {
         let session = ASWebAuthenticationSession(
             url: authURL,
-            callbackURLScheme: "yaosso"
+            callbackURLScheme: "celadon"
         ) { callbackURL, error in
             // callbackURL contains code/state on success
             // error is set when the user cancels or the session fails
@@ -207,7 +277,7 @@ Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code
 &code=<code>
-&redirect_uri=yaosso%3A%2F%2Fcallback
+&redirect_uri=celadon%3A%2F%2Fcallback
 &client_id=<client-id>
 &code_verifier=<verifier>
 ```
@@ -229,7 +299,7 @@ Declare an activity or a dedicated callback activity with an intent filter:
         <action android:name="android.intent.action.VIEW" />
         <category android:name="android.intent.category.DEFAULT" />
         <category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="yaosso" android:host="callback" />
+        <data android:scheme="celadon" android:host="callback" />
     </intent-filter>
 </activity>
 ```
@@ -262,7 +332,7 @@ override fun onNewIntent(intent: Intent) {
 
 private fun handleAuthCallback(uri: Uri?) {
     if (uri == null) return
-    if (uri.scheme != "yaosso" || uri.host != "callback") return
+    if (uri.scheme != "celadon" || uri.host != "callback") return
 
     val code = uri.getQueryParameter("code")
     val state = uri.getQueryParameter("state")
@@ -281,7 +351,7 @@ Use `EncryptedSharedPreferences` backed by the Android Keystore, or an equivalen
 
 ### 7.5 Token exchange
 
-Same form request as iOS, with `redirect_uri=yaosso://callback` (exact registered value).
+Same form request as iOS, with `redirect_uri=celadon://callback` (exact registered value).
 
 ---
 
@@ -303,6 +373,7 @@ Success:
 ```json
 {
   "access_token": "<jwt>",
+  "id_token": "<jwt>",
   "token_type": "Bearer",
   "expires_in": 3600,
   "refresh_token": "<jwt>"
@@ -341,6 +412,16 @@ Persist the returned refresh token when rotation is enabled; the old token may b
 ---
 
 ## 10. Logout
+
+The RP-Initiated Logout endpoint is:
+
+```text
+GET /v1/oauth/logout?client_id=<client-id>&post_logout_redirect_uri=<registered-uri>&state=<state>
+```
+
+It clears the Yao session and redirects to the registered `post_logout_redirect_uri`
+with `state`. The Web session endpoint `POST /v1/user/logout` remains available
+for browser sessions.
 
 Revoke the refresh token server-side:
 

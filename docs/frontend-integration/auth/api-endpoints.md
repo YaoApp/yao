@@ -39,18 +39,33 @@ Notes:
 
 ---
 
+## 1.1 Discovery
+
+```http
+GET /.well-known/oauth-authorization-server
+GET /.well-known/openid-configuration
+```
+
+The metadata includes `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`,
+`registration_endpoint`, `pushed_authorization_request_endpoint`,
+`end_session_endpoint`, `prompt_values_supported`, and
+`token_endpoint_auth_methods_supported` (including `none` for public clients).
+Use discovery instead of hard-coding endpoint paths.
+
 ## 2. Native authorization-code login
 
 Desktop and mobile apps are OAuth **public clients**. They use the OAuth 2.1 authorization-code flow with PKCE; the browser shows the Yao login page, then redirects back to the app.
 
 | Method | Endpoint | Auth | Used by | Purpose |
 | --- | --- | --- | --- | --- |
-| `GET` / `POST` | `/v1/oauth/authorize` | Public endpoint; requires browser login session to issue a code | Desktop, Mobile | authorization request; redirects to `/auth/entry?return_to=...` when not signed in, then to app callback with `code&state` |
+| `GET` / `POST` | `/v1/oauth/authorize` | Public endpoint; requires browser login session to issue a code | Desktop, Mobile | authorization request; native Tao clients go to Tao then the consent page, Web/fallback goes to `/auth/entry`, then the app callback with `code&state` |
+| `POST` | `/v1/oauth/par` | Public client | Desktop, Mobile | optional pushed authorization request; returns a one-time `request_uri` |
 | `POST` | `/v1/oauth/token` | Public client | Desktop, Mobile | exchange authorization code; refresh access token |
 | `GET` / `POST` | `/v1/oauth/userinfo` | Bearer access token | Desktop, Mobile | identity claims for the token |
 | `POST` | `/v1/oauth/revoke` | Public client token value | Desktop, Mobile | revoke access/refresh token |
 | `GET` | `/v1/oauth/jwks` | Public | Desktop, Mobile | public signing keys for local JWT verification |
 | `POST` | `/v1/oauth/register` | Public (when enabled) | Desktop, Mobile | dynamic registration of a public client |
+| `GET` / `POST` | `/v1/oauth/logout` | Public | Desktop, Mobile, Web | OIDC RP-Initiated Logout; clears Yao session and redirects to registered `post_logout_redirect_uri` |
 
 ### Authorization request
 
@@ -65,7 +80,18 @@ GET /v1/oauth/authorize
   &code_challenge_method=S256
 ```
 
-Yao requires PKCE `S256` for the authorization-code flow. Without a Yao browser session it `302`s to `/auth/entry?return_to=<encoded-authorize-request>`; the deployment's Web frontend must serve `/auth/entry`, complete login, and navigate back to `return_to`, after which authorization continues and redirects to the registered callback. `/auth/entry` is a Web UI route, not an endpoint served by the OpenAPI.
+Yao requires PKCE `S256` for the authorization-code flow. Without a Yao browser session:
+
+- a **native** client (desktop/mobile) with Tao configured is redirected directly to Tao, then back to the original authorize request; no deployment **login** page is needed, but the consent page follows;
+- a Web client, or a deployment without Tao, is redirected to `/auth/entry?return_to=<encoded-authorize-request>`; the deployment's Web frontend must serve `/auth/entry`, complete login, and navigate back to `return_to`.
+
+When a session exists, Yao redirects to the deployment consent page
+(`consent_url`, default `/app/consent`) unless `prompt=none`; the page POSTs the
+original parameters plus a one-time `consent_token` to `/v1/oauth/authorize`.
+`prompt=login`/`select_account` force reauthentication first. Optional
+`team_id` selects a team the user belongs to and adds team/tenant claims to the
+token. `/auth/entry` and `/app/consent` are Web UI routes, not endpoints served
+by the OpenAPI.
 
 Success callback:
 
@@ -78,6 +104,38 @@ Error callback:
 ```text
 <redirect_uri>?error=<code>&error_description=<description>&state=<state>
 ```
+
+### Consent submission
+
+After login, a request with an existing session is redirected to the deployment
+consent page (`consent_url`, default `/app/consent`) with the original query
+parameters plus a one-time `consent_token`. The page confirms with:
+
+```http
+POST /v1/oauth/authorize
+Content-Type: application/x-www-form-urlencoded
+
+client_id=<client-id>&redirect_uri=<registered-uri>&response_type=code
+&state=<state>&code_challenge=<challenge>&code_challenge_method=S256
+&consent_token=<one-time-token>
+```
+
+A valid submission returns the normal `303`/`302` redirect to `redirect_uri`
+with `code` and `state`; an expired token or mismatched request returns an OAuth
+error. `prompt=none` does not use this page.
+
+Optional extension parameters on the authorize request:
+
+| Parameter | Purpose |
+| --- | --- |
+| `prompt` | `none`, `consent`, `login`, or `select_account` |
+| `login_hint` | optional login hint forwarded to the identity provider |
+| `max_age` | optional reauthentication age in seconds; `0` forces reauthentication |
+| `team_id` | select a team the user belongs to; adds `team_id` / `tenant_id` claims to the token. On the consent POST this is the user's selection and does not need to be present on the initial GET. |
+
+`prompt`, `login_hint`, and `max_age` are forwarded to the configured Tao
+provider. The provider enforces reauthentication and returns
+`error=login_required` rather than silently reusing a session it cannot refresh.
 
 ### Token request
 
@@ -99,7 +157,7 @@ grant_type=refresh_token
 &client_id=<client-id>
 ```
 
-A public client has no secret. The response contains `access_token`, `token_type`, `expires_in`, and `refresh_token` when the client is allowed to receive one. Do not depend on a `scope` field being present; the granted scopes are recorded server-side.
+A public client has no secret. The response contains `access_token`, `token_type`, `expires_in`, and `refresh_token` when the client is allowed to receive one; `id_token` is included when `openid` was granted. Do not depend on a `scope` field being present; the granted scopes are recorded server-side.
 
 Use the access token on protected APIs:
 
