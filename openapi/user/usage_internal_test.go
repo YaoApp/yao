@@ -72,3 +72,47 @@ func TestFetchTaoKeyBalance(t *testing.T) {
 		require.False(t, available)
 	})
 }
+
+func TestFetchTaoAccountBalanceWithToken(t *testing.T) {
+	t.Run("account balance", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, "/api/v1/users/me/balance", r.URL.Path)
+			require.Equal(t, "Bearer tao-access", r.Header.Get("Authorization"))
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"balance":1000,"total_income":1000,"total_expense":0}`))
+		}))
+		defer server.Close()
+		installTaoUsageTestProvider(t, server.URL)
+
+		balance, available, err := fetchTaoAccountBalanceWithToken(context.Background(), "tao-access")
+		require.NoError(t, err)
+		require.True(t, available)
+		require.NotNil(t, balance)
+		require.Equal(t, int64(1000), *balance)
+	})
+
+	t.Run("missing balance", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{}`))
+		}))
+		defer server.Close()
+		installTaoUsageTestProvider(t, server.URL)
+
+		balance, available, err := fetchTaoAccountBalanceWithToken(context.Background(), "tao-access")
+		require.NoError(t, err)
+		require.False(t, available)
+		require.Nil(t, balance)
+	})
+
+	t.Run("non-200", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+		}))
+		defer server.Close()
+		installTaoUsageTestProvider(t, server.URL)
+
+		_, available, err := fetchTaoAccountBalanceWithToken(context.Background(), "tao-access")
+		require.Error(t, err)
+		require.False(t, available)
+	})
+}

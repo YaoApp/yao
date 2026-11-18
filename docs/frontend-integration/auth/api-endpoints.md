@@ -67,9 +67,12 @@ menu. Unauthenticated requests return `401`.
 | `balance_available` | `false` means the balance is unknown; do not render `remaining` as zero |
 
 Yao reads the balance from Tao `GET /v1/key` with the user's managed Tao API key
-(`balance` / `balance_available`). The user's key is never returned to the
-browser. The endpoint is read-only and does not change session state. No
-`upgradeUrl` is returned today; a frontend may omit the upgrade action.
+(`balance` / `balance_available`). If a legacy user has no recoverable managed
+key (Tao only reveals a managed key once), Yao falls back to the Tao account
+balance (`GET /api/v1/users/me/balance`) using the user's refreshed OAuth token.
+The user's key/token is never returned to the browser. The endpoint is
+read-only and does not change session state. No `upgradeUrl` is returned today;
+a frontend may omit the upgrade action.
 
 The access token (or first-party Web client scope) must include
 `user:usage:read:own`; add it to the OpenAPI client scopes when upgrading an
