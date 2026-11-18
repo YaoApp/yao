@@ -195,7 +195,7 @@ func TestOAuthAuthorize(t *testing.T) {
 		assert.Contains(t, string(body), "invalid_client")
 	})
 
-	t.Run("Valid Authorization Request via POST", func(t *testing.T) {
+	t.Run("POST authorize without consent token is rejected", func(t *testing.T) {
 		// Test valid authorization request with POST method
 		form := url.Values{}
 		form.Set("client_id", testClient.ClientID)
@@ -222,12 +222,11 @@ func TestOAuthAuthorize(t *testing.T) {
 
 		t.Logf("Response status code: %d", resp.StatusCode)
 
-		// Unauthenticated authorize must redirect to the Yao login page.
-		assert.Equal(t, http.StatusFound, resp.StatusCode)
-		location := resp.Header.Get("Location")
-		assert.Contains(t, location, "/auth/entry")
-		assert.Contains(t, location, "return_to=")
-		t.Logf("Redirect location: %s", location)
+		// POST is the consent-page confirmation path and requires the one-time
+		// consent token, even before session/login handling.
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		assert.Contains(t, string(body), "consent_token")
 	})
 
 	t.Run("Invalid Response Type via POST", func(t *testing.T) {
