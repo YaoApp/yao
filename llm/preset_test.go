@@ -42,6 +42,20 @@ func TestListPresetsOpenRouterHasAllTypes(t *testing.T) {
 	assert.Greater(t, len(models), 400, "openrouter should have 400+ total models")
 }
 
+func TestSynapPreset(t *testing.T) {
+	models := ListPresets("synap")
+	require.Len(t, models, 6)
+
+	m := LookupPreset("synap", "meta/muse-glimmer-30b")
+	require.NotNil(t, m)
+	assert.Equal(t, "https://pool.linkrra.com/v1", m.BaseURL)
+	assert.Equal(t, "openai-completions", m.API)
+	assert.Equal(t, 131072, m.ContextWindow)
+	assert.True(t, m.Reasoning)
+	assert.Equal(t, 0.28, m.InputCostPer1M)
+	assert.Equal(t, 1.1, m.OutputCostPer1M)
+}
+
 func TestLookupPreset(t *testing.T) {
 	t.Run("found chat model", func(t *testing.T) {
 		m := LookupPreset("openai", "gpt-4.1")
