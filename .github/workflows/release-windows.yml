@@ -72,7 +72,7 @@ jobs:
           go-version: "1.26"
 
       - name: Install LLVM
-        run: choco install llvm -y
+        run: choco upgrade llvm -y --no-progress --force
 
       - name: Setup Go Tools
         shell: bash

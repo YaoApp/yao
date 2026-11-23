@@ -782,7 +782,7 @@ jobs:
 
       # ── 7. Install LLVM (clang + lld) ──────────────────────────────
       - name: Install LLVM
-        run: choco install llvm -y
+        run: choco upgrade llvm -y --no-progress --force
 
       # ── 8. Setup Go Tools ──────────────────────────────────────────
       - name: Setup Go Tools

@@ -84,7 +84,9 @@ jobs:
       - name: Install LLVM and make (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        run: choco install llvm make -y --no-progress
+        run: |
+          choco upgrade llvm -y --no-progress --force
+          choco install make -y --no-progress
 
       - name: Install v8 native deps
         shell: bash
@@ -194,7 +196,9 @@ jobs:
       - name: Install LLVM and make (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        run: choco install llvm make -y --no-progress
+        run: |
+          choco upgrade llvm -y --no-progress --force
+          choco install make -y --no-progress
 
       - name: Setup Windows CGO
         if: runner.os == 'Windows'
