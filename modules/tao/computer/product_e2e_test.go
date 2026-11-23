@@ -32,6 +32,12 @@ func TestE2EModelProductWriter(t *testing.T) {
 	if rows[0]["name"] != "flex-2c2g" {
 		t.Fatalf("product=%+v", rows[0])
 	}
+	if fmt.Sprint(rows[0]["source"]) != "tao" || fmt.Sprint(rows[0]["health"]) != "unknown" {
+		t.Fatalf("product defaults source=%v health=%v", rows[0]["source"], rows[0]["health"])
+	}
+	if rows[0]["delivery_endpoint"] != nil || rows[0]["delivery_credential_ref"] != nil {
+		t.Fatalf("product internal delivery fields should be nil: %+v", rows[0])
+	}
 	if err := writer.DisableMissing(context.Background(), "computer", map[string]struct{}{}); err != nil {
 		t.Fatalf("disable missing: %v", err)
 	}

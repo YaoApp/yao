@@ -34,7 +34,7 @@
     {
       "name": "instance_id",
       "label": "Instance Id",
-      "comment": "Tao cloud host instance ID; NULL for local computers",
+      "comment": "Tao instance ID or internal provider instance ID; NULL for local computers",
       "type": "string",
       "length": 128,
       "nullable": true,

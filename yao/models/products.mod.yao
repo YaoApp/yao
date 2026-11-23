@@ -50,6 +50,18 @@
       "default": "system"
     },
     {
+      "name": "source",
+      "label": "Source",
+      "comment": "Supply source: tao catalog or internal private resource",
+      "type": "enum",
+      "option": [
+        "tao",
+        "internal"
+      ],
+      "default": "tao",
+      "nullable": false
+    },
+    {
       "name": "platform",
       "label": "Platform",
       "comment": "Platform",
@@ -99,11 +111,12 @@
     {
       "name": "visibility",
       "label": "Visibility",
-      "comment": "Visibility scope: team, members",
+      "comment": "Visibility scope: team, members, global",
       "type": "enum",
       "option": [
         "team",
-        "members"
+        "members",
+        "global"
       ],
       "nullable": true
     },
@@ -114,6 +127,50 @@
       "type": "decimal",
       "precision": 18,
       "scale": 4,
+      "nullable": true
+    },
+    {
+      "name": "delivery_endpoint",
+      "label": "Delivery Endpoint",
+      "comment": "Internal delivery gateway REST base URL; NULL for Tao",
+      "type": "string",
+      "length": 512,
+      "nullable": true
+    },
+    {
+      "name": "delivery_credential_ref",
+      "label": "Delivery Credential Ref",
+      "comment": "Secret reference for internal gateway; never plaintext token",
+      "type": "string",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "health",
+      "label": "Health",
+      "comment": "Cached runtime health; read-only for admins",
+      "type": "enum",
+      "option": [
+        "healthy",
+        "unhealthy",
+        "unknown"
+      ],
+      "default": "unknown",
+      "nullable": false
+    },
+    {
+      "name": "health_checked_at",
+      "label": "Health Checked At",
+      "comment": "Last health check timestamp",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "health_reason",
+      "label": "Health Reason",
+      "comment": "Runtime reason when health is unhealthy/unknown",
+      "type": "string",
+      "length": 128,
       "nullable": true
     },
     {
