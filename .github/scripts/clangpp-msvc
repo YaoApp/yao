@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Go's Windows cgo adds -mthreads, which recent Clang releases reject for the
+# MSVC target. Strip it before invoking Clang; the flag is a MinGW-only option.
+set -euo pipefail
+args=()
+for arg in "$@"; do
+  if [ "$arg" != "-mthreads" ]; then
+    args+=("$arg")
+  fi
+done
+exec clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions "${args[@]}"

@@ -271,8 +271,6 @@ jobs:
     timeout-minutes: 60
     env:
       CGO_ENABLED: "1"
-      CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
-      CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
       VERSION: ${{ needs.check.outputs.version }}
     steps:
       - name: Checkout CUI v1.0
@@ -320,6 +318,13 @@ jobs:
 
       - name: Install LLVM
         run: choco install llvm --version=22.1.7 -y --force --no-progress
+
+      - name: Setup Windows CGO
+        shell: bash
+        run: |
+          WS=$(cygpath -u "$GITHUB_WORKSPACE")
+          echo "CC=bash $WS/.github/scripts/clang-msvc" >> "$GITHUB_ENV"
+          echo "CXX=bash $WS/.github/scripts/clangpp-msvc" >> "$GITHUB_ENV"
 
       - name: Setup Go Tools
         shell: bash

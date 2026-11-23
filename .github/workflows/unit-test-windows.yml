@@ -312,11 +312,16 @@ jobs:
             echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
           fi
 
-      # ── 16. Run Core Tests ─────────────────────────────────────────
+      # ── 16. Setup Windows CGO ──────────────────────────────────────
+      - name: Setup Windows CGO
+        shell: bash
+        run: |
+          WS=$(cygpath -u "$GITHUB_WORKSPACE")
+          echo "CGO_ENABLED=1" >> "$GITHUB_ENV"
+          echo "CC=bash $WS/.github/scripts/clang-msvc" >> "$GITHUB_ENV"
+          echo "CXX=bash $WS/.github/scripts/clangpp-msvc" >> "$GITHUB_ENV"
+
+      # ── 17. Run Core Tests ─────────────────────────────────────────
       - name: Run Core Tests
         shell: bash
-        env:
-          CGO_ENABLED: "1"
-          CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
-          CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
         run: make unit-test-core-windows

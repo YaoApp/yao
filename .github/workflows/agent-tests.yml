@@ -96,9 +96,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
+          WS=$(cygpath -u "$GITHUB_WORKSPACE")
           echo "CGO_ENABLED=1" >> "$GITHUB_ENV"
-          echo 'CC=clang --target=x86_64-pc-windows-msvc -fuse-ld=lld' >> "$GITHUB_ENV"
-          echo 'CXX=clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions' >> "$GITHUB_ENV"
+          echo "CC=bash $WS/.github/scripts/clang-msvc" >> "$GITHUB_ENV"
+          echo "CXX=bash $WS/.github/scripts/clangpp-msvc" >> "$GITHUB_ENV"
 
       - name: Run functional tests
         shell: bash
@@ -204,9 +205,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
+          WS=$(cygpath -u "$GITHUB_WORKSPACE")
           echo "CGO_ENABLED=1" >> "$GITHUB_ENV"
-          echo 'CC=clang --target=x86_64-pc-windows-msvc -fuse-ld=lld' >> "$GITHUB_ENV"
-          echo 'CXX=clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions' >> "$GITHUB_ENV"
+          echo "CC=bash $WS/.github/scripts/clang-msvc" >> "$GITHUB_ENV"
+          echo "CXX=bash $WS/.github/scripts/clangpp-msvc" >> "$GITHUB_ENV"
 
       - name: Setup test env
         shell: bash
