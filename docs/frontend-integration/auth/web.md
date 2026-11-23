@@ -60,6 +60,34 @@ Do not read HttpOnly cookies from JavaScript or store token values in `localStor
 
 When an access token expires, the Yao guard can rotate it with the refresh cookie and returns updated `Set-Cookie` headers. Your HTTP client must accept those headers; do not cache or freeze a token value in application code.
 
+### 1.3 First-party client scopes
+
+Web session scopes come from the app-level `openapi/user/client.yao` file. After
+adding a feature that needs new scopes, update that app config and **sign in
+again**; an existing browser token keeps its old scope until a new token is
+issued.
+
+Member pickers call:
+
+```http
+GET /v1/user/teams/:team_id/members
+```
+
+The first-party Web client must include:
+
+```text
+user:members:read:own
+user:members:write:own
+user:members:delete:own
+user:members:read:team
+user:members:write:team
+user:members:delete:team
+user:members:write:own:profile
+```
+
+Missing these scopes returns `403 forbidden` with
+`missing_scopes`/`required_scopes` in the response.
+
 ---
 
 ## 2. Discover the login methods

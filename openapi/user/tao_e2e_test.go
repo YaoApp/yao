@@ -332,6 +332,57 @@ func TestE2ETaoLoginFlow(t *testing.T) {
 	require.Equal(t, "tao", fmt.Sprint(account["provider"]))
 	require.NotEmpty(t, fmt.Sprint(account["refresh_token"]))
 
+	// The first-party Web token must carry the team-member scopes used by
+	// the desktop/member picker APIs.
+	{
+		base, parseErr := url.Parse(environment.BaseURL)
+		require.NoError(t, parseErr)
+		var token string
+		for _, cookie := range jar.Cookies(base) {
+			if cookie.Name == "access_token" {
+				token = strings.TrimPrefix(cookie.Value, "Bearer ")
+				break
+			}
+		}
+		require.NotEmpty(t, token)
+		parts := strings.Split(token, ".")
+		require.Len(t, parts, 3)
+		payload, decodeErr := base64.RawURLEncoding.DecodeString(parts[1])
+		require.NoError(t, decodeErr)
+		var claims map[string]interface{}
+		require.NoError(t, json.Unmarshal(payload, &claims))
+		scope, _ := claims["scope"].(string)
+		for _, required := range []string{
+			"user:members:read:own",
+			"user:members:read:team",
+			"user:members:write:own",
+			"user:members:write:team",
+			"user:members:delete:own",
+			"user:members:delete:team",
+			"user:members:write:own:profile",
+		} {
+			require.Contains(t, scope, required)
+		}
+	}
+
+	// Member-picker APIs must be callable with the first-party Web token.
+	memberTeamsResp, memberTeamsErr := authClient.Get(environment.BaseURL + "/v1/user/teams")
+	require.NoError(t, memberTeamsErr)
+	memberTeamsBody, _ := io.ReadAll(memberTeamsResp.Body)
+	_ = memberTeamsResp.Body.Close()
+	require.Equal(t, http.StatusOK, memberTeamsResp.StatusCode, string(memberTeamsBody))
+	var memberTeams []struct {
+		TeamID string `json:"team_id"`
+	}
+	require.NoError(t, json.Unmarshal(memberTeamsBody, &memberTeams))
+	require.NotEmpty(t, memberTeams)
+	memberURL := environment.BaseURL + "/v1/user/teams/" + url.PathEscape(memberTeams[0].TeamID) + "/members?page=1&pagesize=100&status=active"
+	membersResp, membersErr := authClient.Get(memberURL)
+	require.NoError(t, membersErr)
+	membersBody, _ := io.ReadAll(membersResp.Body)
+	_ = membersResp.Body.Close()
+	require.Equal(t, http.StatusOK, membersResp.StatusCode, string(membersBody))
+
 	// The account menu reads the current plan and Tao balance through Yao.
 	usageReq, usageReqErr := http.NewRequest(http.MethodGet, environment.BaseURL+"/v1/user/usage", nil)
 	require.NoError(t, usageReqErr)
