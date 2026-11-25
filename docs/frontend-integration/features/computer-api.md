@@ -41,6 +41,7 @@ All `/v1/computers` endpoints require a signed-in user session or a bearer acces
 | `GET` | `/v1/computers` | User | list Computers for the caller (owner/team filter; admins: all) | `200`, `{"data":[...]}` |
 | `POST` | `/v1/computers/connect` | User | create a Computer and issue a node token | `200`, `ConnectResult` |
 | `GET` | `/v1/computers/{computer_id}` | Owner/admin | get one Computer | `200`, `Computer` |
+| `GET` | `/v1/computers/{computer_id}/status` | Owner/admin | lightweight runtime status for event fallback | `200`, `{computer_id,status}` |
 | `PATCH` | `/v1/computers/{computer_id}` | Owner/admin | rename or change visibility | `200`, `Computer` |
 | `DELETE` | `/v1/computers/{computer_id}` | Owner/admin | delete Computer and revoke its node token | `204`, no body |
 | `POST` | `/v1/computers/{computer_id}/disconnect` | Owner/admin | intentionally disconnect; block new connections | `200`, `Computer` |

@@ -12,15 +12,18 @@ event:events:read:all:
   description: "Subscribe to all system events"
   endpoints:
     - GET /events
+    - POST /events/ticket
 
 event:events:read:own:
   owner: true
   description: "Subscribe to own system events"
   endpoints:
     - GET /events
+    - POST /events/ticket
 
 event:events:read:team:
   team: true
   description: "Subscribe to team system events"
   endpoints:
     - GET /events
+    - POST /events/ticket

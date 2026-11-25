@@ -49,6 +49,9 @@ func (s *Service) Renew(ctx context.Context, computerID string, req types.RenewL
 	if err != nil {
 		return nil, err
 	}
+	if wasExpired && computer.Status != current.Status {
+		publishComputerStatus(ctx, computer)
+	}
 	result := &types.RenewLeaseResult{Computer: computer}
 	if wasExpired && req.IssueNodeToken {
 		if s.tokens == nil && oauth.OAuth != nil {
@@ -103,6 +106,9 @@ func (s *Service) ExpireDue(ctx context.Context, now time.Time) (int, error) {
 		if err := m.Update(computer.ID, map[string]interface{}{"status": types.StatusExpired}); err != nil {
 			return count, err
 		}
+		expired := computer
+		expired.Status = types.StatusExpired
+		publishComputerStatus(ctx, &expired)
 		count++
 	}
 	return count, nil

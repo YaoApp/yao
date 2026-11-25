@@ -154,7 +154,12 @@ func (s *Service) Create(ctx context.Context, req types.CreateComputerRequest) (
 	if err := m.Insert(columns, values); err != nil {
 		return nil, fmt.Errorf("insert computer: %w", err)
 	}
-	return s.Get(ctx, req.ID)
+	computer, err := s.Get(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	publishComputerCreated(ctx, computer)
+	return computer, nil
 }
 
 // List returns computers matching the filter.
@@ -292,7 +297,17 @@ func (s *Service) Delete(ctx context.Context, computerID string) error {
 			return err
 		}
 	}
-	return m.Delete(computerID)
+	item, err := s.Get(ctx, computerID)
+	if err != nil {
+		return err
+	}
+	if err := m.Delete(computerID); err != nil {
+		return err
+	}
+	released := *item
+	released.Status = types.StatusReleased
+	publishComputerStatus(ctx, &released)
+	return nil
 }
 
 // CreateOrUpdate upserts a Computer by computer_id or instance_id.
@@ -352,6 +367,7 @@ func (s *Service) CreateOrUpdate(ctx context.Context, req types.CreateOrUpdateCo
 		}
 	} else {
 		existing := computerFromRow(rows[0])
+		previousStatus := existing.Status
 		computer = &existing
 		update := map[string]interface{}{}
 		if req.InstanceID != "" && req.InstanceID != computer.InstanceID {
@@ -379,6 +395,9 @@ func (s *Service) CreateOrUpdate(ctx context.Context, req types.CreateOrUpdateCo
 			computer, err = s.Get(ctx, computer.ID)
 			if err != nil {
 				return nil, err
+			}
+			if computer.Status != previousStatus {
+				publishComputerStatus(ctx, computer)
 			}
 		}
 	}

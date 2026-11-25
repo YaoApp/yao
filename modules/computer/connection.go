@@ -143,11 +143,17 @@ func (s *Service) setStatus(ctx context.Context, computerID, status string) erro
 	if err != nil {
 		return err
 	}
-	if _, err := s.Get(ctx, computerID); err != nil {
+	current, err := s.Get(ctx, computerID)
+	if err != nil {
 		return err
 	}
 	if err := m.Update(computerID, map[string]interface{}{"status": status}); err != nil {
 		return err
+	}
+	if current.Status != status {
+		updated := *current
+		updated.Status = status
+		publishComputerStatus(ctx, &updated)
 	}
 	return nil
 }

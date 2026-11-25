@@ -35,6 +35,7 @@ func Attach(group *gin.RouterGroup, oauthSvc oauthtypes.OAuth) {
 	group.GET("", oauthSvc.Guard, h.List)
 	group.POST("/connect", oauthSvc.Guard, h.Connect)
 	group.GET("/:computer_id", oauthSvc.Guard, h.Get)
+	group.GET("/:computer_id/status", oauthSvc.Guard, h.Status)
 	group.PATCH("/:computer_id", oauthSvc.Guard, h.Update)
 	group.DELETE("/:computer_id", oauthSvc.Guard, h.Delete)
 	group.POST("/:computer_id/disconnect", oauthSvc.Guard, h.Disconnect)
@@ -117,6 +118,28 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 	response.RespondWithSuccess(c, http.StatusOK, item)
+}
+
+// Status returns only the Computer runtime status for event-loss fallback polling.
+func (h *Handler) Status(c *gin.Context) {
+	info := authorized.GetInfo(c)
+	if info == nil || info.UserID == "" {
+		forbidden(c)
+		return
+	}
+	item, err := h.Service.Get(c.Request.Context(), c.Param("computer_id"))
+	if err != nil {
+		notFoundOrError(c, err)
+		return
+	}
+	if !canManage(c.Request.Context(), info, item) {
+		forbidden(c)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{
+		"computer_id": item.ID,
+		"status":      item.Status,
+	})
 }
 
 func (h *Handler) Update(c *gin.Context) {

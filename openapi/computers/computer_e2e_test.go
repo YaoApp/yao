@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
@@ -34,11 +35,32 @@ type computerResponse struct {
 	Status string `json:"status"`
 }
 
-func TestComputerHTTPE2E(t *testing.T) {
-	environment, err := env.New(t)
-	if err != nil {
-		t.Fatalf("create E2E environment: %v", err)
+var (
+	sharedEnv *env.Environment
+	sharedErr error
+)
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if sharedEnv != nil {
+		sharedEnv.Close()
 	}
+	os.Exit(code)
+}
+
+func testEnvironment(t *testing.T) *env.Environment {
+	t.Helper()
+	if sharedEnv == nil {
+		sharedEnv, sharedErr = env.NewShared(t)
+	}
+	if sharedErr != nil {
+		t.Fatalf("create E2E environment: %v", sharedErr)
+	}
+	return sharedEnv
+}
+
+func TestComputerHTTPE2E(t *testing.T) {
+	environment := testEnvironment(t)
 	service, ok := openapi.Server.OAuth.(*oauth.Service)
 	if !ok || service == nil {
 		t.Fatal("OAuth service is not available")

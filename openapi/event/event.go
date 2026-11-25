@@ -12,19 +12,48 @@ import (
 	eventtypes "github.com/yaoapp/yao/event/types"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/openapi/response"
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin:  func(r *http.Request) bool { return true },
+	Subprotocols: []string{wsEventsProtocol},
 }
 
-// Attach registers the /v1/events WebSocket endpoint
+// Attach registers the /v1/events WebSocket endpoint and the desktop ticket endpoint.
 func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
-	group.GET("", oauth.Guard, handleEventWS)
+	tickets := newTicketManager(oauth)
+	group.POST("/ticket", oauth.Guard, tickets.issue)
+	group.GET("", func(c *gin.Context) {
+		if ticketToken(c) != "" {
+			c.Next()
+			return
+		}
+		oauth.Guard(c)
+	}, func(c *gin.Context) { handleEventWS(c, tickets) })
 }
 
-func handleEventWS(c *gin.Context) {
-	auth := toProcessAuth(authorized.GetInfo(c))
+func handleEventWS(c *gin.Context, tickets *ticketManager) {
+	var info *oauthtypes.AuthorizedInfo
+	if token := ticketToken(c); token != "" {
+		ticket, ok := tickets.consume(token)
+		if !ok {
+			response.RespondWithError(c, http.StatusUnauthorized, &response.ErrorResponse{
+				Code: "invalid_ticket", ErrorDescription: "Event ticket is invalid or expired",
+			})
+			return
+		}
+		info = ticket
+	} else {
+		info = authorized.GetInfo(c)
+	}
+	if info == nil || info.UserID == "" {
+		response.RespondWithError(c, http.StatusUnauthorized, &response.ErrorResponse{
+			Code: "unauthorized", ErrorDescription: "User not authenticated",
+		})
+		return
+	}
+	auth := toProcessAuth(info)
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
@@ -34,20 +63,7 @@ func handleEventWS(c *gin.Context) {
 	ch := make(chan *eventtypes.Event, 256)
 
 	subID := yaoevent.Subscribe("*", ch, yaoevent.Filter(func(ev *eventtypes.Event) bool {
-		m, ok := ev.Payload.(map[string]any)
-		if !ok {
-			return false
-		}
-		switch {
-		case strings.HasPrefix(ev.Type, "task."), strings.HasPrefix(ev.Type, "board."):
-			return m["__yao_team_id"] == auth.TeamID
-		case strings.HasPrefix(ev.Type, "mail."):
-			return m["__yao_created_by"] == auth.UserID
-		case strings.HasPrefix(ev.Type, "job."):
-			return m["__yao_session_id"] == auth.SessionID
-		default:
-			return false
-		}
+		return eventAllowed(auth, ev)
 	}))
 	defer yaoevent.Unsubscribe(subID)
 
@@ -85,6 +101,36 @@ func handleEventWS(c *gin.Context) {
 		case <-c.Request.Context().Done():
 			return
 		}
+	}
+}
+
+// eventAllowed is the per-connection event ACL. It keeps task/board/job/mail
+// behavior intact and scopes computer events to their owner or current team.
+func eventAllowed(auth *process.AuthorizedInfo, ev *eventtypes.Event) bool {
+	if auth == nil || ev == nil {
+		return false
+	}
+	m, ok := ev.Payload.(map[string]any)
+	if !ok {
+		return false
+	}
+	switch {
+	case strings.HasPrefix(ev.Type, "task."), strings.HasPrefix(ev.Type, "board."):
+		return m["__yao_team_id"] == auth.TeamID
+	case strings.HasPrefix(ev.Type, "mail."):
+		return m["__yao_created_by"] == auth.UserID
+	case strings.HasPrefix(ev.Type, "job."):
+		return m["__yao_session_id"] == auth.SessionID
+	case strings.HasPrefix(ev.Type, "computer."):
+		if auth.UserID == "" {
+			return false
+		}
+		if m["__yao_created_by"] == auth.UserID {
+			return true
+		}
+		return auth.TeamID != "" && m["__yao_team_id"] == auth.TeamID
+	default:
+		return false
 	}
 }
 

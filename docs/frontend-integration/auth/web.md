@@ -88,6 +88,16 @@ user:members:write:own:profile
 Missing these scopes returns `403 forbidden` with
 `missing_scopes`/`required_scopes` in the response.
 
+For Computer status events, the Web client also needs:
+
+```text
+event:events:read:own
+event:events:read:team
+```
+
+Browser WebSocket connections use the session Cookie; see
+[Computer status events](../features/computer-status-events.md).
+
 ---
 
 ## 2. Discover the login methods

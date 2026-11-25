@@ -162,7 +162,7 @@ Then poll the Computer:
 GET /v1/computers/{computer_id}
 ```
 
-Recommended UI polling is every 2-5 seconds while the status is `pending`/`offline`, with a timeout and a manual refresh action. There is no push subscription endpoint in the current implementation.
+Recommended UI polling is every 2-5 seconds while the status is `pending`/`offline`, with a timeout and a manual refresh action. A push event channel is available; see [Computer status events](computer-status-events.md). Use `GET /v1/computers/{id}/status` as the lightweight fallback when the event connection is unavailable.
 
 ### 4.4 Connection state flow
 

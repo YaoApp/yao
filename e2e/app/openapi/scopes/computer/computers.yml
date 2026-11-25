@@ -12,6 +12,7 @@ computer:computers:read:all:
     - GET /computer/options
     - GET /computers
     - GET /computers/:computer_id
+    - GET /computers/:computer_id/status
     - GET /computers/:computer_id/workspaces
     - GET /computers/:computer_id/runtimes
     - GET /computers/:computer_id/containers
@@ -23,6 +24,7 @@ computer:computers:read:own:
     - GET /computer/options
     - GET /computers
     - GET /computers/:computer_id
+    - GET /computers/:computer_id/status
     - GET /computers/:computer_id/workspaces
     - GET /computers/:computer_id/runtimes
     - GET /computers/:computer_id/containers
@@ -34,6 +36,7 @@ computer:computers:read:team:
     - GET /computer/options
     - GET /computers
     - GET /computers/:computer_id
+    - GET /computers/:computer_id/status
     - GET /computers/:computer_id/workspaces
     - GET /computers/:computer_id/runtimes
     - GET /computers/:computer_id/containers

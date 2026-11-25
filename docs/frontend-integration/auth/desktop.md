@@ -198,6 +198,10 @@ personal context.
 - Request only scopes your build uses. An unsupported scope fails with
   `invalid_scope`; a missing scope on an API call fails with `403` and
   `missing required scopes`.
+- Computer status events additionally need `event:events:read:own` and/or
+  `event:events:read:team`. Native WebSocket clients exchange the Bearer token
+  at `POST /v1/events/ticket`; see
+  [Computer status events](../features/computer-status-events.md).
 
 ---
 
