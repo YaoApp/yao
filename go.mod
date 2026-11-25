@@ -36,7 +36,7 @@ require (
 	github.com/xuri/excelize/v2 v2.11.1-0.20261003002531-6258dcebc4e2
 	github.com/yaoapp/gou v1.0.1
 	github.com/yaoapp/kun v1.0.0
-	github.com/yaoapp/tai-golang v0.0.0-20261109013213-250343d2dd60
+	github.com/yaoapp/tai-golang v0.0.0-20261125095050-cad2cbd6e4f9
 	github.com/yaoapp/xun v1.0.0
 	go.mongodb.org/mongo-driver v1.17.9
 	golang.org/x/crypto v0.57.0

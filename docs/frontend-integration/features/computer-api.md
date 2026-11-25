@@ -98,7 +98,39 @@ List response is wrapped in `data`:
 {"data": [{"id": "cmp_...", "node_id": "node-...", "status": "online"}]}
 ```
 
-Detail `GET /v1/computers/{id}` returns one Computer directly. `PATCH` accepts:
+Detail `GET /v1/computers/{id}` returns one Computer directly, including
+the structured hardware snapshot reported by Tai when the node is online:
+
+```json
+{
+  "id": "cmp_...",
+  "status": "online",
+  "hardware": {
+    "os": "darwin",
+    "arch": "arm64",
+    "cpu_cores": 12,
+    "memory_mb": 32768,
+    "disk_free_mb": 512000,
+    "gpus": [],
+    "capabilities": ["session"],
+    "container_runtimes": [{"name": "docker", "version": "27", "socket": "/var/run/docker.sock"}],
+    "tai_version": "2.0.0"
+  },
+  "ip": "192.168.3.110",
+  "networks": [
+    {"id": "en0", "name": "en0", "kind": "lan", "family": "ipv4", "address": "192.168.3.110", "prefix_length": 24, "primary": true}
+  ],
+  "last_seen_at": "2026-11-25T10:00:00Z"
+}
+```
+
+`gpus` is present as an array when Tai reports GPUs; current Tai builds may
+send an empty array. Missing values are omitted rather than filled with fake
+zeros. `networks` may include loopback addresses; display the primary
+non-loopback address by default. The list endpoint returns the same snapshot
+shape as detail.
+
+`PATCH` accepts:
 
 ```json
 {"name": "New name", "visibility": "team"}

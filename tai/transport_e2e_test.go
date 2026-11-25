@@ -128,6 +128,27 @@ func TestE2ETaiNodeRegistrationLifecycle(t *testing.T) {
 		}
 		t.Fatalf("node did not register: %+v", got)
 	}
+	if got.Hardware == nil || got.Hardware.OS == "" || got.Hardware.Arch == "" {
+		t.Fatalf("registered node has no hardware snapshot: %+v", got.Hardware)
+	}
+	if got.Hardware.CPUCores == 0 || got.Hardware.MemoryMB == 0 || got.Hardware.DiskFreeMB == 0 {
+		t.Fatalf("registered node has incomplete hardware numbers: %+v", got.Hardware)
+	}
+	if got.IP == "" || len(got.Networks) == 0 {
+		t.Fatalf("registered node has no network snapshot: ip=%s networks=%+v", got.IP, got.Networks)
+	}
+	primary := false
+	for _, network := range got.Networks {
+		if network.Primary {
+			primary = true
+			if got.IP != network.Address {
+				t.Fatalf("ip %s does not match primary address %s", got.IP, network.Address)
+			}
+		}
+	}
+	if !primary {
+		t.Fatalf("network snapshot has no primary address: %+v", got.Networks)
+	}
 	runtimes, err := computers.ListRuntimes(ctx, connected.ComputerID)
 	if err != nil {
 		t.Fatalf("runtimes: %v", err)

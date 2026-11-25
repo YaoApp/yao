@@ -3,6 +3,7 @@ package computer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -153,6 +154,11 @@ func (s *Service) Create(ctx context.Context, req types.CreateComputerRequest) (
 	}
 	if err := m.Insert(columns, values); err != nil {
 		return nil, fmt.Errorf("insert computer: %w", err)
+	}
+	if req.Snapshot != nil {
+		if err := m.Update(req.ID, snapshotValues(req.Snapshot)); err != nil {
+			return nil, fmt.Errorf("persist computer snapshot: %w", err)
+		}
 	}
 	computer, err := s.Get(ctx, req.ID)
 	if err != nil {
@@ -361,6 +367,7 @@ func (s *Service) CreateOrUpdate(ctx context.Context, req types.CreateOrUpdateCo
 			Visibility: req.Visibility, Status: req.Status, UserID: req.UserID,
 			TeamID: req.TeamID, DataDir: req.DataDir, Metadata: req.Metadata,
 			LeaseSource: req.LeaseSource, LeaseExpiresAt: req.LeaseExpiresAt,
+			Snapshot: req.Snapshot,
 		})
 		if err != nil {
 			return nil, err
@@ -387,6 +394,11 @@ func (s *Service) CreateOrUpdate(ctx context.Context, req types.CreateOrUpdateCo
 		}
 		if req.LeaseExpiresAt != nil {
 			update["lease_expires_at"] = *req.LeaseExpiresAt
+		}
+		if req.Snapshot != nil {
+			for key, value := range snapshotValues(req.Snapshot) {
+				update[key] = value
+			}
 		}
 		if len(update) > 0 {
 			if err := m.Update(computer.ID, update); err != nil {
@@ -420,6 +432,159 @@ func (s *Service) CreateOrUpdate(ctx context.Context, req types.CreateOrUpdateCo
 		result.ExpiresAt = token.ExpiresAt
 	}
 	return result, nil
+}
+
+func snapshotValues(snapshot *types.ComputerSnapshot) map[string]interface{} {
+	if snapshot == nil {
+		return nil
+	}
+	lastSeen := snapshot.LastSeenAt
+	if lastSeen.IsZero() {
+		lastSeen = time.Now().UTC()
+	}
+	// Use non-nil empty slices so a reconnect with fewer capabilities/runtimes
+	// clears the old JSON snapshot instead of leaving stale values behind.
+	capabilities := snapshot.Capabilities
+	if capabilities == nil {
+		capabilities = []string{}
+	}
+	gpus := snapshot.GPUs
+	if gpus == nil {
+		gpus = []types.GPU{}
+	}
+	runtimes := snapshot.ContainerRuntimes
+	if runtimes == nil {
+		runtimes = []types.ContainerRuntime{}
+	}
+	networks := snapshot.Networks
+	if networks == nil {
+		networks = []types.Network{}
+	}
+	values := map[string]interface{}{
+		"os":                 snapshot.OS,
+		"arch":               snapshot.Arch,
+		"cpu_cores":          snapshot.CPUCores,
+		"memory_mb":          snapshot.MemoryMB,
+		"disk_free_mb":       snapshot.DiskFreeMB,
+		"gpus":               gpus,
+		"capabilities":       capabilities,
+		"container_runtimes": runtimes,
+		"tai_version":        snapshot.TaiVersion,
+		"ip":                 snapshot.IP,
+		"networks":           networks,
+		"last_seen_at":       lastSeen,
+	}
+	return values
+}
+
+func hardwareFromRow(row map[string]interface{}) *types.Hardware {
+	hardware := &types.Hardware{
+		OS:         stringValue(row, "os"),
+		Arch:       stringValue(row, "arch"),
+		TaiVersion: stringValue(row, "tai_version"),
+	}
+	hardware.CPUCores, _ = uint32Value(row["cpu_cores"])
+	hardware.MemoryMB, _ = uint64Value(row["memory_mb"])
+	hardware.DiskFreeMB, _ = uint64Value(row["disk_free_mb"])
+	_ = decodeJSON(row["capabilities"], &hardware.Capabilities)
+	_ = decodeJSON(row["container_runtimes"], &hardware.ContainerRuntimes)
+	_ = decodeJSON(row["gpus"], &hardware.GPUs)
+	if hardware.OS == "" && hardware.Arch == "" && hardware.CPUCores == 0 &&
+		hardware.MemoryMB == 0 && hardware.DiskFreeMB == 0 && hardware.TaiVersion == "" &&
+		len(hardware.Capabilities) == 0 && len(hardware.ContainerRuntimes) == 0 &&
+		len(hardware.GPUs) == 0 {
+		return nil
+	}
+	return hardware
+}
+
+func networkValues(value interface{}) []types.Network {
+	var networks []types.Network
+	if !decodeJSON(value, &networks) {
+		return nil
+	}
+	return networks
+}
+
+func decodeJSON(value interface{}, target interface{}) bool {
+	if value == nil {
+		return false
+	}
+	var data []byte
+	switch v := value.(type) {
+	case string:
+		if v == "" {
+			return false
+		}
+		data = []byte(v)
+	case []byte:
+		data = v
+	default:
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return false
+		}
+		data = raw
+	}
+	return json.Unmarshal(data, target) == nil
+}
+
+func uint32Value(value interface{}) (uint32, bool) {
+	number, ok := uint64Value(value)
+	if !ok || number > uint64(^uint32(0)) {
+		return 0, false
+	}
+	return uint32(number), true
+}
+
+func uint64Value(value interface{}) (uint64, bool) {
+	switch v := value.(type) {
+	case int:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case int8:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case int16:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case int32:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case int64:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case uint:
+		return uint64(v), true
+	case uint8:
+		return uint64(v), true
+	case uint16:
+		return uint64(v), true
+	case uint32:
+		return uint64(v), true
+	case uint64:
+		return v, true
+	case float32:
+		return uint64(v), v >= 0
+	case float64:
+		return uint64(v), v >= 0
+	case string:
+		var n uint64
+		_, err := fmt.Sscan(v, &n)
+		return n, err == nil
+	default:
+		return 0, false
+	}
 }
 
 func timeValue(value interface{}) *time.Time {
@@ -458,6 +623,18 @@ func computerFromRow(row map[string]interface{}) types.Computer {
 		c.Metadata = metadata
 		if value, ok := metadata["data_dir"].(string); ok {
 			c.DataDir = value
+		}
+	}
+	c.IP = stringValue(row, "ip")
+	c.LastSeenAt = timeValue(row["last_seen_at"])
+	c.Networks = networkValues(row["networks"])
+	c.Hardware = hardwareFromRow(row)
+	if c.IP == "" {
+		for _, network := range c.Networks {
+			if network.Primary {
+				c.IP = network.Address
+				break
+			}
 		}
 	}
 	c.LeaseSource = stringValue(row, "lease_source")

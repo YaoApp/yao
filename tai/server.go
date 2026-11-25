@@ -50,8 +50,13 @@ type Node struct {
 	Version           string
 	OS                string
 	Arch              string
+	CPUCores          uint32
+	MemoryMB          uint64
+	DiskFreeMB        uint64
+	GPUs              []GPU
 	Capabilities      []string
 	ContainerRuntimes []Runtime
+	Networks          []Network
 	Online            bool
 }
 
@@ -60,6 +65,24 @@ type Runtime struct {
 	Name    string
 	Version string
 	Socket  string
+}
+
+// GPU is one GPU reported by Tai.
+type GPU struct {
+	Name   string
+	VRAMMB uint64
+	Driver string
+}
+
+// Network is one network address reported by Tai.
+type Network struct {
+	ID           string
+	Name         string
+	Kind         string
+	Family       string
+	Address      string
+	PrefixLength uint32
+	Primary      bool
 }
 
 // Server owns the embedded tai-golang transport.
@@ -251,9 +274,18 @@ func snapshot(rn taitypes.RemoteNode) Node {
 	n.Version = info.Version
 	n.OS = info.OS
 	n.Arch = info.Arch
+	n.CPUCores = info.CPUCores
+	n.MemoryMB = info.MemoryMB
+	n.DiskFreeMB = info.DiskFreeMB
 	n.Capabilities = append([]string(nil), info.Capabilities...)
 	for _, rt := range info.ContainerRuntimes {
 		n.ContainerRuntimes = append(n.ContainerRuntimes, Runtime{Name: rt.Name, Version: rt.Version, Socket: rt.Socket})
+	}
+	for _, network := range info.Networks {
+		n.Networks = append(n.Networks, Network{
+			ID: network.ID, Name: network.Name, Kind: network.Kind, Family: network.Family,
+			Address: network.Address, PrefixLength: network.PrefixLength, Primary: network.Primary,
+		})
 	}
 	return n
 }

@@ -44,6 +44,10 @@ type Computer struct {
 	TeamID         string                 `json:"team_id,omitempty"`
 	DataDir        string                 `json:"data_dir,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	Hardware       *Hardware              `json:"hardware,omitempty"`
+	IP             string                 `json:"ip,omitempty"`
+	Networks       []Network              `json:"networks,omitempty"`
+	LastSeenAt     *time.Time             `json:"last_seen_at,omitempty"`
 	LeaseSource    string                 `json:"lease_source,omitempty"`
 	LeaseExpiresAt *time.Time             `json:"lease_expires_at,omitempty"`
 	RenewedAt      *time.Time             `json:"renewed_at,omitempty"`
@@ -67,6 +71,7 @@ type CreateComputerRequest struct {
 	Metadata       map[string]interface{}
 	LeaseSource    string
 	LeaseExpiresAt *time.Time
+	Snapshot       *ComputerSnapshot
 }
 
 // ConnectRequest starts a local node and returns its token.
@@ -127,6 +132,7 @@ type CreateOrUpdateComputerRequest struct {
 	Metadata       map[string]interface{}
 	LeaseSource    string
 	LeaseExpiresAt *time.Time
+	Snapshot       *ComputerSnapshot
 	IssueNodeToken bool
 }
 

@@ -18,11 +18,21 @@ func (ComputerProvider) Node(nodeID string) (computertypes.TaiNode, bool) {
 	}
 	out := computertypes.TaiNode{
 		ID: item.ID, Version: item.Version, OS: item.OS, Arch: item.Arch,
+		CPUCores: item.CPUCores, MemoryMB: item.MemoryMB, DiskFreeMB: item.DiskFreeMB,
 		Capabilities: append([]string(nil), item.Capabilities...),
 	}
 	for _, runtime := range item.ContainerRuntimes {
 		out.ContainerRuntimes = append(out.ContainerRuntimes, computertypes.Runtime{
 			Name: runtime.Name, Version: runtime.Version, Ready: true,
+		})
+	}
+	for _, gpu := range item.GPUs {
+		out.GPUs = append(out.GPUs, computertypes.GPU{Name: gpu.Name, VRAMMB: gpu.VRAMMB, Driver: gpu.Driver})
+	}
+	for _, network := range item.Networks {
+		out.Networks = append(out.Networks, computertypes.Network{
+			ID: network.ID, Name: network.Name, Kind: network.Kind, Family: network.Family,
+			Address: network.Address, PrefixLength: network.PrefixLength, Primary: network.Primary,
 		})
 	}
 	return out, true

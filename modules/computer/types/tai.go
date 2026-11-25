@@ -68,8 +68,13 @@ type TaiNode struct {
 	Version           string
 	OS                string
 	Arch              string
+	CPUCores          uint32
+	MemoryMB          uint64
+	DiskFreeMB        uint64
+	GPUs              []GPU
 	Capabilities      []string
 	ContainerRuntimes []Runtime
+	Networks          []Network
 }
 
 // TaiWorkspace is a workspace reference returned by Tai.

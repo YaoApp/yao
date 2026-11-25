@@ -223,6 +223,20 @@
       "nullable": true
     },
     {
+      "name": "gpus",
+      "label": "GPUs",
+      "comment": "GPU snapshot reported by Tai",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "networks",
+      "label": "Networks",
+      "comment": "Network address snapshot reported by Tai",
+      "type": "json",
+      "nullable": true
+    },
+    {
       "name": "last_seen_at",
       "label": "Last Seen At",
       "comment": "Last seen time",
