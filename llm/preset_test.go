@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yaoapp/yao/llmprovider"
 )
 
 func TestListPresetProviders(t *testing.T) {
@@ -64,6 +65,63 @@ func TestLookupPreset(t *testing.T) {
 		m := LookupPreset("deepseek", "deepseek-flash")
 		require.NotNil(t, m)
 		assert.NotNil(t, m.Compat, "deepseek should have compat config")
+	})
+
+	t.Run("found decision model", func(t *testing.T) {
+		m := LookupPreset("nace", "drex-max")
+		require.NotNil(t, m)
+		assert.Equal(t, "Drex Max", m.Name)
+		assert.Equal(t, string(DecisionAPITypesafeSystemOne), m.ModelAPI)
+		assert.Equal(t, "https://console.nace.ai/v1", m.BaseURL)
+		assert.Equal(t, []string{"text"}, m.Input)
+		assert.Greater(t, m.ContextWindow, 0)
+		assert.Greater(t, m.InputCostPer1M, 0.0)
+	})
+
+	t.Run("nace decision models carry exact limits and prices", func(t *testing.T) {
+		assert.Contains(t, ListPresetProviders(), "nace", "nace must be in the model preset catalog")
+
+		// Prices per 1M input tokens (output is not billed) and limits from
+		// https://console.nace.ai/docs/drex/reference/{pricing,limits,models}.
+		// drex-latest is an alias of drex-v2.0, so it shares its limits and price.
+		want := []struct {
+			id, name string
+			cost     float64
+		}{
+			{"drex-max", "Drex Max", 0.03},
+			{"drex-v2.0", "Drex 2.0", 0.06},
+			{"drex-latest", "Drex Latest (alias of drex-v2.0)", 0.06},
+		}
+		for _, w := range want {
+			m := LookupPreset("nace", w.id)
+			require.NotNil(t, m, w.id)
+			assert.Equal(t, w.id, m.ModelID, w.id)
+			assert.Equal(t, w.name, m.Name, w.id)
+			assert.Equal(t, string(DecisionAPITypesafeSystemOne), m.ModelAPI, w.id)
+			assert.Equal(t, "https://console.nace.ai/v1", m.BaseURL, w.id)
+			assert.Equal(t, []string{"text"}, m.Input, w.id)
+			assert.Equal(t, 262144, m.ContextWindow, w.id)
+			assert.InDelta(t, w.cost, m.InputCostPer1M, 1e-9, w.id)
+			require.NotNil(t, m.InputLimits, w.id)
+			assert.Equal(t, 4194304, m.InputLimits.MaxRequestBytes, w.id)
+		}
+	})
+
+	t.Run("nace provider preset matches the model catalog", func(t *testing.T) {
+		p := llmprovider.GetPreset("nace")
+		require.NotNil(t, p, "nace must be in the provider preset catalog")
+		assert.Equal(t, "typesafe", p.Type)
+		assert.Equal(t, "https://console.nace.ai", p.APIURL)
+		assert.True(t, p.RequireKey)
+
+		ids := []string{}
+		for _, m := range p.DefaultModels {
+			ids = append(ids, m.ID)
+			assert.Equal(t, 262144, m.MaxInputTokens, m.ID)
+			assert.Equal(t, []string{"decision"}, m.Capabilities, m.ID)
+			assert.True(t, m.Enabled, m.ID)
+		}
+		assert.Equal(t, []string{"drex-max", "drex-v2.0", "drex-latest"}, ids)
 	})
 
 	t.Run("not found returns nil", func(t *testing.T) {
