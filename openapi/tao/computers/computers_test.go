@@ -67,11 +67,13 @@ func newService(t *testing.T) (*taocomputer.Service, *taocloud.Server, *fakeComp
 	srv := taocloud.New()
 	t.Cleanup(srv.Close)
 	store := &fakeComputers{}
-	return taocomputer.NewService(taocomputer.NewClient(srv.URL()), store).WithControlKey(testControlKey()), srv, store
+	return taocomputer.NewService(taocomputer.NewClient(srv.URL()), store).WithControlKey(testControlKey()).WithServerURL("https://yao.example.com"), srv, store
 }
 
 func TestHandlerPurchaseAndValidation(t *testing.T) {
-	svc, srv, store := newService(t)
+	svc, srv, _ := newService(t)
+	tasks := newMemTaskStore()
+	svc.WithCloudTasks(tasks).WithTaskKeyResolver(fakeKeys{key: srv.Token})
 	h := &taocomputers.Handler{Service: svc, Keys: fakeKeys{key: srv.Token}}
 	body, _ := json.Marshal(map[string]any{
 		"resource": "flex-2c2g", "region": "bj-cn", "name": "host", "billing_unit": "HOUR",
@@ -85,11 +87,49 @@ func TestHandlerPurchaseAndValidation(t *testing.T) {
 	}
 	var out map[string]any
 	_ = json.Unmarshal(w.Body.Bytes(), &out)
-	if out["instance_id"] == nil || out["computer_id"] != "cmp-test" {
+	taskID, _ := out["task_id"].(string)
+	if taskID == "" || out["status"] != taocomputer.TaskStatusQueued {
 		t.Fatalf("response=%v", out)
 	}
-	if store.lastReq.DataDir != "/data" || store.lastReq.Metadata["tai_control_key_id"] != "test-control" {
-		t.Fatalf("request not bound: data_dir=%q metadata=%v", store.lastReq.DataDir, store.lastReq.Metadata)
+	task, err := tasks.Get(context.Background(), taskID)
+	if err != nil {
+		t.Fatalf("task not stored: %v", err)
+	}
+	task.Status = taocomputer.TaskStatusFailed
+	task.InstanceID = "inst-existing"
+	if err := tasks.Update(context.Background(), task); err != nil {
+		t.Fatal(err)
+	}
+	c, w = newContext(http.MethodPost, "/v1/tao/computers", body, "user-1")
+	h.Purchase(c)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("instance conflict status=%d body=%s", w.Code, w.Body.String())
+	}
+	task.Status = taocomputer.TaskStatusQueued
+	task.InstanceID = ""
+	if err := tasks.Update(context.Background(), task); err != nil {
+		t.Fatal(err)
+	}
+	// The same server-side intent returns the same task without a second purchase.
+	c, w = newContext(http.MethodPost, "/v1/tao/computers", body, "user-1")
+	h.Purchase(c)
+	var duplicate map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &duplicate)
+	if w.Code != http.StatusAccepted || duplicate["task_id"] != taskID {
+		t.Fatalf("duplicate purchase status=%d body=%s", w.Code, w.Body.String())
+	}
+	// Task lookup is authenticated by session, not by the Tao managed key.
+	c, w = newContext(http.MethodGet, "/v1/tao/computers/tasks/"+taskID, nil, "user-1")
+	c.Params = gin.Params{{Key: "task_id", Value: taskID}}
+	h.GetTask(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("task get status=%d body=%s", w.Code, w.Body.String())
+	}
+	c, w = newContext(http.MethodGet, "/v1/tao/computers/tasks/"+taskID, nil, "other")
+	c.Params = gin.Params{{Key: "task_id", Value: taskID}}
+	h.GetTask(c)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("foreign task status=%d body=%s", w.Code, w.Body.String())
 	}
 	// user SSH key is rejected: control key is managed by Yao
 	userSSH, _ := json.Marshal(map[string]any{
@@ -104,6 +144,13 @@ func TestHandlerPurchaseAndValidation(t *testing.T) {
 		t.Fatalf("user ssh status=%d body=%s", w.Code, w.Body.String())
 	}
 
+	// structurally valid JSON that fails server-side purchase validation
+	invalidIntent, _ := json.Marshal(map[string]any{"resource": "flex-2c2g"})
+	c, w = newContext(http.MethodPost, "/v1/tao/computers", invalidIntent, "user-1")
+	h.Purchase(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("invalid intent status=%d body=%s", w.Code, w.Body.String())
+	}
 	// invalid JSON
 	c, w = newContext(http.MethodPost, "/v1/tao/computers", []byte("{"), "user-1")
 	h.Purchase(c)
@@ -141,23 +188,18 @@ func TestHandlerGetAndList(t *testing.T) {
 func TestHandlerActionsAndDelete(t *testing.T) {
 	svc, srv, store := newService(t)
 	h := &taocomputers.Handler{Service: svc, Keys: fakeKeys{key: srv.Token}}
-	body, _ := json.Marshal(map[string]any{
-		"resource": "flex-2c2g", "region": "bj-cn", "name": "host", "billing_unit": "HOUR",
-		"request_params": map[string]any{"image": "tao-base-1.0"},
-		"computer":       map[string]any{"name": "cloud", "visibility": "private"},
+	result, err := svc.Purchase(context.Background(), srv.Token, taocomputer.PurchaseRequest{
+		Resource: "flex-2c2g", Region: "bj-cn", Name: "host", BillingUnit: "HOUR",
+		RequestParams: map[string]any{"image": "tao-base-1.0"},
+		Computer:      taocomputer.ComputerSpec{Name: "cloud", Visibility: "private"},
+		UserID:        "user-1",
 	})
-	c, w := newContext(http.MethodPost, "/v1/tao/computers", body, "user-1")
-	h.Purchase(c)
-	if w.Code != http.StatusAccepted {
-		t.Fatalf("purchase status=%d body=%s", w.Code, w.Body.String())
+	if err != nil {
+		t.Fatalf("purchase: %v", err)
 	}
-	var purchased map[string]any
-	_ = json.Unmarshal(w.Body.Bytes(), &purchased)
-	instanceID, _ := purchased["instance_id"].(string)
-	if instanceID == "" {
-		t.Fatalf("purchase=%v", purchased)
-	}
+	instanceID := result.Instance.InstanceID
 	srv.SetInstanceStatus(instanceID, "running", "")
+	c, w := newContext(http.MethodGet, "/v1/tao/computers/"+instanceID, nil, "user-1")
 
 	c, w = newContext(http.MethodPost, "/v1/tao/computers/"+instanceID+"/stop", nil, "user-1")
 	c.Params = gin.Params{{Key: "instance_id", Value: instanceID}}

@@ -10,12 +10,14 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/yaoapp/yao/e2e/client"
 	"github.com/yaoapp/yao/e2e/env"
 	"github.com/yaoapp/yao/e2e/taocloud"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth"
+	"github.com/yaoapp/yao/openapi/oauth/acl"
 	userpkg "github.com/yaoapp/yao/openapi/user"
 )
 
@@ -24,9 +26,30 @@ func TestE2ETaoPurchaseHTTP(t *testing.T) {
 	t.Cleanup(taoServer.Close)
 	t.Setenv("TAO_ENDPOINT", taoServer.URL())
 	t.Setenv("TAO_TIMEOUT", "5s")
+	t.Setenv("YAO_SERVER_URL", "http://e2e.example:5099")
 	environment, err := env.New(t)
 	if err != nil {
 		t.Fatalf("environment: %v", err)
+	}
+	enforcer, ok := acl.Global.(*acl.ACL)
+	if !ok || enforcer == nil || enforcer.Scope == nil {
+		t.Fatal("ACL scope manager is not loaded")
+	}
+	for _, tc := range []struct {
+		method string
+		path   string
+		scope  string
+	}{
+		{http.MethodGet, "/products", "team:owner"},
+		{http.MethodGet, "/products", "team:member"},
+		{http.MethodGet, "/tao/computers", "team:owner"},
+		{http.MethodPost, "/tao/computers", "team:owner"},
+		{http.MethodGet, "/tao/computers/tasks/task_1", "team:owner"},
+	} {
+		decision := enforcer.Scope.Check(&acl.AccessRequest{Method: tc.method, Path: tc.path, Scopes: []string{tc.scope}})
+		if !decision.Allowed {
+			t.Fatalf("scope config %s %s via %s: %s missing=%v", tc.method, tc.path, tc.scope, decision.Reason, decision.MissingScopes)
+		}
 	}
 	service, ok := openapi.Server.OAuth.(*oauth.Service)
 	if !ok || service == nil {
@@ -59,11 +82,22 @@ func TestE2ETaoPurchaseHTTP(t *testing.T) {
 	if err != nil || resp.StatusCode != http.StatusOK {
 		t.Fatalf("bind key status=%v err=%v body=%s", resp, err, body)
 	}
-	resp, body, err = httpClient.PostJSON("/v1/tao/computers", map[string]any{
+	// Live product list: no local products table involved.
+	resp, body, err = httpClient.Get("/v1/products?source=tao&policy=paid&status=enabled")
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("products status=%v err=%v body=%s", resp, err, body)
+	}
+	if !bytes.Contains(body, []byte(`"resource":"flex-2c2g"`)) || !bytes.Contains(body, []byte(`"billing_units"`)) ||
+		!bytes.Contains(body, []byte(`"duration_tiers"`)) || !bytes.Contains(body, []byte(`"images"`)) {
+		t.Fatalf("products body missing live fields: %s", body)
+	}
+
+	purchaseBody := map[string]any{
 		"resource": "flex-2c2g", "region": "bj-cn", "name": "http-host", "billing_unit": "HOUR",
 		"request_params": map[string]any{"image": "tao-base-1.0"},
 		"computer":       map[string]any{"name": "http-cloud", "visibility": "private"},
-	})
+	}
+	resp, body, err = httpClient.PostJSON("/v1/tao/computers", purchaseBody)
 	if err != nil || resp.StatusCode != http.StatusAccepted {
 		t.Fatalf("purchase status=%v err=%v body=%s", resp, err, body)
 	}
@@ -71,9 +105,45 @@ func TestE2ETaoPurchaseHTTP(t *testing.T) {
 	if err := json.Unmarshal(body, &purchased); err != nil {
 		t.Fatal(err)
 	}
-	instanceID, _ := purchased["instance_id"].(string)
-	if instanceID == "" || purchased["computer_status"] != "provisioning" || purchased["computer_id"] == nil {
+	taskID, _ := purchased["task_id"].(string)
+	if taskID == "" || purchased["status"] != "queued" {
 		t.Fatalf("purchase=%v", purchased)
+	}
+
+	// The task is processed by the server-side worker, never by CUI.
+	var task map[string]any
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, body, err = httpClient.Get("/v1/tao/computers/tasks/" + taskID)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			t.Fatalf("task status=%v err=%v body=%s", resp, err, body)
+		}
+		_ = json.Unmarshal(body, &task)
+		if task["status"] == "succeeded" || task["status"] == "failed" {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if task["status"] != "succeeded" && task["status"] != "failed" {
+		t.Fatalf("task did not reach terminal state: %v", task)
+	}
+	if task["status"] == "failed" {
+		if task["error"] == nil || task["error"] == "" {
+			t.Fatalf("failed task must carry the real error: %v", task)
+		}
+	}
+	instanceID, _ := task["instance_id"].(string)
+	if instanceID == "" {
+		t.Fatalf("task should persist the Tao instance before Tai: %v", task)
+	}
+	if computerID, _ := task["computer_id"].(string); computerID != "" {
+		resp, body, err = httpClient.Get("/v1/computers/" + computerID)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			t.Fatalf("computer detail status=%v err=%v body=%s", resp, err, body)
+		}
+		if !bytes.Contains(body, []byte(`"resource":"flex-2c2g"`)) || !bytes.Contains(body, []byte(`"image":"tao-base-1.0"`)) {
+			t.Fatalf("computer purchase snapshot missing: %s", body)
+		}
 	}
 	taoServer.SetInstanceStatus(instanceID, "running", "")
 	for _, action := range []string{"stop", "start"} {

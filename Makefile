@@ -103,6 +103,7 @@ AGENT_COMPUTER_PKGS ?= ./modules/computer ./modules/tao/computer ./tai
 AGENT_COMPUTER_RUN ?= ^Test
 TAO_MOCK_PKGS ?= ./e2e/taocloud
 AGENT_E2E_PKGS ?= ./modules/... ./openapi/auth/... ./openapi/computers/... ./openapi/tao/computers/... ./openapi/user ./tai
+AGENT_PRODUCT_PKGS ?= ./modules/product ./openapi/products ./openapi/tao
 AGENT_E2E_RUN ?= ^(TestE2E|TestNodeTokenE2E|TestComputerHTTPE2E)
 AGENT_TEST_TIMEOUT ?= 60s
 USER_SYSTEM_COVERAGE_MIN ?= 90
@@ -117,6 +118,7 @@ agent-tests:
 	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '$(AGENT_TEST_RUN)' $(AGENT_TEST_PKGS)
 	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '$(AGENT_COMPUTER_RUN)' $(AGENT_COMPUTER_PKGS)
 	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '^Test' $(TAO_MOCK_PKGS)
+	$(GO) test -timeout $(AGENT_TEST_TIMEOUT) -count=1 -run '^Test' $(AGENT_PRODUCT_PKGS)
 
 .PHONY: agent-e2e-tests
 agent-e2e-tests:

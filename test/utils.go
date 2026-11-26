@@ -230,6 +230,7 @@ var testSystemModels = map[string]string{
 	"__yao.workspaces":                 "yao/models/workspaces.mod.yao",
 	"__yao.products":                   "yao/models/products.mod.yao",
 	"__yao.computers":                  "yao/models/computers.mod.yao",
+	"__yao.cloud_tasks":                "yao/models/cloud_tasks.mod.yao",
 	"__yao.agent_tasks":                "yao/models/agent_tasks.mod.yao",
 	"__yao.resources":                  "yao/models/resources.mod.yao",
 	"__yao.resource_bindings":          "yao/models/resource_bindings.mod.yao",

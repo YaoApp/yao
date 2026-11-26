@@ -1,0 +1,8 @@
+# Products - source-neutral product catalog
+# namespace: product
+# resource: products
+
+product:products:read:
+  description: "Browse source-neutral products"
+  endpoints:
+    - GET /products

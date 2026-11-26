@@ -308,3 +308,30 @@ func TestHTTPHandlerInactiveAndTokenErrors(t *testing.T) {
 		t.Fatalf("heartbeat error=%d", rr.Code)
 	}
 }
+
+func TestCloudServerURLRejectsLoopbackFallback(t *testing.T) {
+	oldHost, oldPort := config.Conf.Host, config.Conf.Port
+	t.Cleanup(func() {
+		config.Conf.Host = oldHost
+		config.Conf.Port = oldPort
+	})
+	t.Setenv("YAO_SERVER_URL", "")
+	t.Setenv("YAO_OAUTH_ISSUER_URL", "")
+	config.Conf.Host = "0.0.0.0"
+	config.Conf.Port = 5099
+	if _, err := CloudServerURL(); err == nil {
+		t.Fatal("wildcard host must not fall back to loopback")
+	}
+	t.Setenv("YAO_OAUTH_ISSUER_URL", "http://192.168.3.110:5099")
+	if got, err := CloudServerURL(); err != nil || got != "http://192.168.3.110:5099" {
+		t.Fatalf("issuer fallback=%q err=%v", got, err)
+	}
+	t.Setenv("YAO_SERVER_URL", "http://203.0.113.10:5099")
+	if got, err := CloudServerURL(); err != nil || got != "http://203.0.113.10:5099" {
+		t.Fatalf("explicit=%q err=%v", got, err)
+	}
+	t.Setenv("YAO_SERVER_URL", "http://127.0.0.1:5099")
+	if _, err := CloudServerURL(); err == nil {
+		t.Fatal("loopback explicit must be rejected")
+	}
+}

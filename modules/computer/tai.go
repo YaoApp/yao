@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"path/filepath"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -26,10 +26,7 @@ func NewSSHTaiController() *SSHTaiController {
 
 // Bootstrap creates the data directory and verifies that Tai is installed.
 func (c *SSHTaiController) Bootstrap(ctx context.Context, target types.SSHTarget, req types.BootstrapRequest) error {
-	dir := req.DataDir
-	if dir == "" {
-		dir = "/data/volumes"
-	}
+	dir := normalizeDataDir(target, req.DataDir)
 	cmd := "mkdir -p " + shellQuote(dir) + " && command -v tai >/dev/null"
 	_, err := c.run(ctx, target, cmd)
 	return err
@@ -38,9 +35,8 @@ func (c *SSHTaiController) Bootstrap(ctx context.Context, target types.SSHTarget
 // Start launches Tai v2 in the background.
 func (c *SSHTaiController) Start(ctx context.Context, target types.SSHTarget, req types.StartTaiRequest) error {
 	args := []string{"nohup", "tai", "start", "--node-id", req.NodeID}
-	if req.DataDir != "" {
-		args = append(args, "--data", req.DataDir)
-	}
+	dataDir := normalizeDataDir(target, req.DataDir)
+	args = append(args, "--data", dataDir)
 	if req.ServerURL != "" {
 		args = append(args, "--server", req.ServerURL)
 	}
@@ -56,17 +52,12 @@ func (c *SSHTaiController) Start(ctx context.Context, target types.SSHTarget, re
 	if req.LogFormat != "" {
 		args = append(args, "--log-format", req.LogFormat)
 	}
-	if req.LogFile != "" {
-		args = append(args, "--log-file", req.LogFile)
-	}
+	logFile := normalizeLogFile(target, dataDir, req.LogFile)
+	args = append(args, "--log-file", logFile)
 	if req.ShutdownTimeout > 0 {
 		args = append(args, "--shutdown-timeout", req.ShutdownTimeout.String())
 	}
-	logFile := req.LogFile
-	if logFile == "" {
-		logFile = "logs/tai.log"
-	}
-	cmd := "mkdir -p " + shellQuote(req.DataDir) + " " + shellQuote(filepath.Dir(logFile)) + " && " + strings.Join(quoteArgs(args), " ") + " > " + shellQuote(logFile) + " 2>&1 &"
+	cmd := "mkdir -p " + shellQuote(dataDir) + " " + shellQuote(path.Dir(logFile)) + " && " + strings.Join(quoteArgs(args), " ") + " > " + shellQuote(logFile) + " 2>&1 < /dev/null &"
 	_, err := c.run(ctx, target, cmd)
 	return err
 }
@@ -91,7 +82,8 @@ func (c *SSHTaiController) Logs(ctx context.Context, target types.SSHTarget, lin
 	if lines <= 0 {
 		lines = 200
 	}
-	return c.run(ctx, target, "tail -n "+strconv.Itoa(lines)+" logs/tai.log 2>/dev/null || true")
+	logFile := normalizeLogFile(target, normalizeDataDir(target, ""), "")
+	return c.run(ctx, target, "tail -n "+strconv.Itoa(lines)+" "+shellQuote(logFile)+" 2>/dev/null || true")
 }
 
 func (c *SSHTaiController) run(ctx context.Context, target types.SSHTarget, command string) (string, error) {
@@ -131,10 +123,15 @@ func (c *SSHTaiController) run(ctx context.Context, target types.SSHTarget, comm
 	session.Stderr = &stderr
 	done := make(chan error, 1)
 	go func() { done <- session.Run(command) }()
+	timer := time.NewTimer(c.timeout())
+	defer timer.Stop()
 	select {
 	case <-ctx.Done():
 		_ = client.Close()
 		return stdout.String(), ctx.Err()
+	case <-timer.C:
+		_ = client.Close()
+		return stdout.String(), fmt.Errorf("ssh command timed out after %s: %s", c.timeout(), strings.TrimSpace(stderr.String()))
 	case err := <-done:
 		if err != nil {
 			return stdout.String(), fmt.Errorf("ssh command: %w: %s", err, strings.TrimSpace(stderr.String()))
@@ -148,6 +145,49 @@ func (c *SSHTaiController) timeout() time.Duration {
 		return c.Timeout
 	}
 	return 20 * time.Second
+}
+
+func remoteHome(target types.SSHTarget) string {
+	user := strings.TrimSpace(target.User)
+	if user == "" || user == "root" {
+		return "/root"
+	}
+	return "/home/" + user
+}
+
+func normalizeDataDir(target types.SSHTarget, value string) string {
+	value = strings.TrimSpace(value)
+	home := remoteHome(target)
+	if value == "" {
+		return path.Join(home, ".tai")
+	}
+	if value == "~" {
+		return home
+	}
+	if strings.HasPrefix(value, "~/") {
+		return path.Clean(path.Join(home, strings.TrimPrefix(value, "~/")))
+	}
+	if !path.IsAbs(value) {
+		return path.Clean(path.Join(home, value))
+	}
+	return path.Clean(value)
+}
+
+func normalizeLogFile(target types.SSHTarget, dataDir, value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return path.Join(dataDir, "logs", "tai.log")
+	}
+	if value == "~" {
+		return path.Join(remoteHome(target), "tai.log")
+	}
+	if strings.HasPrefix(value, "~/") {
+		return path.Clean(path.Join(remoteHome(target), strings.TrimPrefix(value, "~/")))
+	}
+	if !path.IsAbs(value) {
+		return path.Clean(path.Join(dataDir, value))
+	}
+	return path.Clean(value)
 }
 
 func quoteArgs(args []string) []string {

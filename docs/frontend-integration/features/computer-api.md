@@ -42,6 +42,9 @@ All `/v1/computers` endpoints require a signed-in user session or a bearer acces
 | `POST` | `/v1/computers/connect` | User | create a Computer and issue a node token | `200`, `ConnectResult` |
 | `GET` | `/v1/computers/{computer_id}` | Owner/admin | get one Computer | `200`, `Computer` |
 | `GET` | `/v1/computers/{computer_id}/status` | Owner/admin | lightweight runtime status for event fallback | `200`, `{computer_id,status}` |
+| `POST` | `/v1/tao/computers` | User | enqueue cloud purchase/provision task | `202`, `{task_id,status}` |
+| `GET` | `/v1/tao/computers/tasks/{task_id}` | User | cloud task status | `200`, task |
+| `GET` | `/v1/products` | User | live Tao sellable products | `200`, `{data:[...]}` |
 | `PATCH` | `/v1/computers/{computer_id}` | Owner/admin | rename or change visibility | `200`, `Computer` |
 | `DELETE` | `/v1/computers/{computer_id}` | Owner/admin | delete Computer and revoke its node token | `204`, no body |
 | `POST` | `/v1/computers/{computer_id}/disconnect` | Owner/admin | intentionally disconnect; block new connections | `200`, `Computer` |

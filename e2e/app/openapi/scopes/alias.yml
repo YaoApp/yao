@@ -15,6 +15,7 @@ system:root:
   - "*:*:*:*"
   - "*:*:*:*:*"
   - "*:*:*:*:*:*"
+  - product:products:read
 
 system:admin:
   - "*:*:*"
@@ -25,6 +26,7 @@ system:admin:
   - tao:computers:read:all
   - tao:computers:write:own
   - tao:computers:write:all
+  - product:products:read
 
 # ================================================
 # Roles Aliases
@@ -62,6 +64,7 @@ client:free:
   - api:all
   - setting:all
   - auth:all
+  - product:products:read
 
 client:pro:
   - app:all
@@ -90,6 +93,7 @@ client:pro:
   - api:all
   - setting:all
   - auth:all
+  - product:products:read
 
 client:ent:
   - app:all
@@ -118,6 +122,7 @@ client:ent:
   - api:all
   - setting:all
   - auth:all
+  - product:products:read
 
 # ================================================
 # 2. User/Team Roles - User/Team Subscription Tiers
@@ -157,6 +162,7 @@ user:free:
   - api:all:own
   - setting:all:own
   - auth:all:own
+  - product:products:read
 
 user:pro:
   - app:all:own
@@ -185,6 +191,7 @@ user:pro:
   - api:all:own
   - setting:all:own
   - auth:all:own
+  - product:products:read
 
 user:ent:
   - app:all:own
@@ -213,6 +220,7 @@ user:ent:
   - api:all:own
   - setting:all:own
   - auth:all:own
+  - product:products:read
 
 # ================================================
 # 3. Team Member Roles
@@ -248,6 +256,8 @@ team:owner:
   - api:all:team
   - setting:all:team
   - auth:all:team
+  - product:products:read
+  - tao:all:own
 
 team:admin:
   - app:all:team
@@ -275,6 +285,8 @@ team:admin:
   - api:all:team
   - setting:all:team
   - auth:all:team
+  - product:products:read
+  - tao:all:own
 
 team:member:
   - app:read:team
@@ -316,6 +328,7 @@ team:member:
   - api:all:own
   - setting:read:team
   - auth:all:team
+  - product:products:read
 
 # ================================================
 # Resources Aliases

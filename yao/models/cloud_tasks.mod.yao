@@ -1,0 +1,228 @@
+{
+  "name": "CloudTasks",
+  "label": "CloudTasks",
+  "description": "Cloud computer purchase and provisioning tasks.",
+  "tags": ["system", "2.0", "computer", "cloud"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 110,
+  "table": {
+    "name": "cloud_tasks",
+    "comment": "Cloud computer purchase and provisioning tasks."
+  },
+  "columns": [
+    {
+      "name": "id",
+      "label": "Id",
+      "comment": "Task identifier",
+      "type": "string",
+      "length": 64,
+      "primary": true,
+      "nullable": false
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "comment": "queued, running, succeeded, failed",
+      "type": "enum",
+      "option": ["queued", "running", "succeeded", "failed"],
+      "default": "queued",
+      "index": true
+    },
+    {
+      "name": "phase",
+      "label": "Phase",
+      "comment": "purchase, provision, tai, ready",
+      "type": "enum",
+      "option": ["purchase", "provision", "tai", "ready"],
+      "default": "purchase"
+    },
+    {
+      "name": "dedupe_key",
+      "label": "Dedupe Key",
+      "comment": "Server-side idempotency key",
+      "type": "string",
+      "length": 128,
+      "unique": true,
+      "index": true,
+      "nullable": false
+    },
+    {
+      "name": "user_id",
+      "label": "User Id",
+      "comment": "Requesting user",
+      "type": "string",
+      "length": 64,
+      "index": true
+    },
+    {
+      "name": "team_id",
+      "label": "Team Id",
+      "comment": "Requesting team",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "billing_user_id",
+      "label": "Billing User Id",
+      "comment": "User whose Tao managed key pays for the purchase",
+      "type": "string",
+      "length": 64,
+      "index": true
+    },
+    {
+      "name": "tao_name",
+      "label": "Tao Name",
+      "comment": "Tao instance name",
+      "type": "string",
+      "length": 50
+    },
+    {
+      "name": "resource",
+      "label": "Resource",
+      "comment": "Tao resource id",
+      "type": "string",
+      "length": 128
+    },
+    {
+      "name": "region",
+      "label": "Region",
+      "comment": "Tao region",
+      "type": "string",
+      "length": 64
+    },
+    {
+      "name": "image",
+      "label": "Image",
+      "comment": "Tao image id",
+      "type": "string",
+      "length": 128
+    },
+    {
+      "name": "billing_unit",
+      "label": "Billing Unit",
+      "comment": "HOUR or MONTH",
+      "type": "string",
+      "length": 16
+    },
+    {
+      "name": "period_months",
+      "label": "Period Months",
+      "comment": "MONTH duration",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "computer_name",
+      "label": "Computer Name",
+      "comment": "Yao Computer alias",
+      "type": "string",
+      "length": 255
+    },
+    {
+      "name": "visibility",
+      "label": "Visibility",
+      "comment": "Yao Computer visibility",
+      "type": "string",
+      "length": 16
+    },
+    {
+      "name": "members",
+      "label": "Members",
+      "comment": "Shared member ids",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "request_params",
+      "label": "Request Params",
+      "comment": "Normalized Tao request_params",
+      "type": "json",
+      "nullable": true
+    },
+    {
+      "name": "instance_id",
+      "label": "Instance Id",
+      "comment": "Tao instance id once created",
+      "type": "string",
+      "length": 128,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "computer_id",
+      "label": "Computer Id",
+      "comment": "Yao Computer id once created",
+      "type": "string",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "error",
+      "label": "Error",
+      "comment": "Actual failure message",
+      "type": "text",
+      "nullable": true
+    },
+    {
+      "name": "error_code",
+      "label": "Error Code",
+      "comment": "Failure code",
+      "type": "string",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "attempts",
+      "label": "Attempts",
+      "comment": "Worker attempts",
+      "type": "integer",
+      "default": 0
+    },
+    {
+      "name": "started_at",
+      "label": "Started At",
+      "comment": "Worker start time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "finished_at",
+      "label": "Finished At",
+      "comment": "Terminal time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "created_at",
+      "label": "Created At",
+      "comment": "Creation time",
+      "type": "timestamp",
+      "nullable": true
+    },
+    {
+      "name": "updated_at",
+      "label": "Updated At",
+      "comment": "Update time",
+      "type": "timestamp",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_cloud_tasks_status_created",
+      "columns": ["status", "created_at"],
+      "type": "index",
+      "comment": "Worker queue"
+    },
+    {
+      "name": "idx_cloud_tasks_user",
+      "columns": ["user_id", "created_at"],
+      "type": "index",
+      "comment": "User tasks"
+    }
+  ]
+}

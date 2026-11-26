@@ -9,6 +9,7 @@ tao:computers:read:own:
   endpoints:
     - GET /tao/computers
     - GET /tao/computers/:instance_id
+    - GET /tao/computers/tasks/:task_id
     - GET /tao/account
 
 tao:computers:read:all:
@@ -16,6 +17,7 @@ tao:computers:read:all:
   endpoints:
     - GET /tao/computers
     - GET /tao/computers/:instance_id
+    - GET /tao/computers/tasks/:task_id
     - GET /tao/account
 
 tao:computers:write:own:

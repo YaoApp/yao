@@ -57,3 +57,16 @@ type ComputerSnapshot struct {
 	Networks          []Network
 	LastSeenAt        time.Time
 }
+
+// PurchaseSnapshot is the immutable cloud product facts captured at purchase time.
+type PurchaseSnapshot struct {
+	Resource          string     `json:"resource"`
+	Region            string     `json:"region"`
+	Image             string     `json:"image"`
+	BillingUnit       string     `json:"billing_unit"`
+	PeriodMonths      *int       `json:"period_months"`
+	PriceCredits      int        `json:"price_credits"`
+	PriceTotalCredits *int       `json:"price_total_credits"`
+	ExpiresAt         *time.Time `json:"expires_at"`
+	PurchasedAt       time.Time  `json:"purchased_at"`
+}

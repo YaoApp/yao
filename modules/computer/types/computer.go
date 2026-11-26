@@ -48,6 +48,7 @@ type Computer struct {
 	IP             string                 `json:"ip,omitempty"`
 	Networks       []Network              `json:"networks,omitempty"`
 	LastSeenAt     *time.Time             `json:"last_seen_at,omitempty"`
+	Purchase       *PurchaseSnapshot      `json:"purchase,omitempty"`
 	LeaseSource    string                 `json:"lease_source,omitempty"`
 	LeaseExpiresAt *time.Time             `json:"lease_expires_at,omitempty"`
 	RenewedAt      *time.Time             `json:"renewed_at,omitempty"`
@@ -72,6 +73,7 @@ type CreateComputerRequest struct {
 	LeaseSource    string
 	LeaseExpiresAt *time.Time
 	Snapshot       *ComputerSnapshot
+	Purchase       *PurchaseSnapshot
 }
 
 // ConnectRequest starts a local node and returns its token.
@@ -133,6 +135,7 @@ type CreateOrUpdateComputerRequest struct {
 	LeaseSource    string
 	LeaseExpiresAt *time.Time
 	Snapshot       *ComputerSnapshot
+	Purchase       *PurchaseSnapshot
 	IssueNodeToken bool
 }
 

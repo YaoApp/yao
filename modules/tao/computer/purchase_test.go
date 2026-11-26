@@ -42,7 +42,7 @@ func pemEncode(block *pem.Block) []byte {
 }
 
 func newTestService(client taocomputer.TaoComputersClient, computers taocomputer.ComputerService) *taocomputer.Service {
-	return taocomputer.NewService(client, computers).WithControlKey(testControlKey())
+	return taocomputer.NewService(client, computers).WithControlKey(testControlKey()).WithServerURL("https://yao.example.com")
 }
 
 type fakeComputerService struct {
@@ -604,5 +604,22 @@ func TestControlKeyRingSelectsComputerKey(t *testing.T) {
 	}
 	if svc == nil {
 		t.Fatal("service nil")
+	}
+}
+
+func TestViewTaoInstance(t *testing.T) {
+	srv := taocloud.New()
+	t.Cleanup(srv.Close)
+	client := taocomputer.NewClient(srv.URL())
+	created, err := client.Create(context.Background(), testTAOKey, validCreate("flex-2c2g"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, err := taocomputer.NewService(client, &fakeComputerService{}).View(context.Background(), testTAOKey, created.InstanceID)
+	if err != nil || view.Instance == nil || view.Instance.InstanceID != created.InstanceID {
+		t.Fatalf("view=%+v err=%v", view, err)
+	}
+	if _, err := taocomputer.NewService(client, nil).View(context.Background(), testTAOKey, "missing"); err == nil {
+		t.Fatal("missing instance should error")
 	}
 }

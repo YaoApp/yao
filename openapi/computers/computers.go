@@ -20,18 +20,26 @@ import (
 	taipkg "github.com/yaoapp/yao/tai"
 )
 
+// CloudReleaser releases the upstream cloud resource before Yao deletes a
+// cloud Computer. Implementations are injected by the composition root so the
+// generic Computer module does not depend on Tao.
+type CloudReleaser interface {
+	Release(context.Context, *types.Computer) error
+}
+
 // Handler implements /v1/computers.
 type Handler struct {
-	Service *computer.Service
+	Service       *computer.Service
+	CloudReleaser CloudReleaser
 }
 
 // Attach registers Computer routes.
-func Attach(group *gin.RouterGroup, oauthSvc oauthtypes.OAuth) {
+func Attach(group *gin.RouterGroup, oauthSvc oauthtypes.OAuth, releaser CloudReleaser) {
 	service := computer.New().WithTokens(oauth.OAuth)
 	if config.Conf.Tai.Server.Enabled == "true" {
 		service.WithTaiNodeProvider(taipkg.ComputerProvider{})
 	}
-	h := &Handler{Service: service}
+	h := &Handler{Service: service, CloudReleaser: releaser}
 	group.GET("", oauthSvc.Guard, h.List)
 	group.POST("/connect", oauthSvc.Guard, h.Connect)
 	group.GET("/:computer_id", oauthSvc.Guard, h.Get)
@@ -186,6 +194,12 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 	item, err := h.Service.Get(c.Request.Context(), c.Param("computer_id"))
 	if err != nil {
+		if errors.Is(err, computer.ErrNotFound) {
+			// DELETE is idempotent: an already deleted/unknown id has no
+			// resource left to release.
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
 		notFoundOrError(c, err)
 		return
 	}
@@ -193,7 +207,25 @@ func (h *Handler) Delete(c *gin.Context) {
 		forbidden(c)
 		return
 	}
+	if item.ProviderType == "cloud" {
+		if h.CloudReleaser == nil {
+			response.RespondWithError(c, http.StatusServiceUnavailable, &response.ErrorResponse{
+				Code: "cloud_release_unavailable", ErrorDescription: "cloud resource releaser is not configured",
+			})
+			return
+		}
+		if err := h.CloudReleaser.Release(c.Request.Context(), item); err != nil {
+			response.RespondWithError(c, http.StatusBadGateway, &response.ErrorResponse{
+				Code: "cloud_release_failed", ErrorDescription: err.Error(),
+			})
+			return
+		}
+	}
 	if err := h.Service.Delete(c.Request.Context(), item.ID); err != nil {
+		if errors.Is(err, computer.ErrNotFound) {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
 		serverError(c, err)
 		return
 	}

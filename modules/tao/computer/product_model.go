@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/yaoapp/gou/model"
 )
@@ -31,15 +32,20 @@ func (ModelProductWriter) UpsertProduct(ctx context.Context, p Product) error {
 		"unit": p.Unit, "billing_units": p.BillingUnits,
 		"prices": p.Prices, "images": p.Images,
 	}
+	name := strings.TrimSpace(p.Name)
+	if name == "" {
+		name = p.ResourceID
+	}
+	description := strings.TrimSpace(p.Description)
 	if len(rows) > 0 {
 		return m.Update(id, map[string]interface{}{
-			"name": p.ResourceID, "available_slots": p.AvailableSlots,
+			"name": name, "description": description, "available_slots": p.AvailableSlots,
 			"price_credits": p.PriceCredits, "status": "enabled", "metadata": metadata,
 		})
 	}
 	return m.Insert(
 		[]string{"id", "name", "description", "scope", "policy", "total_slots", "available_slots", "price_credits", "status", "metadata"},
-		[][]interface{}{{id, p.ResourceID, "Tao catalog resource " + p.ResourceID, "system", "auto", p.AvailableSlots, p.AvailableSlots, p.PriceCredits, "enabled", metadata}},
+		[][]interface{}{{id, name, description, "system", "auto", p.AvailableSlots, p.AvailableSlots, p.PriceCredits, "enabled", metadata}},
 	)
 }
 

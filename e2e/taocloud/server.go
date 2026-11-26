@@ -46,6 +46,8 @@ type DurationTier struct {
 // Resource is one fake Tao Cloud catalog resource.
 type Resource struct {
 	ID             string         `json:"id"`
+	Name           string         `json:"name,omitempty"`
+	Description    string         `json:"description,omitempty"`
 	Region         string         `json:"region"`
 	CPU            int            `json:"cpu"`
 	MemoryMB       int            `json:"memory_mb"`
@@ -111,8 +113,8 @@ func New() *Server {
 		resources:  map[string]*Resource{},
 		idempotent: map[string]string{},
 	}
-	s.AddResource(Resource{ID: "starter-2c2g", Region: "bj-cn", CPU: 2, MemoryMB: 2048, DiskGB: 50, BandwidthMbps: 1, BillingUnits: []string{"MONTH"}, Prices: map[string]int{"MONTH": 12000}, Images: []string{"tao-base-1.0"}, Enabled: true, AvailableSlots: 100})
-	s.AddResource(Resource{ID: "flex-2c2g", Region: "bj-cn", CPU: 2, MemoryMB: 2048, DiskGB: 50, BandwidthMbps: 1, BillingUnits: []string{"HOUR", "MONTH"}, Prices: map[string]int{"HOUR": 393, "MONTH": 286800}, DurationTiers: []DurationTier{{Months: "1-2", Discount: 0.87}, {Months: "3-5", Discount: 0.78}, {Months: "6-11", Discount: 0.73}, {Months: "12+", Discount: 0.64}}, Images: []string{"tao-base-1.0"}, Enabled: true, AvailableSlots: 100})
+	s.AddResource(Resource{ID: "starter-2c2g", Name: "Starter 2C2G", Description: "Starter 2C2G mock resource", Region: "bj-cn", CPU: 2, MemoryMB: 2048, DiskGB: 50, BandwidthMbps: 1, BillingUnits: []string{"MONTH"}, Prices: map[string]int{"MONTH": 12000}, Images: []string{"tao-base-1.0"}, Enabled: true, AvailableSlots: 100})
+	s.AddResource(Resource{ID: "flex-2c2g", Name: "Flex 2C2G", Description: "Flex 2C2G mock resource", Region: "bj-cn", CPU: 2, MemoryMB: 2048, DiskGB: 50, BandwidthMbps: 1, BillingUnits: []string{"HOUR", "MONTH"}, Prices: map[string]int{"HOUR": 393, "MONTH": 286800}, DurationTiers: []DurationTier{{Months: "1-2", Discount: 0.87}, {Months: "3-5", Discount: 0.78}, {Months: "6-11", Discount: 0.73}, {Months: "12+", Discount: 0.64}}, Images: []string{"tao-base-1.0"}, Enabled: true, AvailableSlots: 100})
 	s.HTTP = httptest.NewServer(http.HandlerFunc(s.handle))
 	return s
 }
@@ -591,7 +593,7 @@ func (s *Server) handleCatalog(w http.ResponseWriter) {
 			}
 		}
 		resources = append(resources, map[string]any{
-			"id": res.ID, "region": res.Region, "cpu": res.CPU, "memory_mb": res.MemoryMB,
+			"id": res.ID, "name": res.Name, "description": res.Description, "region": res.Region, "cpu": res.CPU, "memory_mb": res.MemoryMB,
 			"disk_gb": res.DiskGB, "bandwidth_mbps": res.BandwidthMbps,
 			"billing_units": res.BillingUnits, "prices": res.Prices,
 			"duration_tiers": res.DurationTiers, "images": res.Images,

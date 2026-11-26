@@ -244,6 +244,13 @@
       "nullable": true
     },
     {
+      "name": "purchase",
+      "label": "Purchase",
+      "comment": "Purchase-time cloud product snapshot",
+      "type": "json",
+      "nullable": true
+    },
+    {
       "name": "lease_source",
       "label": "Lease Source",
       "comment": "tao, admin, internal",

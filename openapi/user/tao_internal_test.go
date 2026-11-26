@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -1476,4 +1477,16 @@ func TestTaoLoginHandoffBranches(t *testing.T) {
 func TestTaoAppendQueryBranches(t *testing.T) {
 	require.Equal(t, "https://example.test/cb?a=b&x=1", taoAppendQuery("https://example.test/cb?x=1", "a", "b"))
 	require.Equal(t, "://bad", taoAppendQuery("://bad", "a", "b"))
+}
+
+func TestTaoLoginURLCustomConfig(t *testing.T) {
+	if got := taoLoginSuccessURLFromConfig(&EntryConfig{SuccessURL: "$ENV.MISSING_ENTRY_URL"}); got != "/auth/entry/success" {
+		t.Fatalf("unresolved success url=%q", got)
+	}
+	if got := taoLoginSuccessURLFromConfig(&EntryConfig{SuccessURL: "http://cui.example/auth/entry/success"}); got != "http://cui.example/auth/entry/success" {
+		t.Fatalf("custom success url=%q", got)
+	}
+	if got := taoLoginFailureURLFromConfig(&EntryConfig{FailureURL: "$ENV.MISSING_ENTRY_URL"}, "access_denied"); !strings.HasPrefix(got, "/auth/entry/failure?") || !strings.Contains(got, "code=access_denied") {
+		t.Fatalf("unresolved failure url=%q", got)
+	}
 }

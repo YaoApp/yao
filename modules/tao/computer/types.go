@@ -93,6 +93,8 @@ type DurationTier struct {
 // CatalogResource is one sellable Tao computer resource.
 type CatalogResource struct {
 	ID             string         `json:"id"`
+	Name           string         `json:"name,omitempty"`
+	Description    string         `json:"description,omitempty"`
 	Region         string         `json:"region,omitempty"`
 	CPU            int            `json:"cpu,omitempty"`
 	MemoryMB       int            `json:"memory_mb,omitempty"`
@@ -126,6 +128,7 @@ type ComputerSpec struct {
 	Name           string     `json:"name"`
 	DataDir        string     `json:"data_dir,omitempty"`
 	Visibility     string     `json:"visibility,omitempty"`
+	Members        []string   `json:"members,omitempty"`
 	SSHKeyRef      string     `json:"ssh_key_ref,omitempty"` // deprecated: user values are rejected; control key is server-side
 	SandboxImage   string     `json:"sandbox_image,omitempty"`
 	LeaseSource    string     `json:"lease_source,omitempty"`
@@ -142,6 +145,7 @@ type PurchaseRequest struct {
 	RequestParams  map[string]any
 	Metadata       map[string]string
 	IdempotencyKey string
+	Members        []string
 	Computer       ComputerSpec
 	UserID         string
 	TeamID         string

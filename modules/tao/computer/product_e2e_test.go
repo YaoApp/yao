@@ -17,7 +17,7 @@ func TestE2EModelProductWriter(t *testing.T) {
 	m := model.Select("__yao.products")
 	_ = m.Insert([]string{"id", "name", "description", "scope", "policy", "status", "metadata"}, [][]interface{}{{"other-product", "other", "other", "system", "auto", "enabled", map[string]interface{}{"tao_service_id": "image", "tao_resource_id": "x"}}})
 	t.Cleanup(func() { _ = m.Delete("other-product") })
-	p := taocomputer.Product{ServiceID: "computer", ResourceID: "flex-2c2g", Unit: "HOUR", PriceCredits: 10, AvailableSlots: 5}
+	p := taocomputer.Product{ServiceID: "computer", ResourceID: "flex-2c2g", Name: "Flex 2C2G", Description: "Flex 2C2G mock resource", Unit: "HOUR", PriceCredits: 10, AvailableSlots: 5}
 	if err := writer.UpsertProduct(context.Background(), p); err != nil {
 		t.Fatalf("upsert: %v", err)
 	}
@@ -29,7 +29,7 @@ func TestE2EModelProductWriter(t *testing.T) {
 	if err != nil || len(rows) == 0 {
 		t.Fatalf("product rows=%d err=%v", len(rows), err)
 	}
-	if rows[0]["name"] != "flex-2c2g" {
+	if rows[0]["name"] != "Flex 2C2G" || rows[0]["description"] != "Flex 2C2G mock resource" {
 		t.Fatalf("product=%+v", rows[0])
 	}
 	if fmt.Sprint(rows[0]["source"]) != "tao" || fmt.Sprint(rows[0]["health"]) != "unknown" {

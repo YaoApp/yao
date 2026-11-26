@@ -160,6 +160,11 @@ func (s *Service) Create(ctx context.Context, req types.CreateComputerRequest) (
 			return nil, fmt.Errorf("persist computer snapshot: %w", err)
 		}
 	}
+	if req.Purchase != nil {
+		if err := m.Update(req.ID, map[string]interface{}{"purchase": req.Purchase}); err != nil {
+			return nil, fmt.Errorf("persist purchase snapshot: %w", err)
+		}
+	}
 	computer, err := s.Get(ctx, req.ID)
 	if err != nil {
 		return nil, err
@@ -367,7 +372,7 @@ func (s *Service) CreateOrUpdate(ctx context.Context, req types.CreateOrUpdateCo
 			Visibility: req.Visibility, Status: req.Status, UserID: req.UserID,
 			TeamID: req.TeamID, DataDir: req.DataDir, Metadata: req.Metadata,
 			LeaseSource: req.LeaseSource, LeaseExpiresAt: req.LeaseExpiresAt,
-			Snapshot: req.Snapshot,
+			Snapshot: req.Snapshot, Purchase: req.Purchase,
 		})
 		if err != nil {
 			return nil, err
@@ -399,6 +404,9 @@ func (s *Service) CreateOrUpdate(ctx context.Context, req types.CreateOrUpdateCo
 			for key, value := range snapshotValues(req.Snapshot) {
 				update[key] = value
 			}
+		}
+		if req.Purchase != nil {
+			update["purchase"] = req.Purchase
 		}
 		if len(update) > 0 {
 			if err := m.Update(computer.ID, update); err != nil {
@@ -628,6 +636,12 @@ func computerFromRow(row map[string]interface{}) types.Computer {
 	c.IP = stringValue(row, "ip")
 	c.LastSeenAt = timeValue(row["last_seen_at"])
 	c.Networks = networkValues(row["networks"])
+	if value := row["purchase"]; value != nil {
+		var purchase types.PurchaseSnapshot
+		if decodeJSON(value, &purchase) {
+			c.Purchase = &purchase
+		}
+	}
 	c.Hardware = hardwareFromRow(row)
 	if c.IP == "" {
 		for _, network := range c.Networks {

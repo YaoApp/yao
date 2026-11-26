@@ -21,6 +21,13 @@ type Service struct {
 	products    ProductWriter
 	serverURL   string
 	locks       sync.Map // instance_id -> *sync.Mutex
+
+	cloudTasks CloudTaskStore
+	taskKeys   KeyResolver
+	workerMu   sync.Mutex
+	workerStop context.CancelFunc
+	workerOnce sync.Once
+	processing sync.Map // task_id -> struct{}
 }
 
 // NewService creates a Tao computer purchase service.
@@ -96,13 +103,28 @@ func (s *Service) WithServerURL(serverURL string) *Service {
 
 // Purchase creates a Tao host and immediately creates its Yao Computer.
 func (s *Service) Purchase(ctx context.Context, taoKey string, req PurchaseRequest) (*PurchaseResult, error) {
+	instance, err := s.createTaoInstance(ctx, taoKey, req)
+	if err != nil {
+		return nil, err
+	}
+	computer, err := s.attachComputer(ctx, instance, req)
+	if err != nil {
+		return nil, err
+	}
+	return &PurchaseResult{Instance: instance, Computer: computer}, nil
+}
+
+// createTaoInstance performs the Tao create half of a purchase. The caller can
+// persist the returned instance before doing the Yao Computer half so a worker
+// crash cannot silently create a second Tao host.
+func (s *Service) createTaoInstance(ctx context.Context, taoKey string, req PurchaseRequest) (*Instance, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 	if strings.TrimSpace(req.Resource) == "" {
 		return nil, fmt.Errorf("resource is required")
 	}
-	if s.client == nil || s.computers == nil {
+	if s.client == nil {
 		return nil, fmt.Errorf("tao computer service is not configured")
 	}
 	controlKey := s.activeControlKey()
@@ -110,7 +132,7 @@ func (s *Service) Purchase(ctx context.Context, taoKey string, req PurchaseReque
 		return nil, ErrTaiControlKey
 	}
 	metadata := map[string]string{
-		"computer_name":      req.Computer.Name,
+		"computer_name":      computerName(req),
 		"tai_control_key_id": controlKey.KeyID,
 	}
 	for key, value := range req.Metadata {
@@ -124,6 +146,57 @@ func (s *Service) Purchase(ctx context.Context, taoKey string, req PurchaseReque
 	if err != nil {
 		return nil, err
 	}
+	return instance, nil
+}
+
+// attachComputer creates/updates the Yao Computer for a Tao instance.
+func (s *Service) attachComputer(ctx context.Context, instance *Instance, req PurchaseRequest) (*computertypes.Computer, error) {
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if s.computers == nil {
+		return nil, fmt.Errorf("computer service is not configured")
+	}
+	controlKey := s.activeControlKey()
+	if controlKey == nil {
+		return nil, ErrTaiControlKey
+	}
+	image, _ := req.RequestParams["image"].(string)
+	resource, region := instance.Resource, instance.Region
+	if resource == "" {
+		resource = req.Resource
+	}
+	if region == "" {
+		region = req.Region
+	}
+	billingUnit := instance.BillingUnit
+	if billingUnit == "" {
+		billingUnit = req.BillingUnit
+	}
+	periodMonths := instance.PeriodMonths
+	if periodMonths == 0 {
+		periodMonths = req.PeriodMonths
+	}
+	snapshot := &computertypes.PurchaseSnapshot{
+		Resource: resource, Region: region, Image: image,
+		BillingUnit: billingUnit, PriceCredits: instance.PriceCredits,
+		PriceTotalCredits: instance.PriceTotalCredits, ExpiresAt: instance.ExpiresAt,
+		PurchasedAt: time.Now().UTC(),
+	}
+	if periodMonths > 0 {
+		period := periodMonths
+		snapshot.PeriodMonths = &period
+	}
+	metadata := map[string]interface{}{
+		"resource":           req.Resource,
+		"region":             req.Region,
+		"sandbox_image":      req.Computer.SandboxImage,
+		"image":              image,
+		"tai_control_key_id": controlKey.KeyID,
+	}
+	if len(req.Members) > 0 {
+		metadata["members"] = req.Members
+	}
 	result, err := s.computers.CreateOrUpdate(ctx, computertypes.CreateOrUpdateComputerRequest{
 		InstanceID:     instance.InstanceID,
 		Name:           computerName(req),
@@ -136,17 +209,30 @@ func (s *Service) Purchase(ctx context.Context, taoKey string, req PurchaseReque
 		DataDir:        req.Computer.DataDir,
 		LeaseSource:    req.Computer.LeaseSource,
 		LeaseExpiresAt: req.Computer.LeaseExpiresAt,
-		Metadata: map[string]interface{}{
-			"resource":           req.Resource,
-			"region":             req.Region,
-			"sandbox_image":      req.Computer.SandboxImage,
-			"tai_control_key_id": controlKey.KeyID,
-		},
+		Metadata:       metadata,
+		Snapshot:       nil,
+		Purchase:       snapshot,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &PurchaseResult{Instance: instance, Computer: result.Computer}, nil
+	return result.Computer, nil
+}
+
+// View returns the upstream Tao instance without advancing Yao Computer state.
+// It is the user-facing read-only path; provisioning belongs to the worker.
+func (s *Service) View(ctx context.Context, taoKey, instanceID string) (*PurchaseResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if s.client == nil {
+		return nil, fmt.Errorf("tao computer service is not configured")
+	}
+	instance, err := s.client.Get(ctx, taoKey, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	return &PurchaseResult{Instance: instance}, nil
 }
 
 // Orchestrate advances an existing Tao instance's Computer lifecycle.
@@ -229,6 +315,12 @@ func (s *Service) Get(ctx context.Context, taoKey, instanceID string) (*Purchase
 			return nil, fmt.Errorf("%w: %v", ErrTaiStart, err)
 		}
 		if err := s.tai.Start(ctx, target, StartTaiRequestFor(computer, result.NodeToken, s.serverURL)); err != nil {
+			// `tai start` is a background command. A slow/closed SSH session
+			// can report an error after the remote Tai has registered; only
+			// mark the Computer failed if it did not reach online.
+			if current, getErr := s.computers.Get(ctx, computer.ID); getErr == nil && current != nil && current.Status == computertypes.StatusOnline {
+				return &PurchaseResult{Instance: instance, Computer: current}, nil
+			}
 			_, _ = s.computers.CreateOrUpdate(ctx, computertypes.CreateOrUpdateComputerRequest{
 				InstanceID: instanceID, Status: computertypes.StatusError,
 			})

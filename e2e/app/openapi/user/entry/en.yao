@@ -1,5 +1,7 @@
 {
   "title": "Yao Agents E2E",
+  "success_url": "$ENV.YAO_ENTRY_SUCCESS_URL",
+  "failure_url": "$ENV.YAO_ENTRY_FAILURE_URL",
   "consent_url": "/app/consent",
   "description": "Sign in to continue",
   "default": true,

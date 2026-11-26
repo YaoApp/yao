@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/modules/product"
 	"github.com/yaoapp/yao/openapi/app"
 	"github.com/yaoapp/yao/openapi/captcha"
 	openapicomputers "github.com/yaoapp/yao/openapi/computers"
@@ -22,6 +23,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/otp"
+	openapiproducts "github.com/yaoapp/yao/openapi/products"
 	"github.com/yaoapp/yao/openapi/response"
 	openapitao "github.com/yaoapp/yao/openapi/tao"
 	"github.com/yaoapp/yao/openapi/team"
@@ -123,11 +125,17 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	// OAuth handlers
 	openapi.attachOAuth(group)
 
-	// Computer handlers
-	openapicomputers.Attach(group.Group("/computers"), openapi.OAuth)
+	// Computer handlers. Cloud deletion is released through the Tao adapter
+	// before the local row is removed.
+	taoCloudReleaser := openapitao.NewCloudComputerReleaser()
+	openapicomputers.Attach(group.Group("/computers"), openapi.OAuth, taoCloudReleaser)
+
+	// Product catalog is source-neutral; Tao registers itself as one provider.
+	products := product.NewService()
+	openapiproducts.Attach(group.Group("/products"), openapi.OAuth, products)
 
 	// Tao cloud purchase handlers
-	openapitao.Attach(group.Group("/tao"), openapi.OAuth)
+	openapitao.Attach(group.Group("/tao"), openapi.OAuth, products)
 
 	// Hello World handlers
 	hello.Attach(group.Group("/helloworld"), openapi.OAuth)

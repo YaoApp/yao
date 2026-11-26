@@ -3,6 +3,7 @@ package computer_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -41,6 +42,9 @@ func TestSyncCatalog(t *testing.T) {
 	}
 	if flex == nil || flex.ServiceID != "computer" || flex.Unit != "HOUR" || flex.PriceCredits == 0 || flex.Prices["MONTH"] == 0 {
 		t.Fatalf("unexpected products: %+v", products.items)
+	}
+	if flex.Name != "Flex 2C2G" || flex.Description != "Flex 2C2G mock resource" {
+		t.Fatalf("display fields: %+v", flex)
 	}
 }
 
@@ -147,5 +151,80 @@ func TestSyncCatalogServerError(t *testing.T) {
 	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL), &fakeComputerService{}).WithProducts(&skipProducts{})
 	if _, err := svc.SyncCatalog(context.Background(), testTAOKey); err == nil {
 		t.Fatal("expected server error")
+	}
+}
+
+func TestListCloudProductsLiveAndRegionIdentity(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(taocomputer.Catalog{Services: []taocomputer.CatalogService{{
+			ID: "computer", Kind: "resource",
+			Resources: []taocomputer.CatalogResource{
+				{ID: "cvm-2c2g", Name: "CVM 2C2G", Description: "CVM 2C2G description", Region: "gz-cn", CPU: 2, MemoryMB: 2048, DiskGB: 50,
+					BillingUnits: []string{"HOUR", "MONTH"}, Prices: map[string]int{"HOUR": 480, "MONTH": 286800},
+					DurationTiers: []taocomputer.DurationTier{{Months: "1-2", Discount: 0.87}},
+					Images:        []string{"tao-base-1.0"}, Enabled: true, AvailableSlots: 100},
+				{ID: "cvm-2c2g", Region: "bj-cn", CPU: 2, MemoryMB: 2048, DiskGB: 50,
+					BillingUnits: []string{"HOUR"}, Prices: map[string]int{"HOUR": 480},
+					Images: []string{"tao-base-1.0"}, Enabled: true, AvailableSlots: 3},
+				{ID: "disabled", Region: "gz-cn", Enabled: false, BillingUnits: []string{"HOUR"}},
+			},
+		}}})
+	}))
+	defer srv.Close()
+	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL), &fakeComputerService{})
+	products, err := svc.ListCloudProducts(context.Background(), testTAOKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(products) != 2 {
+		t.Fatalf("products=%+v", products)
+	}
+	if products[0].ID == products[1].ID {
+		t.Fatalf("region must participate in live id: %+v", products)
+	}
+	if products[0].Resource != "cvm-2c2g" || products[0].Source != "tao" || products[0].Policy != "paid" ||
+		products[0].Health != "healthy" || products[0].Status != "enabled" {
+		t.Fatalf("mapping=%+v", products[0])
+	}
+	if len(products[0].Images) != 1 || products[0].Prices["HOUR"] != 480 || products[0].Spec["disk_gb"] != 50 {
+		t.Fatalf("live fields=%+v", products[0])
+	}
+	if products[0].Name != "CVM 2C2G" || products[0].Description != "CVM 2C2G description" {
+		t.Fatalf("display fields=%+v", products[0])
+	}
+	if products[1].Name != "cvm-2c2g" || products[1].Description != "" {
+		t.Fatalf("fallback display fields=%+v", products[1])
+	}
+}
+
+func TestListCloudProductsServerError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "down", http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+	svc := taocomputer.NewService(taocomputer.NewClient(srv.URL), &fakeComputerService{})
+	if _, err := svc.ListCloudProducts(context.Background(), testTAOKey); err == nil {
+		t.Fatal("expected catalog error")
+	}
+}
+
+func TestListCloudProductsEmptyAndClientErrors(t *testing.T) {
+	if _, err := taocomputer.NewService(nil, &fakeComputerService{}).ListCloudProducts(context.Background(), testTAOKey); err == nil {
+		t.Fatal("nil client should fail")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	svc := taocomputer.NewService(taocomputer.NewClient("http://example.test"), &fakeComputerService{})
+	if _, err := svc.ListCloudProducts(ctx, testTAOKey); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled err=%v", err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(taocomputer.Catalog{Services: []taocomputer.CatalogService{{ID: "other", Kind: "resource"}, {ID: "computer", Kind: "other"}}})
+	}))
+	defer srv.Close()
+	svc = taocomputer.NewService(taocomputer.NewClient(srv.URL), &fakeComputerService{})
+	products, err := svc.ListCloudProducts(context.Background(), testTAOKey)
+	if err != nil || len(products) != 0 {
+		t.Fatalf("empty catalog=%+v err=%v", products, err)
 	}
 }

@@ -28,6 +28,7 @@ type purchaseRequest struct {
 	BillingUnit   string                   `json:"billing_unit"`
 	PeriodMonths  int                      `json:"period_months"`
 	RequestParams map[string]any           `json:"request_params"`
+	Members       []string                 `json:"members"`
 	SSH           *taocomputer.SSHRequest  `json:"ssh"`
 	Metadata      map[string]string        `json:"metadata"`
 	Computer      taocomputer.ComputerSpec `json:"computer"`
@@ -36,14 +37,21 @@ type purchaseRequest struct {
 // Attach registers Tao computer purchase routes.
 func Attach(group *gin.RouterGroup, oauthSvc oauthtypes.OAuth, service *taocomputer.Service, keys taocomputer.KeyResolver) {
 	h := &Handler{Service: service, Keys: keys}
-	group.Use(oauthSvc.Guard, user.RequireTaoIdentity, user.RequireTaoManagedKey)
-	group.POST("", h.Purchase)
-	group.GET("", h.List)
-	group.GET("/:instance_id", h.Get)
-	group.POST("/:instance_id/start", h.Action)
-	group.POST("/:instance_id/stop", h.Action)
-	group.POST("/:instance_id/reboot", h.Action)
-	group.DELETE("/:instance_id", h.Delete)
+	// Every route requires a Yao session. Task status intentionally requires
+	// only the session so it remains readable after a Tao key is revoked.
+	group.Use(oauthSvc.Guard)
+	group.GET("/tasks/:task_id", h.GetTask)
+
+	// Tao-key-backed routes add the Tao identity/managed-key gates.
+	taoGroup := group.Group("")
+	taoGroup.Use(user.RequireTaoIdentity, user.RequireTaoManagedKey)
+	taoGroup.POST("", h.Purchase)
+	taoGroup.GET("", h.List)
+	taoGroup.GET("/:instance_id", h.Get)
+	taoGroup.POST("/:instance_id/start", h.Action)
+	taoGroup.POST("/:instance_id/stop", h.Action)
+	taoGroup.POST("/:instance_id/reboot", h.Action)
+	taoGroup.DELETE("/:instance_id", h.Delete)
 }
 
 func (h *Handler) Purchase(c *gin.Context) {
@@ -61,23 +69,64 @@ func (h *Handler) Purchase(c *gin.Context) {
 		badRequest(c, errors.New("ssh key is managed by the server"))
 		return
 	}
-	key, err := h.resolveKey(c, info)
+	if len(req.Metadata) > 0 {
+		badRequest(c, errors.New("metadata is server-managed"))
+		return
+	}
+	if len(req.Computer.Members) > 0 && len(req.Members) == 0 {
+		badRequest(c, errors.New("members must be provided at the top level"))
+		return
+	}
+	if req.Computer.LeaseSource != "" || req.Computer.LeaseExpiresAt != nil {
+		badRequest(c, errors.New("lease fields are server-managed"))
+		return
+	}
+	identity, err := h.resolveIdentity(c, info)
 	if err != nil {
 		keyError(c, err)
 		return
 	}
-	result, err := h.Service.Purchase(c.Request.Context(), key, taocomputer.PurchaseRequest{
+	if _, err := h.resolveKeyForIdentity(c, identity); err != nil {
+		keyError(c, err)
+		return
+	}
+	if req.Members != nil {
+		req.Computer.Members = append([]string(nil), req.Members...)
+	}
+	task, err := h.Service.EnqueuePurchase(c.Request.Context(), info.UserID, info.TeamID, identity.UserID, taocomputer.PurchaseRequest{
 		Resource: req.Resource, Region: req.Region, Name: req.Name,
 		BillingUnit: req.BillingUnit, PeriodMonths: req.PeriodMonths,
 		RequestParams: req.RequestParams, Metadata: req.Metadata,
-		IdempotencyKey: c.GetHeader("Idempotency-Key"),
-		Computer:       req.Computer, UserID: info.UserID, TeamID: info.TeamID,
+		Members:  append([]string(nil), req.Members...),
+		Computer: req.Computer, UserID: info.UserID, TeamID: info.TeamID,
 	})
 	if err != nil {
+		if errors.Is(err, taocomputer.ErrInvalidPurchaseRequest) {
+			badRequest(c, err)
+			return
+		}
+		if errors.Is(err, taocomputer.ErrCloudServerURL) {
+			response.RespondWithError(c, http.StatusServiceUnavailable, &response.ErrorResponse{
+				Code: "cloud_server_url_missing", ErrorDescription: err.Error(),
+			})
+			return
+		}
+		if errors.Is(err, taocomputer.ErrTaskInstanceConflict) {
+			response.RespondWithError(c, http.StatusConflict, &response.ErrorResponse{
+				Code:             "purchase_conflict",
+				ErrorDescription: "purchase already has an instance; do not create another one",
+				State:            taskIDOf(task),
+			})
+			return
+		}
+		if errors.Is(err, taocomputer.ErrTaskNotFound) {
+			response.RespondWithError(c, http.StatusInternalServerError, &response.ErrorResponse{Code: "task_error", ErrorDescription: err.Error()})
+			return
+		}
 		apiError(c, err)
 		return
 	}
-	response.RespondWithSuccess(c, http.StatusAccepted, purchaseResponse(result, false))
+	response.RespondWithSuccess(c, http.StatusAccepted, gin.H{"task_id": task.ID, "status": task.Status})
 }
 
 // Action sends a lifecycle action to a Tao host.
@@ -139,7 +188,7 @@ func (h *Handler) Get(c *gin.Context) {
 		keyError(c, err)
 		return
 	}
-	result, err := h.Service.Get(c.Request.Context(), key, c.Param("instance_id"))
+	result, err := h.Service.View(c.Request.Context(), key, c.Param("instance_id"))
 	if err != nil {
 		apiError(c, err)
 		return
@@ -169,13 +218,13 @@ func (h *Handler) List(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{"object": "list", "data": items, "total": len(items)})
 }
 
-func (h *Handler) resolveKey(c *gin.Context, info *oauthtypes.AuthorizedInfo) (string, error) {
+func (h *Handler) resolveIdentity(c *gin.Context, info *oauthtypes.AuthorizedInfo) (*user.TaoBillingIdentity, error) {
+	return user.ResolveTaoBillingIdentity(c.Request.Context(), info)
+}
+
+func (h *Handler) resolveKeyForIdentity(c *gin.Context, identity *user.TaoBillingIdentity) (string, error) {
 	if h.Keys == nil {
 		return "", errors.New("tao key resolver is not configured")
-	}
-	identity, err := user.ResolveTaoBillingIdentity(c.Request.Context(), info)
-	if err != nil {
-		return "", err
 	}
 	key, err := h.Keys.ResolveTaoKey(c.Request.Context(), identity.UserID)
 	if err != nil {
@@ -185,6 +234,14 @@ func (h *Handler) resolveKey(c *gin.Context, info *oauthtypes.AuthorizedInfo) (s
 		return "", &user.TaoBillingError{Code: "tao_key_missing", Status: http.StatusForbidden, Description: "Tao managed key is missing", Err: err}
 	}
 	return key, nil
+}
+
+func (h *Handler) resolveKey(c *gin.Context, info *oauthtypes.AuthorizedInfo) (string, error) {
+	identity, err := h.resolveIdentity(c, info)
+	if err != nil {
+		return "", err
+	}
+	return h.resolveKeyForIdentity(c, identity)
 }
 
 func keyError(c *gin.Context, err error) {
@@ -227,6 +284,36 @@ func purchaseResponse(result *taocomputer.PurchaseResult, detail bool) gin.H {
 		out["computer_status"] = result.Computer.Status
 	}
 	return out
+}
+
+// GetTask returns a purchase/provisioning task owned by the current user.
+func (h *Handler) GetTask(c *gin.Context) {
+	info := authorized.GetInfo(c)
+	if info == nil || info.UserID == "" {
+		forbidden(c)
+		return
+	}
+	task, err := h.Service.GetTask(c.Request.Context(), info.UserID, c.Param("task_id"))
+	if err != nil {
+		if errors.Is(err, taocomputer.ErrTaskNotFound) {
+			response.RespondWithError(c, http.StatusNotFound, &response.ErrorResponse{Code: "not_found", ErrorDescription: "task not found"})
+			return
+		}
+		serverError(c, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, task.View())
+}
+
+func serverError(c *gin.Context, err error) {
+	response.RespondWithError(c, http.StatusInternalServerError, &response.ErrorResponse{Code: "server_error", ErrorDescription: err.Error()})
+}
+
+func taskIDOf(task *taocomputer.CloudTask) string {
+	if task == nil {
+		return ""
+	}
+	return task.ID
 }
 
 func queryInt(c *gin.Context, key string) int {

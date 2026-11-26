@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -382,10 +383,49 @@ func (a *AuthProvider) WellKnownInfo() *taitypes.WellKnownResponse {
 
 var _ taitypes.AuthProvider = (*AuthProvider)(nil)
 
-// ServerURL returns the cloud-reachable Tai transport HTTP URL. Cloud hosts
-// must be able to reach this address for node registration.
+// CloudServerURL returns an address that a remote cloud host can reach. It
+// refuses loopback/wildcard fallbacks; such an address only works for local
+// hosts and makes remote node registration fail.
+func CloudServerURL() (string, error) {
+	if raw := strings.TrimSpace(os.Getenv("YAO_SERVER_URL")); raw != "" {
+		if value, ok := publicServerURL(raw); ok {
+			return value, nil
+		}
+		return "", fmt.Errorf("YAO_SERVER_URL is not cloud-reachable: %s", raw)
+	}
+	if value, ok := publicServerURL(os.Getenv("YAO_OAUTH_ISSUER_URL")); ok {
+		return value, nil
+	}
+	if value, ok := publicServerURL(fmt.Sprintf("http://%s:%d", config.Conf.Host, config.Conf.Port)); ok {
+		return value, nil
+	}
+	return "", fmt.Errorf("cloud-reachable Yao server URL is not configured; set YAO_SERVER_URL")
+}
+
+func publicServerURL(raw string) (string, bool) {
+	raw = strings.TrimRight(strings.TrimSpace(raw), "/")
+	if raw == "" {
+		return "", false
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" {
+		return "", false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host == "localhost" || host == "0.0.0.0" || host == "::1" {
+		return "", false
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		return "", false
+	}
+	return raw, true
+}
+
+// ServerURL returns the Tai transport HTTP URL for local/internal use.
+// Remote cloud callers must use CloudServerURL so loopback never becomes a
+// cloud target.
 func ServerURL() string {
-	if value := strings.TrimRight(os.Getenv("YAO_SERVER_URL"), "/"); value != "" {
+	if value, err := CloudServerURL(); err == nil {
 		return value
 	}
 	host := config.Conf.Host

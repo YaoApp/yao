@@ -13,6 +13,7 @@ import (
 
 	"github.com/yaoapp/yao/e2e/client"
 	"github.com/yaoapp/yao/e2e/env"
+	"github.com/yaoapp/yao/e2e/taocloud"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth"
 	userpkg "github.com/yaoapp/yao/openapi/user"
@@ -36,15 +37,23 @@ type computerResponse struct {
 }
 
 var (
-	sharedEnv *env.Environment
-	sharedErr error
+	sharedEnv       *env.Environment
+	sharedErr       error
+	deleteTaoServer *taocloud.Server
 )
 
 func TestMain(m *testing.M) {
+	// The generic Computer API package needs a Tao endpoint for cloud delete
+	// tests. Set it once before the shared E2E environment starts so the
+	// normal HTTP test and the cloud-release test share one environment.
+	deleteTaoServer = taocloud.New()
+	os.Setenv("TAO_ENDPOINT", deleteTaoServer.URL())
+	os.Setenv("TAO_TIMEOUT", "5s")
 	code := m.Run()
 	if sharedEnv != nil {
 		sharedEnv.Close()
 	}
+	deleteTaoServer.Close()
 	os.Exit(code)
 }
 

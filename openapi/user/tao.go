@@ -469,11 +469,22 @@ func taoLoginSuccessURL(locale string) string {
 
 func taoLoginSuccessURLFromConfig(cfg *EntryConfig) string {
 	if cfg != nil {
-		if target := strings.TrimSpace(cfg.SuccessURL); target != "" {
+		if target := configuredEntryURL(cfg.SuccessURL); target != "" {
 			return target
 		}
 	}
 	return "/auth/entry/success"
+}
+
+// configuredEntryURL rejects unresolved env placeholders so a shared app config
+// can opt in to an environment-specific frontend URL without breaking tests
+// or deployments that do not define it.
+func configuredEntryURL(raw string) string {
+	target := strings.TrimSpace(raw)
+	if target == "" || strings.HasPrefix(target, "$ENV.") || strings.HasPrefix(target, "${") {
+		return ""
+	}
+	return target
 }
 
 // taoLoginFailureURL returns the configured failure destination with the
@@ -485,7 +496,7 @@ func taoLoginFailureURL(locale, code string) string {
 func taoLoginFailureURLFromConfig(cfg *EntryConfig, code string) string {
 	target := "/auth/entry/failure"
 	if cfg != nil {
-		if configured := strings.TrimSpace(cfg.FailureURL); configured != "" {
+		if configured := configuredEntryURL(cfg.FailureURL); configured != "" {
 			target = configured
 		}
 	}

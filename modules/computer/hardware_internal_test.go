@@ -122,3 +122,16 @@ func TestDecodeJSONAndNumberHelpers(t *testing.T) {
 		t.Fatalf("uint32Value=%d,%v", got, ok)
 	}
 }
+
+func TestComputerFromRowPurchaseSnapshot(t *testing.T) {
+	c := computerFromRow(map[string]interface{}{
+		"id": "cmp-cloud", "status": "online",
+		"purchase": `{"resource":"cvm-2c2g","region":"gz-cn","image":"tao-base-1.0","billing_unit":"HOUR","period_months":null,"price_credits":480,"price_total_credits":null,"expires_at":null,"purchased_at":"2026-11-26T10:00:00Z"}`,
+	})
+	if c.Purchase == nil || c.Purchase.Resource != "cvm-2c2g" || c.Purchase.Image != "tao-base-1.0" || c.Purchase.PriceCredits != 480 {
+		t.Fatalf("purchase=%+v", c.Purchase)
+	}
+	if c.Purchase.PeriodMonths != nil {
+		t.Fatalf("period should be nil: %+v", c.Purchase.PeriodMonths)
+	}
+}
