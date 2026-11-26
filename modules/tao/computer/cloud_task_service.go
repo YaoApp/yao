@@ -162,6 +162,13 @@ func (s *Service) StopCloudWorker() {
 }
 
 func (s *Service) cloudWorkerLoop(ctx context.Context) {
+	// Test/app environments may close their database while this background
+	// worker is still alive. Never let that panic escape the goroutine.
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			log.Error("[cloud-task] worker stopped after panic: %v", recovered)
+		}
+	}()
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	for {
