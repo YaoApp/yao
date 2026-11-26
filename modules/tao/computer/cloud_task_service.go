@@ -186,6 +186,11 @@ func (s *Service) processRunnableTasks(ctx context.Context) {
 		}
 		go func(task *CloudTask) {
 			defer s.processing.Delete(task.ID)
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					log.Error("[cloud-task] task worker panic task_id=%s: %v", task.ID, recovered)
+				}
+			}()
 			s.processCloudTask(ctx, task)
 		}(task)
 	}
