@@ -27,6 +27,10 @@ func TestE2ETaoPurchaseHTTP(t *testing.T) {
 	t.Setenv("TAO_ENDPOINT", taoServer.URL())
 	t.Setenv("TAO_TIMEOUT", "5s")
 	t.Setenv("YAO_SERVER_URL", "http://e2e.example:5099")
+	// This test exercises the HTTP/task contract, not a real cloud SSH host.
+	// Point the mock SSH endpoint at a closed local port so the Tai bootstrap
+	// fails fast; CI networks silently drop TEST-NET addresses for ~20s.
+	taoServer.SetDefaultSSHAddress("127.0.0.1", 1)
 	environment, err := env.New(t)
 	if err != nil {
 		t.Fatalf("environment: %v", err)

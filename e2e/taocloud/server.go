@@ -84,6 +84,8 @@ type Server struct {
 	AutoRun bool
 
 	mu         sync.Mutex
+	sshHost    string
+	sshPort    int
 	instances  map[string]*Instance
 	resources  map[string]*Resource
 	idempotent map[string]string
@@ -109,6 +111,8 @@ func New() *Server {
 		Token:      token,
 		APIKeys:    []string{token},
 		AutoRun:    true,
+		sshHost:    "203.0.113.10",
+		sshPort:    22,
 		instances:  map[string]*Instance{},
 		resources:  map[string]*Resource{},
 		idempotent: map[string]string{},
@@ -124,6 +128,15 @@ func (s *Server) Handler() http.Handler { return http.HandlerFunc(s.handle) }
 
 // URL returns the mock base URL.
 func (s *Server) URL() string { return s.HTTP.URL }
+
+// SetDefaultSSHAddress changes the SSH target returned for mock instances.
+// E2E tests can point it at a closed local port to avoid dialing TEST-NET.
+func (s *Server) SetDefaultSSHAddress(host string, port int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sshHost = host
+	s.sshPort = port
+}
 
 // Close stops the mock.
 func (s *Server) Close() { s.HTTP.Close() }
@@ -435,7 +448,7 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request, body []byt
 		InstanceID: id, Status: "pending", RawStatus: "creating", Region: res.Region,
 		Resource: res.ID, BillingUnit: unit, PeriodMonths: req.PeriodMonths,
 		PriceCredits: price, PriceTotalCredits: total, ExpiresAt: expires,
-		SSH:      map[string]any{"user": "root", "port": 22, "public_key_fingerprint": "SHA256:mock"},
+		SSH:      map[string]any{"user": "root", "port": s.sshPort, "public_key_fingerprint": "SHA256:mock"},
 		Metadata: req.Metadata, CreatedAt: now, UpdatedAt: now,
 	}
 	s.instances[id] = instance
@@ -458,9 +471,10 @@ func (s *Server) handleGet(w http.ResponseWriter, id string) {
 	if s.AutoRun && instance.Status == "pending" {
 		instance.Status = "running"
 		instance.RawStatus = "RUNNING"
-		instance.PublicIP = "203.0.113.10"
+		instance.PublicIP = s.sshHost
 		instance.PrivateIP = "10.0.0.10"
 		instance.SSH["host"] = instance.PublicIP
+		instance.SSH["port"] = s.sshPort
 		instance.UpdatedAt = time.Now().UTC()
 	}
 	writeJSON(w, http.StatusOK, instance)
