@@ -50,8 +50,10 @@ func (s *Service) ValidateScope(ctx context.Context, requestedScopes []string, c
 }
 
 // BootstrapClients creates first-party OAuth clients from deployment config.
-// Existing clients are left untouched so runtime registrations/secrets are not
-// overwritten on restart.
+// Existing secrets, redirect URIs and runtime registrations are preserved, but
+// configured scopes are merged into existing first-party clients. This lets a
+// deployment add a required scope (for example product:products:read) on
+// restart without rotating credentials or dropping scopes added at runtime.
 func (s *Service) BootstrapClients(ctx context.Context, clients []types.ClientInfo) error {
 	for i := range clients {
 		client := clients[i]
@@ -59,6 +61,9 @@ func (s *Service) BootstrapClients(ctx context.Context, clients []types.ClientIn
 			return fmt.Errorf("preconfigured client_id is required")
 		}
 		if existing, err := s.clientProvider.GetClientByID(ctx, client.ClientID); err == nil && existing != nil {
+			if err := s.reconcileClientScopes(ctx, existing, client.Scope); err != nil {
+				return fmt.Errorf("reconcile preconfigured client %s scopes: %w", client.ClientID, err)
+			}
 			continue
 		}
 		if client.ClientType == "" {
@@ -92,6 +97,36 @@ func (s *Service) BootstrapClients(ctx context.Context, clients []types.ClientIn
 		}
 	}
 	return nil
+}
+
+// reconcileClientScopes adds configured scopes to an existing client without
+// removing scopes registered at runtime.
+func (s *Service) reconcileClientScopes(ctx context.Context, existing *types.ClientInfo, configured string) error {
+	merged := mergeScopeStrings(existing.Scope, configured)
+	if merged == existing.Scope {
+		return nil
+	}
+	update := *existing
+	update.Scope = merged
+	if _, err := s.clientProvider.UpdateClient(ctx, existing.ClientID, &update); err != nil {
+		return err
+	}
+	return nil
+}
+
+func mergeScopeStrings(existing, configured string) string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0)
+	for _, raw := range []string{existing, configured} {
+		for _, scope := range strings.Fields(raw) {
+			if _, ok := seen[scope]; ok {
+				continue
+			}
+			seen[scope] = struct{}{}
+			out = append(out, scope)
+		}
+	}
+	return strings.Join(out, " ")
 }
 
 // DynamicClientRegistration handles dynamic client registration

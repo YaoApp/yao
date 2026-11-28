@@ -117,8 +117,23 @@ func TestBootstrapClients(t *testing.T) {
 	require.Equal(t, types.ClientTypePublic, desktop.ClientType)
 	require.Empty(t, desktop.ClientSecret)
 	require.True(t, desktop.RequirePKCE)
-	// Idempotent: second bootstrap must not overwrite the existing client.
+	webSecret := web.ClientSecret
+	// Idempotent: re-bootstrap must not overwrite the existing client.
 	require.NoError(t, service.BootstrapClients(ctx, clients))
-	_, err = service.clientProvider.GetClientByID(ctx, clients[0].ClientID)
+	web, err = service.clientProvider.GetClientByID(ctx, clients[0].ClientID)
 	require.NoError(t, err)
+	require.Equal(t, webSecret, web.ClientSecret)
+
+	// Deployment config scope changes are merged into existing clients without
+	// rotating credentials or dropping scopes.
+	clients[0].Scope += " product:products:read"
+	clients[1].Scope += " product:products:read"
+	require.NoError(t, service.BootstrapClients(ctx, clients))
+	web, err = service.clientProvider.GetClientByID(ctx, clients[0].ClientID)
+	require.NoError(t, err)
+	require.Contains(t, web.Scope, "product:products:read")
+	require.Equal(t, webSecret, web.ClientSecret)
+	desktop, err = service.clientProvider.GetClientByID(ctx, clients[1].ClientID)
+	require.NoError(t, err)
+	require.Contains(t, desktop.Scope, "product:products:read")
 }
